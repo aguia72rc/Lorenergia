@@ -20,8 +20,10 @@ segurança por linha) + **Tailwind CSS**.
   lote** (todos os moradores do mês numa única tela; a leitura anterior é
   preenchida automaticamente pela última fatura de cada um).
 - **Gráfico de economia** mês a mês, no portal do morador e na própria fatura.
-- **Envio pelo WhatsApp** com um clique (link `wa.me`, gratuito). Mensagem
-  totalmente personalizável. Código pronto para a API Oficial (Meta) quando quiser.
+- **Envio pelo WhatsApp** com um clique (link `wa.me`, gratuito), individual ou
+  **em massa** (tela *Enviar WhatsApp* que lista as faturas do mês e marca quem já
+  foi enviado). Mensagem personalizável; código pronto para a API Oficial (Meta).
+- **Filtro por mês** e por situação na lista de faturas.
 - **Portal do morador**: cada pessoa acessa apenas as próprias faturas e vê a
   economia total acumulada.
 - **Fatura em PDF**: página bonita que o morador imprime/salva como PDF.
@@ -48,8 +50,9 @@ ele deixou de pagar em relação à distribuidora tradicional.
 ### 1. Crie o projeto no Supabase
 1. Acesse [supabase.com](https://supabase.com) e crie um projeto (plano gratuito serve).
 2. No menu **SQL Editor**, cole e execute, na ordem:
-   [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql) e
-   [`supabase/migrations/0002_leituras.sql`](supabase/migrations/0002_leituras.sql).
+   [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql),
+   [`supabase/migrations/0002_leituras.sql`](supabase/migrations/0002_leituras.sql) e
+   [`supabase/migrations/0003_whatsapp.sql`](supabase/migrations/0003_whatsapp.sql).
 3. (Opcional) Execute [`supabase/seed.sql`](supabase/seed.sql) para criar dados de teste.
 
 ### 2. Configure as variáveis de ambiente

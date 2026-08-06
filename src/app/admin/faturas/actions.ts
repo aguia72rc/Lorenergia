@@ -93,6 +93,18 @@ export async function atualizarStatusFatura(id: string, status: StatusFatura) {
   revalidatePath("/admin");
 }
 
+export async function marcarWhatsappEnviado(id: string) {
+  await exigirAdmin();
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("faturas")
+    .update({ whatsapp_enviado_em: new Date().toISOString() })
+    .eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/faturas");
+  revalidatePath("/admin/faturas/enviar");
+}
+
 export async function excluirFatura(id: string) {
   await exigirAdmin();
   const supabase = createClient();

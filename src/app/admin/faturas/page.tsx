@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { Plus, FileText, Layers } from "lucide-react";
+import { Plus, FileText, Layers, Send } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { formatBRL, formatReferencia, formatData } from "@/lib/format";
 import { getBaseUrl } from "@/lib/url";
 import { montarMensagem, gerarLinkWhatsApp } from "@/lib/whatsapp";
 import StatusBadge from "@/components/StatusBadge";
 import FaturaRowActions from "@/components/FaturaRowActions";
+import MonthFilter from "@/components/MonthFilter";
 import type { FaturaComCliente, Configuracoes, StatusFatura } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -17,14 +18,31 @@ const filtros: { chave: string; rotulo: string }[] = [
   { chave: "cancelada", rotulo: "Canceladas" },
 ];
 
+function normalizarMes(mes?: string): string | null {
+  if (!mes) return null;
+  const [ano, m] = mes.split("-");
+  if (!ano || !m) return null;
+  return `${ano}-${m.padStart(2, "0")}-01`;
+}
+
 export default async function FaturasPage({
   searchParams,
 }: {
-  searchParams: { status?: string };
+  searchParams: { status?: string; mes?: string };
 }) {
   const supabase = createClient();
   const statusFiltro = searchParams.status ?? "todas";
+  const mesFiltro = normalizarMes(searchParams.mes);
   const baseUrl = getBaseUrl();
+
+  // Preserva os parâmetros ao trocar de aba de status.
+  const hrefStatus = (chave: string) => {
+    const p = new URLSearchParams();
+    if (chave !== "todas") p.set("status", chave);
+    if (searchParams.mes) p.set("mes", searchParams.mes);
+    const qs = p.toString();
+    return qs ? `/admin/faturas?${qs}` : "/admin/faturas";
+  };
 
   let query = supabase
     .from("faturas")
@@ -32,9 +50,8 @@ export default async function FaturasPage({
     .order("referencia", { ascending: false })
     .order("created_at", { ascending: false });
 
-  if (statusFiltro !== "todas") {
-    query = query.eq("status", statusFiltro as StatusFatura);
-  }
+  if (statusFiltro !== "todas") query = query.eq("status", statusFiltro as StatusFatura);
+  if (mesFiltro) query = query.eq("referencia", mesFiltro);
 
   const [{ data: faturas }, { data: config }] = await Promise.all([
     query,
@@ -51,7 +68,10 @@ export default async function FaturasPage({
           <h1 className="text-2xl font-bold text-slate-900">Faturas</h1>
           <p className="text-sm text-slate-500">{lista.length} fatura(s)</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Link href="/admin/faturas/enviar" className="btn-eco">
+            <Send className="h-4 w-4" /> Enviar WhatsApp
+          </Link>
           <Link href="/admin/faturas/lote" className="btn-outline">
             <Layers className="h-4 w-4" /> Gerar em lote
           </Link>
@@ -61,18 +81,21 @@ export default async function FaturasPage({
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        {filtros.map((f) => (
-          <Link
-            key={f.chave}
-            href={f.chave === "todas" ? "/admin/faturas" : `/admin/faturas?status=${f.chave}`}
-            className={`rounded-full px-3 py-1.5 text-sm font-medium ${
-              statusFiltro === f.chave ? "bg-brand-500 text-brand-950" : "bg-white text-slate-600 hover:bg-slate-100"
-            }`}
-          >
-            {f.rotulo}
-          </Link>
-        ))}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap gap-2">
+          {filtros.map((f) => (
+            <Link
+              key={f.chave}
+              href={hrefStatus(f.chave)}
+              className={`rounded-full px-3 py-1.5 text-sm font-medium ${
+                statusFiltro === f.chave ? "bg-brand-500 text-brand-950" : "bg-white text-slate-600 hover:bg-slate-100"
+              }`}
+            >
+              {f.rotulo}
+            </Link>
+          ))}
+        </div>
+        <MonthFilter basePath="/admin/faturas" />
       </div>
 
       {lista.length === 0 ? (
@@ -115,7 +138,12 @@ export default async function FaturasPage({
                     <td className="py-3 text-slate-600">{formatData(f.vencimento)}</td>
                     <td className="py-3"><StatusBadge status={f.status} /></td>
                     <td className="py-3">
-                      <FaturaRowActions id={f.id} status={f.status} whatsappLink={link} />
+                      <FaturaRowActions
+                        id={f.id}
+                        status={f.status}
+                        whatsappLink={link}
+                        whatsappEnviadoEm={f.whatsapp_enviado_em}
+                      />
                     </td>
                   </tr>
                 );

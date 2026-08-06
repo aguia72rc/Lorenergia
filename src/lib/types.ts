@@ -42,6 +42,7 @@ export interface Fatura {
   vencimento: string | null;
   status: StatusFatura;
   observacoes: string | null;
+  whatsapp_enviado_em: string | null;
   created_at: string;
   updated_at: string;
 }
