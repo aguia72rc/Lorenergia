@@ -1,0 +1,16 @@
+import type { Metadata } from "next";
+import "./globals.css";
+
+export const metadata: Metadata = {
+  title: "Lorenergia - Gestão de Energia Solar",
+  description:
+    "Sistema de gestão e distribuição de energia solar: cadastro de moradores, cálculo de consumo, faturas e economia.",
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="pt-BR">
+      <body>{children}</body>
+    </html>
+  );
+}
