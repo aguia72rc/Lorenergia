@@ -41,6 +41,21 @@ export function primeiroDiaMesAtual(): string {
   return `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}-01`;
 }
 
+/** Data de hoje no formato YYYY-MM-DD (fuso local). */
+export function hojeISO(): string {
+  const hoje = new Date();
+  return `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}-${String(hoje.getDate()).padStart(2, "0")}`;
+}
+
+/**
+ * True se a fatura está vencida: pendente, com vencimento definido e
+ * anterior à data de hoje.
+ */
+export function faturaVencida(vencimento: string | null | undefined, status: string): boolean {
+  if (status !== "pendente" || !vencimento) return false;
+  return vencimento < hojeISO();
+}
+
 /** Deixa apenas dígitos (para telefone do WhatsApp). */
 export function apenasDigitos(valor: string | null | undefined): string {
   return (valor ?? "").replace(/\D/g, "");

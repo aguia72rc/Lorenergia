@@ -23,7 +23,10 @@ segurança por linha) + **Tailwind CSS**.
 - **Envio pelo WhatsApp** com um clique (link `wa.me`, gratuito), individual ou
   **em massa** (tela *Enviar WhatsApp* que lista as faturas do mês e marca quem já
   foi enviado). Mensagem personalizável; código pronto para a API Oficial (Meta).
-- **Filtro por mês** e por situação na lista de faturas.
+- **Filtro por mês** e por situação na lista de faturas, incluindo a aba
+  **Vencidas** e alerta de vencidas no painel.
+- **Relatórios mensais** de recebimentos (faturado, recebido, a receber, economia)
+  com gráfico de recebimento mês a mês e detalhe por morador.
 - **Portal do morador**: cada pessoa acessa apenas as próprias faturas e vê a
   economia total acumulada.
 - **Fatura em PDF**: página bonita que o morador imprime/salva como PDF.

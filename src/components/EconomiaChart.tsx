@@ -18,17 +18,19 @@ export default function EconomiaChart({
   dados,
   destaqueRef,
   altura = 200,
+  cor = "#16a34a",
+  ariaLabel = "Gráfico de economia mensal com energia solar",
+  textoVazio = "Ainda não há dados de economia para exibir.",
 }: {
   dados: PontoEconomia[];
   destaqueRef?: string;
   altura?: number;
+  cor?: string;
+  ariaLabel?: string;
+  textoVazio?: string;
 }) {
   if (!dados || dados.length === 0) {
-    return (
-      <p className="py-6 text-center text-sm text-slate-400">
-        Ainda não há dados de economia para exibir.
-      </p>
-    );
+    return <p className="py-6 text-center text-sm text-slate-400">{textoVazio}</p>;
   }
 
   // Área de desenho (coordenadas internas; o SVG escala via viewBox).
@@ -44,7 +46,7 @@ export default function EconomiaChart({
   const passo = (W - padX * 2) / dados.length;
   const larguraBarra = Math.min(46, passo * 0.6);
 
-  const corBarra = "#16a34a"; // eco-600 (série única)
+  const corBarra = cor; // série única (verde por padrão)
   const corDestaque = "#eab308"; // brand-500 (mês em foco)
   const corTinta = "#64748b"; // slate-500 (rótulos)
   const corBase = "#e2e8f0"; // slate-200 (linha de base)
@@ -55,7 +57,7 @@ export default function EconomiaChart({
         viewBox={`0 0 ${W} ${H}`}
         width="100%"
         role="img"
-        aria-label="Gráfico de economia mensal com energia solar"
+        aria-label={ariaLabel}
         style={{ minWidth: dados.length > 8 ? 640 : undefined }}
       >
         {/* Linha de base */}
