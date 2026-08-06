@@ -22,16 +22,32 @@ export default async function ConfiguracoesPage() {
           <input id="nome_usina" name="nome_usina" className="input" defaultValue={cfg?.nome_usina ?? ""} />
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className="label" htmlFor="tarifa_kwh">Tarifa padrão (R$/kWh)</label>
-            <input id="tarifa_kwh" name="tarifa_kwh" type="number" min={0} step={0.00001} className="input" defaultValue={cfg?.tarifa_kwh ?? 0.9} />
-            <p className="mt-1 text-xs text-slate-400">Valor por kWh cobrado pela distribuidora.</p>
+        <div>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Tarifas padrão (R$/kWh)</p>
+          <div className="grid gap-4 sm:grid-cols-4">
+            <div>
+              <label className="label" htmlFor="tarifa_tusd">TUSD</label>
+              <input id="tarifa_tusd" name="tarifa_tusd" type="number" min={0} step={0.00001} className="input" defaultValue={cfg?.tarifa_tusd ?? 0} />
+            </div>
+            <div>
+              <label className="label" htmlFor="tarifa_te">TE</label>
+              <input id="tarifa_te" name="tarifa_te" type="number" min={0} step={0.00001} className="input" defaultValue={cfg?.tarifa_te ?? 0} />
+            </div>
+            <div>
+              <label className="label" htmlFor="adicional_bandeira">Adic. bandeira</label>
+              <input id="adicional_bandeira" name="adicional_bandeira" type="number" min={0} step={0.00001} className="input" defaultValue={cfg?.adicional_bandeira ?? 0} />
+            </div>
+            <div>
+              <label className="label" htmlFor="fio_b">Fio-B TUSD GII</label>
+              <input id="fio_b" name="fio_b" type="number" min={0} step={0.00001} className="input" defaultValue={cfg?.fio_b ?? 0} />
+            </div>
           </div>
-          <div>
-            <label className="label" htmlFor="taxa_iluminacao_publica">Iluminação pública padrão (R$)</label>
-            <input id="taxa_iluminacao_publica" name="taxa_iluminacao_publica" type="number" min={0} step={0.01} className="input" defaultValue={cfg?.taxa_iluminacao_publica ?? 0} />
-          </div>
+          <p className="mt-1 text-xs text-slate-400">Valores por kWh cobrados pela distribuidora. O desconto incide sobre TUSD + TE + bandeira.</p>
+        </div>
+
+        <div>
+          <label className="label" htmlFor="taxa_iluminacao_publica">Iluminação pública padrão (R$)</label>
+          <input id="taxa_iluminacao_publica" name="taxa_iluminacao_publica" type="number" min={0} step={0.01} className="input" defaultValue={cfg?.taxa_iluminacao_publica ?? 0} />
         </div>
 
         <div>

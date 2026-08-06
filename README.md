@@ -36,15 +36,21 @@ segurança por linha) + **Tailwind CSS**.
 
 ## 🧮 Como o cálculo funciona
 
+Detalhamento no padrão da conta de luz (todas as tarifas em R$/kWh):
+
 ```
-valor_cheio   = consumo_kwh × tarifa_kwh (+ iluminação pública)
-desconto      = valor_cheio × (% desconto / 100)
-valor_a_pagar = valor_cheio − desconto
-economia      = desconto
+energia   = consumo × (TUSD + TE)
+bandeira  = consumo × adicional_bandeira
+desconto  = (energia + bandeira) × (% desconto / 100)     ← economia do morador
+fio_b     = consumo × taxa_fio_b                          (sem desconto)
++ contribuição de iluminação pública (R$)                 (sem desconto)
++ multa / juros (R$)                                      (sem desconto)
+
+valor_a_pagar = energia + bandeira − desconto + fio_b + iluminação + multa
 ```
 
-O morador paga o **valor com desconto** para a usina, e a **economia** é o quanto
-ele deixou de pagar em relação à distribuidora tradicional.
+O desconto incide **só sobre a energia** (TUSD + TE + bandeira). O morador paga o
+valor com desconto para a usina, e a **economia** é o quanto ele deixou de pagar.
 
 ---
 
@@ -53,9 +59,10 @@ ele deixou de pagar em relação à distribuidora tradicional.
 ### 1. Crie o projeto no Supabase
 1. Acesse [supabase.com](https://supabase.com) e crie um projeto (plano gratuito serve).
 2. No menu **SQL Editor**, cole e execute, na ordem:
-   [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql),
-   [`supabase/migrations/0002_leituras.sql`](supabase/migrations/0002_leituras.sql) e
-   [`supabase/migrations/0003_whatsapp.sql`](supabase/migrations/0003_whatsapp.sql).
+   [`0001_init.sql`](supabase/migrations/0001_init.sql),
+   [`0002_leituras.sql`](supabase/migrations/0002_leituras.sql),
+   [`0003_whatsapp.sql`](supabase/migrations/0003_whatsapp.sql) e
+   [`0004_tarifas.sql`](supabase/migrations/0004_tarifas.sql).
 3. (Opcional) Execute [`supabase/seed.sql`](supabase/seed.sql) para criar dados de teste.
 
 ### 2. Configure as variáveis de ambiente

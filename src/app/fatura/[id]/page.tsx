@@ -105,23 +105,41 @@ export default async function FaturaPage({ params }: { params: { id: string } })
                   <td className="py-2.5 text-right font-medium text-slate-900">{formatKwh(f.consumo_kwh)}</td>
                 </tr>
                 <tr className="border-b border-slate-100">
-                  <td className="py-2.5 text-slate-600">Tarifa (R$/kWh)</td>
-                  <td className="py-2.5 text-right text-slate-900">{formatBRL(f.tarifa_kwh)}</td>
+                  <td className="py-2.5 text-slate-600">Consumo — TUSD ({formatBRL(f.tarifa_tusd)}/kWh)</td>
+                  <td className="py-2.5 text-right text-slate-900">{formatBRL(Number(f.consumo_kwh) * Number(f.tarifa_tusd))}</td>
                 </tr>
-                {Number(f.taxa_iluminacao) > 0 && (
+                <tr className="border-b border-slate-100">
+                  <td className="py-2.5 text-slate-600">Consumo — TE ({formatBRL(f.tarifa_te)}/kWh)</td>
+                  <td className="py-2.5 text-right text-slate-900">{formatBRL(Number(f.consumo_kwh) * Number(f.tarifa_te))}</td>
+                </tr>
+                {Number(f.adicional_bandeira) > 0 && (
                   <tr className="border-b border-slate-100">
-                    <td className="py-2.5 text-slate-600">Iluminação pública</td>
-                    <td className="py-2.5 text-right text-slate-900">{formatBRL(f.taxa_iluminacao)}</td>
+                    <td className="py-2.5 text-slate-600">Adicional bandeira ({formatBRL(f.adicional_bandeira)}/kWh)</td>
+                    <td className="py-2.5 text-right text-slate-900">{formatBRL(Number(f.consumo_kwh) * Number(f.adicional_bandeira))}</td>
                   </tr>
                 )}
-                <tr className="border-b border-slate-100">
-                  <td className="py-2.5 text-slate-600">Valor cheio (distribuidora)</td>
-                  <td className="py-2.5 text-right text-slate-900">{formatBRL(f.valor_bruto)}</td>
-                </tr>
                 <tr className="border-b border-slate-100">
                   <td className="py-2.5 text-eco-700">Desconto energia solar ({f.desconto_percentual}%)</td>
                   <td className="py-2.5 text-right font-medium text-eco-700">- {formatBRL(f.valor_desconto)}</td>
                 </tr>
+                {Number(f.fio_b) > 0 && (
+                  <tr className="border-b border-slate-100">
+                    <td className="py-2.5 text-slate-600">Taxa de Fio-B TUSD GII ({formatBRL(f.fio_b)}/kWh)</td>
+                    <td className="py-2.5 text-right text-slate-900">{formatBRL(Number(f.consumo_kwh) * Number(f.fio_b))}</td>
+                  </tr>
+                )}
+                {Number(f.taxa_iluminacao) > 0 && (
+                  <tr className="border-b border-slate-100">
+                    <td className="py-2.5 text-slate-600">Contribuição de iluminação pública</td>
+                    <td className="py-2.5 text-right text-slate-900">{formatBRL(f.taxa_iluminacao)}</td>
+                  </tr>
+                )}
+                {Number(f.multa_juros) > 0 && (
+                  <tr className="border-b border-slate-100">
+                    <td className="py-2.5 text-red-600">Multa / juros</td>
+                    <td className="py-2.5 text-right text-red-600">{formatBRL(f.multa_juros)}</td>
+                  </tr>
+                )}
               </tbody>
             </table>
 

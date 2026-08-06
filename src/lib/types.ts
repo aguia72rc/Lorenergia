@@ -19,6 +19,10 @@ export interface Configuracoes {
   id: number;
   nome_usina: string;
   tarifa_kwh: number;
+  tarifa_tusd: number;
+  tarifa_te: number;
+  adicional_bandeira: number;
+  fio_b: number;
   taxa_iluminacao_publica: number;
   dados_pagamento: string | null;
   mensagem_whatsapp: string;
@@ -33,7 +37,12 @@ export interface Fatura {
   leitura_atual: number | null;
   consumo_kwh: number;
   tarifa_kwh: number;
+  tarifa_tusd: number;
+  tarifa_te: number;
+  adicional_bandeira: number;
+  fio_b: number;
   taxa_iluminacao: number;
+  multa_juros: number;
   desconto_percentual: number;
   valor_bruto: number;
   valor_desconto: number;
