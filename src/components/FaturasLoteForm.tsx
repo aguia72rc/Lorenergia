@@ -3,10 +3,11 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { calcularFatura, consumoDeLeituras } from "@/lib/calc";
+import { calcularFaturaDetalhada, consumoDeLeituras } from "@/lib/calc";
 import { formatBRL, formatKwh } from "@/lib/format";
 import { gerarFaturasLote, type ItemLote } from "@/app/admin/faturas/actions";
 import type { StatusFatura } from "@/lib/types";
+import type { TarifasPadrao } from "@/components/NovaFaturaForm";
 
 interface ClienteLote {
   id: string;
@@ -23,14 +24,12 @@ interface LinhaEstado {
 export default function FaturasLoteForm({
   clientes,
   ultimaLeitura,
-  tarifaPadrao,
-  taxaPadrao,
+  tarifas,
   referenciaPadrao,
 }: {
   clientes: ClienteLote[];
   ultimaLeitura: Record<string, number>;
-  tarifaPadrao: number;
-  taxaPadrao: number;
+  tarifas: TarifasPadrao;
   referenciaPadrao: string; // YYYY-MM
 }) {
   const router = useRouter();
@@ -38,8 +37,11 @@ export default function FaturasLoteForm({
   const [mensagem, setMensagem] = useState<string | null>(null);
 
   const [referencia, setReferencia] = useState(referenciaPadrao);
-  const [tarifa, setTarifa] = useState(String(tarifaPadrao));
-  const [taxa, setTaxa] = useState(String(taxaPadrao));
+  const [tusd, setTusd] = useState(String(tarifas.tusd));
+  const [te, setTe] = useState(String(tarifas.te));
+  const [bandeira, setBandeira] = useState(String(tarifas.bandeira));
+  const [fioB, setFioB] = useState(String(tarifas.fioB));
+  const [taxa, setTaxa] = useState(String(tarifas.iluminacao));
   const [vencimento, setVencimento] = useState("");
   const [status, setStatus] = useState<StatusFatura>("pendente");
 
@@ -57,21 +59,23 @@ export default function FaturasLoteForm({
   }
 
   const calculados = useMemo(() => {
-    const tarifaN = Number(tarifa);
-    const taxaN = Number(taxa);
     return clientes.map((c) => {
       const l = linhas[c.id];
       const preenchida = l.leituraAtual !== "";
       const consumo = consumoDeLeituras(Number(l.leituraAnterior), Number(l.leituraAtual));
-      const r = calcularFatura({
+      const r = calcularFaturaDetalhada({
         consumoKwh: consumo,
-        tarifaKwh: tarifaN,
+        tarifaTusd: Number(tusd),
+        tarifaTe: Number(te),
+        adicionalBandeira: Number(bandeira),
+        fioB: Number(fioB),
+        taxaIluminacao: Number(taxa),
+        multaJuros: 0,
         descontoPercentual: c.desconto_percentual,
-        taxaIluminacao: taxaN,
       });
       return { cliente: c, consumo, preenchida, ...r };
     });
-  }, [clientes, linhas, tarifa, taxa]);
+  }, [clientes, linhas, tusd, te, bandeira, fioB, taxa]);
 
   const preenchidas = calculados.filter((x) => x.preenchida);
   const totalPagar = preenchidas.reduce((s, x) => s + x.valorLiquido, 0);
@@ -93,7 +97,10 @@ export default function FaturasLoteForm({
     startTransition(async () => {
       const r = await gerarFaturasLote({
         referencia,
-        tarifa_kwh: Number(tarifa),
+        tarifa_tusd: Number(tusd),
+        tarifa_te: Number(te),
+        adicional_bandeira: Number(bandeira),
+        fio_b: Number(fioB),
         taxa_iluminacao: Number(taxa),
         vencimento: vencimento || null,
         status,
@@ -106,31 +113,49 @@ export default function FaturasLoteForm({
 
   return (
     <form onSubmit={onSubmit} className="space-y-6">
-      {/* Parâmetros do mês */}
-      <div className="card grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        <div>
-          <label className="label" htmlFor="referencia">Mês de referência *</label>
-          <input id="referencia" type="month" className="input" value={referencia} onChange={(e) => setReferencia(e.target.value)} required />
+      {/* Parâmetros do mês (aplicados a todos os moradores) */}
+      <div className="card space-y-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div>
+            <label className="label" htmlFor="referencia">Mês de referência *</label>
+            <input id="referencia" type="month" className="input" value={referencia} onChange={(e) => setReferencia(e.target.value)} required />
+          </div>
+          <div>
+            <label className="label" htmlFor="vencimento">Vencimento</label>
+            <input id="vencimento" type="date" className="input" value={vencimento} onChange={(e) => setVencimento(e.target.value)} />
+          </div>
+          <div>
+            <label className="label" htmlFor="taxa">Ilum. pública (R$)</label>
+            <input id="taxa" type="number" min={0} step={0.01} className="input" value={taxa} onChange={(e) => setTaxa(e.target.value)} />
+          </div>
+          <div>
+            <label className="label" htmlFor="status">Situação</label>
+            <select id="status" className="input" value={status} onChange={(e) => setStatus(e.target.value as StatusFatura)}>
+              <option value="pendente">Pendente</option>
+              <option value="paga">Paga</option>
+            </select>
+          </div>
         </div>
-        <div>
-          <label className="label" htmlFor="tarifa">Tarifa (R$/kWh)</label>
-          <input id="tarifa" type="number" min={0} step={0.00001} className="input" value={tarifa} onChange={(e) => setTarifa(e.target.value)} />
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Tarifas (R$/kWh)</p>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div>
+            <label className="label" htmlFor="tusd">TUSD</label>
+            <input id="tusd" type="number" min={0} step={0.00001} className="input" value={tusd} onChange={(e) => setTusd(e.target.value)} />
+          </div>
+          <div>
+            <label className="label" htmlFor="te">TE</label>
+            <input id="te" type="number" min={0} step={0.00001} className="input" value={te} onChange={(e) => setTe(e.target.value)} />
+          </div>
+          <div>
+            <label className="label" htmlFor="bandeira">Adic. bandeira</label>
+            <input id="bandeira" type="number" min={0} step={0.00001} className="input" value={bandeira} onChange={(e) => setBandeira(e.target.value)} />
+          </div>
+          <div>
+            <label className="label" htmlFor="fioB">Fio-B TUSD GII</label>
+            <input id="fioB" type="number" min={0} step={0.00001} className="input" value={fioB} onChange={(e) => setFioB(e.target.value)} />
+          </div>
         </div>
-        <div>
-          <label className="label" htmlFor="taxa">Ilum. pública (R$)</label>
-          <input id="taxa" type="number" min={0} step={0.01} className="input" value={taxa} onChange={(e) => setTaxa(e.target.value)} />
-        </div>
-        <div>
-          <label className="label" htmlFor="vencimento">Vencimento</label>
-          <input id="vencimento" type="date" className="input" value={vencimento} onChange={(e) => setVencimento(e.target.value)} />
-        </div>
-        <div>
-          <label className="label" htmlFor="status">Situação</label>
-          <select id="status" className="input" value={status} onChange={(e) => setStatus(e.target.value as StatusFatura)}>
-            <option value="pendente">Pendente</option>
-            <option value="paga">Paga</option>
-          </select>
-        </div>
+        <p className="text-xs text-slate-400">A multa/juros é aplicada individualmente na tela de cada fatura, quando houver.</p>
       </div>
 
       {/* Tabela de leituras */}

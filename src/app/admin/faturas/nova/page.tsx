@@ -12,7 +12,7 @@ export default async function NovaFaturaPage() {
 
   const [{ data: clientes }, { data: config }, ultimaLeitura] = await Promise.all([
     supabase.from("clientes").select("id, nome, unidade, desconto_percentual").eq("ativo", true).order("nome"),
-    supabase.from("configuracoes").select("tarifa_kwh, taxa_iluminacao_publica").eq("id", 1).single(),
+    supabase.from("configuracoes").select("tarifa_tusd, tarifa_te, adicional_bandeira, fio_b, taxa_iluminacao_publica").eq("id", 1).single(),
     ultimaLeituraPorCliente(supabase),
   ]);
 
@@ -35,8 +35,13 @@ export default async function NovaFaturaPage() {
         <NovaFaturaForm
           clientes={clientes ?? []}
           ultimaLeitura={ultimaLeitura}
-          tarifaPadrao={Number(config?.tarifa_kwh ?? 0.9)}
-          taxaPadrao={Number(config?.taxa_iluminacao_publica ?? 0)}
+          tarifas={{
+            tusd: Number(config?.tarifa_tusd ?? 0),
+            te: Number(config?.tarifa_te ?? 0),
+            bandeira: Number(config?.adicional_bandeira ?? 0),
+            fioB: Number(config?.fio_b ?? 0),
+            iluminacao: Number(config?.taxa_iluminacao_publica ?? 0),
+          }}
           referenciaPadrao={refAtual}
         />
       )}
