@@ -13,9 +13,13 @@ segurança por linha) + **Tailwind CSS**.
 ## ✨ Funcionalidades
 
 - **Cadastro de moradores** (nome, unidade, WhatsApp, e-mail, % de desconto).
-- **Cálculo automático** do valor a pagar a partir do consumo informado, aplicando
-  o desconto (até 20% ou o que você definir).
-- **Geração de faturas** com prévia do cálculo em tempo real.
+- **Cálculo automático** do valor a pagar a partir da **leitura anterior e atual**
+  do medidor (consumo = atual − anterior), aplicando o desconto (até 20% ou o que
+  você definir).
+- **Geração de faturas** com prévia do cálculo em tempo real — uma a uma **ou em
+  lote** (todos os moradores do mês numa única tela; a leitura anterior é
+  preenchida automaticamente pela última fatura de cada um).
+- **Gráfico de economia** mês a mês, no portal do morador e na própria fatura.
 - **Envio pelo WhatsApp** com um clique (link `wa.me`, gratuito). Mensagem
   totalmente personalizável. Código pronto para a API Oficial (Meta) quando quiser.
 - **Portal do morador**: cada pessoa acessa apenas as próprias faturas e vê a
@@ -43,8 +47,9 @@ ele deixou de pagar em relação à distribuidora tradicional.
 
 ### 1. Crie o projeto no Supabase
 1. Acesse [supabase.com](https://supabase.com) e crie um projeto (plano gratuito serve).
-2. No menu **SQL Editor**, cole e execute o conteúdo de
-   [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql).
+2. No menu **SQL Editor**, cole e execute, na ordem:
+   [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql) e
+   [`supabase/migrations/0002_leituras.sql`](supabase/migrations/0002_leituras.sql).
 3. (Opcional) Execute [`supabase/seed.sql`](supabase/seed.sql) para criar dados de teste.
 
 ### 2. Configure as variáveis de ambiente
@@ -78,8 +83,9 @@ Abra <http://localhost:3000>.
 ### 5. Use o sistema
 - **Moradores**: cadastre em *Painel → Moradores*. Informe o WhatsApp (formato
   `55` + DDD + número) e o e-mail (para o morador acessar o portal).
-- **Faturas**: em *Faturas → Nova fatura*, escolha o morador, o mês e digite o
-  consumo (kWh). O sistema calcula tudo. Clique em **Gerar fatura**.
+- **Faturas**: em *Faturas → Nova fatura*, escolha o morador, o mês e digite a
+  leitura anterior e atual do medidor. O sistema calcula o consumo e o valor.
+  Para o mês inteiro de uma vez, use *Faturas → Gerar em lote*.
 - **WhatsApp**: na lista de faturas, clique no botão verde do WhatsApp — abre o
   app com a mensagem e a fatura prontas.
 - **Convidar morador ao portal**: na lista de moradores, clique no ícone de

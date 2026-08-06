@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus, FileText } from "lucide-react";
+import { Plus, FileText, Layers } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { formatBRL, formatReferencia, formatData } from "@/lib/format";
 import { getBaseUrl } from "@/lib/url";
@@ -51,9 +51,14 @@ export default async function FaturasPage({
           <h1 className="text-2xl font-bold text-slate-900">Faturas</h1>
           <p className="text-sm text-slate-500">{lista.length} fatura(s)</p>
         </div>
-        <Link href="/admin/faturas/nova" className="btn-primary">
-          <Plus className="h-4 w-4" /> Nova fatura
-        </Link>
+        <div className="flex gap-2">
+          <Link href="/admin/faturas/lote" className="btn-outline">
+            <Layers className="h-4 w-4" /> Gerar em lote
+          </Link>
+          <Link href="/admin/faturas/nova" className="btn-primary">
+            <Plus className="h-4 w-4" /> Nova fatura
+          </Link>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2">

@@ -29,6 +29,19 @@ function arredondar(valor: number): number {
   return Math.round((valor + Number.EPSILON) * 100) / 100;
 }
 
+/**
+ * Consumo a partir das leituras do medidor.
+ * Nunca retorna negativo (protege contra troca/zeragem de medidor).
+ */
+export function consumoDeLeituras(
+  leituraAnterior: number | null | undefined,
+  leituraAtual: number | null | undefined
+): number {
+  const anterior = Number(leituraAnterior) || 0;
+  const atual = Number(leituraAtual) || 0;
+  return arredondar(Math.max(0, atual - anterior));
+}
+
 export function calcularFatura(entrada: EntradaCalculo): ResultadoCalculo {
   const consumo = Math.max(0, Number(entrada.consumoKwh) || 0);
   const tarifa = Math.max(0, Number(entrada.tarifaKwh) || 0);

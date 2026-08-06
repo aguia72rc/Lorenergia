@@ -29,6 +29,8 @@ export interface Fatura {
   id: string;
   cliente_id: string;
   referencia: string; // YYYY-MM-DD (primeiro dia do mês)
+  leitura_anterior: number | null;
+  leitura_atual: number | null;
   consumo_kwh: number;
   tarifa_kwh: number;
   taxa_iluminacao: number;

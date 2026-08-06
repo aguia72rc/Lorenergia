@@ -2,8 +2,9 @@ import Link from "next/link";
 import { Leaf, Wallet, FileText, TrendingDown, ChevronRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getSessao } from "@/lib/auth";
-import { formatBRL, formatReferencia, formatData } from "@/lib/format";
+import { formatBRL, formatReferencia, formatData, formatReferenciaCurta } from "@/lib/format";
 import StatusBadge from "@/components/StatusBadge";
+import EconomiaChart from "@/components/EconomiaChart";
 import type { Cliente, Fatura } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -44,6 +45,13 @@ export default async function PortalPage() {
   const pendentes = lista.filter((f) => f.status === "pendente");
   const totalPendente = pendentes.reduce((s, f) => s + Number(f.valor_liquido), 0);
 
+  // Pontos do gráfico (ordem cronológica, até os últimos 12 meses).
+  const pontosEconomia = [...lista]
+    .filter((f) => f.status !== "cancelada")
+    .sort((a, b) => a.referencia.localeCompare(b.referencia))
+    .slice(-12)
+    .map((f) => ({ label: formatReferenciaCurta(f.referencia), valor: Number(f.economia), referencia: f.referencia }));
+
   return (
     <div className="space-y-6">
       <div>
@@ -63,6 +71,14 @@ export default async function PortalPage() {
           <p className="text-sm text-eco-50">Desde que você usa energia solar</p>
           <p className="mt-1 text-3xl font-extrabold">{formatBRL(economiaTotal)} economizados 🌱</p>
           <p className="mt-1 text-sm text-eco-50">Obrigado por escolher energia limpa!</p>
+        </div>
+      )}
+
+      {pontosEconomia.length > 0 && (
+        <div className="card">
+          <h2 className="mb-1 font-semibold text-slate-900">Sua economia mês a mês</h2>
+          <p className="mb-4 text-sm text-slate-500">Quanto você economizou (R$) usando energia solar.</p>
+          <EconomiaChart dados={pontosEconomia} />
         </div>
       )}
 

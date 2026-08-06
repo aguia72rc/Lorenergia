@@ -18,6 +18,15 @@ export function formatReferencia(referencia: string | null | undefined): string 
   return data.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
 }
 
+/** Recebe "YYYY-MM-DD" e devolve "ago/26". */
+export function formatReferenciaCurta(referencia: string | null | undefined): string {
+  if (!referencia) return "-";
+  const [ano, mes] = referencia.split("-");
+  const data = new Date(Number(ano), Number(mes) - 1, 1);
+  const nome = data.toLocaleDateString("pt-BR", { month: "short" }).replace(".", "");
+  return `${nome}/${ano.slice(2)}`;
+}
+
 /** Recebe "YYYY-MM-DD" e devolve "06/08/2026". */
 export function formatData(data: string | null | undefined): string {
   if (!data) return "-";

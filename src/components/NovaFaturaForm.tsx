@@ -2,8 +2,8 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { calcularFatura } from "@/lib/calc";
-import { formatBRL } from "@/lib/format";
+import { calcularFatura, consumoDeLeituras } from "@/lib/calc";
+import { formatBRL, formatKwh } from "@/lib/format";
 import { gerarFatura } from "@/app/admin/faturas/actions";
 
 interface ClienteOpcao {
@@ -15,25 +15,33 @@ interface ClienteOpcao {
 
 export default function NovaFaturaForm({
   clientes,
+  ultimaLeitura,
   tarifaPadrao,
   taxaPadrao,
   referenciaPadrao,
 }: {
   clientes: ClienteOpcao[];
+  ultimaLeitura: Record<string, number>;
   tarifaPadrao: number;
   taxaPadrao: number;
   referenciaPadrao: string; // YYYY-MM
 }) {
-  const [clienteId, setClienteId] = useState(clientes[0]?.id ?? "");
-  const [consumo, setConsumo] = useState("");
+  const primeiro = clientes[0];
+  const [clienteId, setClienteId] = useState(primeiro?.id ?? "");
+  const [leituraAnterior, setLeituraAnterior] = useState(
+    primeiro && ultimaLeitura[primeiro.id] != null ? String(ultimaLeitura[primeiro.id]) : ""
+  );
+  const [leituraAtual, setLeituraAtual] = useState("");
   const [tarifa, setTarifa] = useState(String(tarifaPadrao));
   const [taxa, setTaxa] = useState(String(taxaPadrao));
-  const [desconto, setDesconto] = useState(String(clientes[0]?.desconto_percentual ?? 20));
+  const [desconto, setDesconto] = useState(String(primeiro?.desconto_percentual ?? 20));
+
+  const consumo = consumoDeLeituras(Number(leituraAnterior), Number(leituraAtual));
 
   const preview = useMemo(
     () =>
       calcularFatura({
-        consumoKwh: Number(consumo),
+        consumoKwh: consumo,
         tarifaKwh: Number(tarifa),
         descontoPercentual: Number(desconto),
         taxaIluminacao: Number(taxa),
@@ -45,6 +53,7 @@ export default function NovaFaturaForm({
     setClienteId(id);
     const c = clientes.find((x) => x.id === id);
     if (c) setDesconto(String(c.desconto_percentual));
+    setLeituraAnterior(ultimaLeitura[id] != null ? String(ultimaLeitura[id]) : "");
   }
 
   return (
@@ -81,19 +90,41 @@ export default function NovaFaturaForm({
 
         <div className="grid gap-4 sm:grid-cols-3">
           <div>
-            <label className="label" htmlFor="consumo_kwh">Consumo (kWh) *</label>
+            <label className="label" htmlFor="leitura_anterior">Leitura anterior</label>
             <input
-              id="consumo_kwh"
-              name="consumo_kwh"
+              id="leitura_anterior"
+              name="leitura_anterior"
               type="number"
               min={0}
               step={0.01}
               className="input"
-              value={consumo}
-              onChange={(e) => setConsumo(e.target.value)}
+              value={leituraAnterior}
+              onChange={(e) => setLeituraAnterior(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="label" htmlFor="leitura_atual">Leitura atual *</label>
+            <input
+              id="leitura_atual"
+              name="leitura_atual"
+              type="number"
+              min={0}
+              step={0.01}
+              className="input"
+              value={leituraAtual}
+              onChange={(e) => setLeituraAtual(e.target.value)}
               required
             />
           </div>
+          <div>
+            <label className="label">Consumo</label>
+            <div className="flex h-[38px] items-center rounded-lg bg-slate-100 px-3 text-sm font-semibold text-slate-700">
+              {formatKwh(consumo)}
+            </div>
+          </div>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-3">
           <div>
             <label className="label" htmlFor="tarifa_kwh">Tarifa (R$/kWh)</label>
             <input
@@ -121,9 +152,6 @@ export default function NovaFaturaForm({
               onChange={(e) => setDesconto(e.target.value)}
             />
           </div>
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label className="label" htmlFor="taxa_iluminacao">Iluminação pública (R$)</label>
             <input
@@ -137,13 +165,14 @@ export default function NovaFaturaForm({
               onChange={(e) => setTaxa(e.target.value)}
             />
           </div>
-          <div>
-            <label className="label" htmlFor="status">Situação</label>
-            <select id="status" name="status" className="input" defaultValue="pendente">
-              <option value="pendente">Pendente</option>
-              <option value="paga">Paga</option>
-            </select>
-          </div>
+        </div>
+
+        <div>
+          <label className="label" htmlFor="status">Situação</label>
+          <select id="status" name="status" className="input" defaultValue="pendente">
+            <option value="pendente">Pendente</option>
+            <option value="paga">Paga</option>
+          </select>
         </div>
 
         <div>
@@ -156,6 +185,7 @@ export default function NovaFaturaForm({
         <div className="card bg-slate-900 text-white">
           <p className="text-sm text-slate-300">Prévia do cálculo</p>
           <div className="mt-3 space-y-2 text-sm">
+            <Linha rotulo="Consumo" valor={formatKwh(consumo)} />
             <Linha rotulo="Valor cheio (distribuidora)" valor={formatBRL(preview.valorBruto)} />
             <Linha rotulo={`Desconto (${desconto || 0}%)`} valor={`- ${formatBRL(preview.valorDesconto)}`} classe="text-eco-400" />
             <div className="my-2 border-t border-slate-700" />

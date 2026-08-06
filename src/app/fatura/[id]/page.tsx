@@ -3,10 +3,11 @@ import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, Sun, Leaf } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getSessao } from "@/lib/auth";
-import { formatBRL, formatKwh, formatReferencia, formatData } from "@/lib/format";
+import { formatBRL, formatKwh, formatReferencia, formatData, formatReferenciaCurta } from "@/lib/format";
 import StatusBadge from "@/components/StatusBadge";
 import PrintButton from "@/components/PrintButton";
-import type { FaturaComCliente, Configuracoes } from "@/lib/types";
+import EconomiaChart from "@/components/EconomiaChart";
+import type { FaturaComCliente, Configuracoes, Fatura } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +29,18 @@ export default async function FaturaPage({ params }: { params: { id: string } })
 
   const { data: config } = await supabase.from("configuracoes").select("*").eq("id", 1).single();
   const cfg = config as Configuracoes | null;
+
+  // Histórico de economia do morador (para o gráfico), destacando este mês.
+  const { data: historico } = await supabase
+    .from("faturas")
+    .select("economia, referencia, status")
+    .eq("cliente_id", f.cliente_id)
+    .neq("status", "cancelada")
+    .order("referencia", { ascending: true });
+
+  const pontosEconomia = ((historico ?? []) as Pick<Fatura, "economia" | "referencia">[])
+    .slice(-12)
+    .map((h) => ({ label: formatReferenciaCurta(h.referencia), valor: Number(h.economia), referencia: h.referencia }));
 
   const voltarHref = sessao.profile?.role === "admin" ? "/admin/faturas" : "/portal";
 
@@ -75,6 +88,18 @@ export default async function FaturaPage({ params }: { params: { id: string } })
           <div className="p-6">
             <table className="w-full text-sm">
               <tbody>
+                {f.leitura_atual !== null && (
+                  <>
+                    <tr className="border-b border-slate-100">
+                      <td className="py-2.5 text-slate-600">Leitura anterior</td>
+                      <td className="py-2.5 text-right text-slate-900">{formatKwh(f.leitura_anterior ?? 0)}</td>
+                    </tr>
+                    <tr className="border-b border-slate-100">
+                      <td className="py-2.5 text-slate-600">Leitura atual</td>
+                      <td className="py-2.5 text-right text-slate-900">{formatKwh(f.leitura_atual)}</td>
+                    </tr>
+                  </>
+                )}
                 <tr className="border-b border-slate-100">
                   <td className="py-2.5 text-slate-600">Consumo do mês</td>
                   <td className="py-2.5 text-right font-medium text-slate-900">{formatKwh(f.consumo_kwh)}</td>
@@ -111,6 +136,15 @@ export default async function FaturaPage({ params }: { params: { id: string } })
                 Você economizou <strong>{formatBRL(f.economia)}</strong> usando energia solar este mês. ☀️
               </span>
             </div>
+
+            {pontosEconomia.length >= 2 && (
+              <div className="mt-5 rounded-xl border border-slate-200 p-4">
+                <p className="text-xs uppercase tracking-wide text-slate-400">Sua economia mês a mês (R$)</p>
+                <div className="mt-2">
+                  <EconomiaChart dados={pontosEconomia} destaqueRef={f.referencia} altura={180} />
+                </div>
+              </div>
+            )}
 
             {cfg?.dados_pagamento && (
               <div className="mt-4 rounded-xl border border-slate-200 p-4">
