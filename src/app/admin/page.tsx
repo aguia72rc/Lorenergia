@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { Users, FileText, Wallet, Leaf, Plus } from "lucide-react";
+import { Users, FileText, Wallet, Leaf, Plus, AlertTriangle, Send } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { formatBRL, formatReferencia, primeiroDiaMesAtual } from "@/lib/format";
+import { formatBRL, formatReferencia, primeiroDiaMesAtual, hojeISO } from "@/lib/format";
 import StatusBadge from "@/components/StatusBadge";
 import type { FaturaComCliente } from "@/lib/types";
 
@@ -11,11 +11,12 @@ export default async function AdminDashboard() {
   const supabase = createClient();
   const refMes = primeiroDiaMesAtual();
 
-  const [{ count: totalMoradores }, { data: faturasMes }, { data: pendentes }, { data: ultimas }] =
+  const [{ count: totalMoradores }, { data: faturasMes }, { data: pendentes }, { data: vencidas }, { data: ultimas }] =
     await Promise.all([
       supabase.from("clientes").select("*", { count: "exact", head: true }).eq("ativo", true),
       supabase.from("faturas").select("valor_liquido, economia").eq("referencia", refMes),
       supabase.from("faturas").select("valor_liquido").eq("status", "pendente"),
+      supabase.from("faturas").select("valor_liquido").eq("status", "pendente").lt("vencimento", hojeISO()),
       supabase
         .from("faturas")
         .select("*, clientes(id, nome, unidade, telefone, email)")
@@ -26,6 +27,8 @@ export default async function AdminDashboard() {
   const receitaMes = (faturasMes ?? []).reduce((s, f) => s + Number(f.valor_liquido), 0);
   const economiaMes = (faturasMes ?? []).reduce((s, f) => s + Number(f.economia), 0);
   const totalPendente = (pendentes ?? []).reduce((s, f) => s + Number(f.valor_liquido), 0);
+  const totalVencido = (vencidas ?? []).reduce((s, f) => s + Number(f.valor_liquido), 0);
+  const qtdVencidas = (vencidas ?? []).length;
 
   return (
     <div className="space-y-6">
@@ -45,6 +48,21 @@ export default async function AdminDashboard() {
         <Kpi icon={<FileText />} titulo="Faturado no mês" valor={formatBRL(receitaMes)} cor="bg-brand-100 text-brand-700" />
         <Kpi icon={<Leaf />} titulo="Economia gerada no mês" valor={formatBRL(economiaMes)} cor="bg-eco-100 text-eco-700" />
       </div>
+
+      {qtdVencidas > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 p-4">
+          <div className="flex items-center gap-3 text-red-700">
+            <AlertTriangle className="h-5 w-5 shrink-0" />
+            <p className="text-sm">
+              <strong>{qtdVencidas} fatura(s) vencida(s)</strong> somando {formatBRL(totalVencido)}. Envie um lembrete aos moradores.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Link href="/admin/faturas?status=vencidas" className="btn-outline">Ver vencidas</Link>
+            <Link href="/admin/faturas/enviar" className="btn-eco"><Send className="h-4 w-4" /> Enviar lembrete</Link>
+          </div>
+        </div>
+      )}
 
       <div className="card">
         <div className="mb-4 flex items-center justify-between">

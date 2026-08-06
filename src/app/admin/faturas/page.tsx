@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Plus, FileText, Layers, Send } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { formatBRL, formatReferencia, formatData } from "@/lib/format";
+import { formatBRL, formatReferencia, formatData, faturaVencida, hojeISO } from "@/lib/format";
 import { getBaseUrl } from "@/lib/url";
 import { montarMensagem, gerarLinkWhatsApp } from "@/lib/whatsapp";
 import StatusBadge from "@/components/StatusBadge";
@@ -14,6 +14,7 @@ export const dynamic = "force-dynamic";
 const filtros: { chave: string; rotulo: string }[] = [
   { chave: "todas", rotulo: "Todas" },
   { chave: "pendente", rotulo: "Pendentes" },
+  { chave: "vencidas", rotulo: "Vencidas" },
   { chave: "paga", rotulo: "Pagas" },
   { chave: "cancelada", rotulo: "Canceladas" },
 ];
@@ -50,7 +51,11 @@ export default async function FaturasPage({
     .order("referencia", { ascending: false })
     .order("created_at", { ascending: false });
 
-  if (statusFiltro !== "todas") query = query.eq("status", statusFiltro as StatusFatura);
+  if (statusFiltro === "vencidas") {
+    query = query.eq("status", "pendente").lt("vencimento", hojeISO());
+  } else if (statusFiltro !== "todas") {
+    query = query.eq("status", statusFiltro as StatusFatura);
+  }
   if (mesFiltro) query = query.eq("referencia", mesFiltro);
 
   const [{ data: faturas }, { data: config }] = await Promise.all([
@@ -135,8 +140,16 @@ export default async function FaturasPage({
                     <td className="py-3 text-slate-600">{f.consumo_kwh} kWh</td>
                     <td className="py-3 font-medium text-slate-900">{formatBRL(f.valor_liquido)}</td>
                     <td className="py-3 text-eco-700">{formatBRL(f.economia)}</td>
-                    <td className="py-3 text-slate-600">{formatData(f.vencimento)}</td>
-                    <td className="py-3"><StatusBadge status={f.status} /></td>
+                    <td className={`py-3 ${faturaVencida(f.vencimento, f.status) ? "font-medium text-red-600" : "text-slate-600"}`}>
+                      {formatData(f.vencimento)}
+                    </td>
+                    <td className="py-3">
+                      {faturaVencida(f.vencimento, f.status) ? (
+                        <span className="badge bg-red-100 text-red-700">Vencida</span>
+                      ) : (
+                        <StatusBadge status={f.status} />
+                      )}
+                    </td>
                     <td className="py-3">
                       <FaturaRowActions
                         id={f.id}

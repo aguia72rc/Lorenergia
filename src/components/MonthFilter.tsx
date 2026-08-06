@@ -6,10 +6,18 @@ import { useRouter, useSearchParams } from "next/navigation";
  * Seletor de mês que atualiza a URL (?mes=YYYY-MM), preservando os demais
  * parâmetros (ex.: status). "Todos os meses" remove o filtro.
  */
-export default function MonthFilter({ basePath }: { basePath: string }) {
+export default function MonthFilter({
+  basePath,
+  defaultValue = "",
+  permitirLimpar = true,
+}: {
+  basePath: string;
+  defaultValue?: string;
+  permitirLimpar?: boolean;
+}) {
   const router = useRouter();
   const params = useSearchParams();
-  const mesAtual = params.get("mes") ?? "";
+  const mesAtual = params.get("mes") ?? defaultValue;
 
   function navegar(mes: string) {
     const novo = new URLSearchParams(params.toString());
@@ -28,7 +36,7 @@ export default function MonthFilter({ basePath }: { basePath: string }) {
         className="input w-auto py-1.5"
         aria-label="Filtrar por mês"
       />
-      {mesAtual && (
+      {permitirLimpar && mesAtual && (
         <button onClick={() => navegar("")} className="text-sm text-slate-500 hover:text-slate-800 hover:underline">
           Todos os meses
         </button>
