@@ -104,7 +104,7 @@ export default async function PortalPage() {
                 <div className="flex items-center gap-3">
                   <div className="text-right">
                     {Number(f.valor_desconto) > 0 && (
-                      <p className="text-xs text-slate-400 line-through">{formatBRL(f.valor_bruto)}</p>
+                      <p className="text-sm font-bold text-red-600">{formatBRL(f.valor_bruto)}</p>
                     )}
                     <p className="font-semibold text-slate-900">{formatBRL(f.valor_liquido)}</p>
                     <StatusBadge status={f.status} />

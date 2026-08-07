@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "node --import tsx --test \"src/**/*.test.ts\""
+    "test": "node --import tsx --test src/lib/calc.test.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",

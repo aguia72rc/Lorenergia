@@ -161,9 +161,9 @@ export default async function FaturaPage({ params }: { params: { id: string } })
 
             <div className="mt-4 rounded-xl bg-brand-50 px-5 py-4">
               {Number(f.valor_desconto) > 0 && (
-                <div className="mb-3 flex items-center justify-between border-b border-brand-200 pb-3 text-sm">
-                  <span className="text-slate-500">Sem o desconto solar seria</span>
-                  <span className="font-medium text-slate-500 line-through">{formatBRL(f.valor_bruto)}</span>
+                <div className="mb-3 flex items-center justify-between border-b border-brand-200 pb-3">
+                  <span className="text-sm text-slate-500">Sem o desconto solar seria</span>
+                  <span className="text-2xl font-bold text-red-600">{formatBRL(f.valor_bruto)}</span>
                 </div>
               )}
               <div className="flex items-center justify-between">
