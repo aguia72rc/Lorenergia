@@ -37,10 +37,11 @@ export default function FaturasLoteForm({
   const [mensagem, setMensagem] = useState<string | null>(null);
 
   const [referencia, setReferencia] = useState(referenciaPadrao);
+  const [fator, setFator] = useState("1");
   const [tusd, setTusd] = useState(String(tarifas.tusd));
   const [te, setTe] = useState(String(tarifas.te));
   const [bandeira, setBandeira] = useState(String(tarifas.bandeira));
-  const [fioB, setFioB] = useState(String(tarifas.fioB));
+  const [taxaSolar, setTaxaSolar] = useState(String(tarifas.taxaSolar));
   const [taxa, setTaxa] = useState(String(tarifas.iluminacao));
   const [vencimento, setVencimento] = useState("");
   const [status, setStatus] = useState<StatusFatura>("pendente");
@@ -62,20 +63,20 @@ export default function FaturasLoteForm({
     return clientes.map((c) => {
       const l = linhas[c.id];
       const preenchida = l.leituraAtual !== "";
-      const consumo = consumoDeLeituras(Number(l.leituraAnterior), Number(l.leituraAtual));
+      const consumo = consumoDeLeituras(Number(l.leituraAnterior), Number(l.leituraAtual), Number(fator));
       const r = calcularFaturaDetalhada({
         consumoKwh: consumo,
         tarifaTusd: Number(tusd),
         tarifaTe: Number(te),
         adicionalBandeira: Number(bandeira),
-        fioB: Number(fioB),
+        taxaEnergiaSolar: Number(taxaSolar),
         taxaIluminacao: Number(taxa),
         multaJuros: 0,
         descontoPercentual: c.desconto_percentual,
       });
       return { cliente: c, consumo, preenchida, ...r };
     });
-  }, [clientes, linhas, tusd, te, bandeira, fioB, taxa]);
+  }, [clientes, linhas, fator, tusd, te, bandeira, taxaSolar, taxa]);
 
   const preenchidas = calculados.filter((x) => x.preenchida);
   const totalPagar = preenchidas.reduce((s, x) => s + x.valorLiquido, 0);
@@ -97,10 +98,11 @@ export default function FaturasLoteForm({
     startTransition(async () => {
       const r = await gerarFaturasLote({
         referencia,
+        fator_multiplicador: Number(fator) || 1,
         tarifa_tusd: Number(tusd),
         tarifa_te: Number(te),
         adicional_bandeira: Number(bandeira),
-        fio_b: Number(fioB),
+        taxa_energia_solar: Number(taxaSolar),
         taxa_iluminacao: Number(taxa),
         vencimento: vencimento || null,
         status,
@@ -136,26 +138,33 @@ export default function FaturasLoteForm({
             </select>
           </div>
         </div>
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Tarifas (R$/kWh)</p>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Tarifas de energia (R$/kWh) · Fator</p>
+        <div className="grid gap-4 sm:grid-cols-3">
           <div>
-            <label className="label" htmlFor="tusd">TUSD</label>
+            <label className="label" htmlFor="tusd">Consumo — TUSD</label>
             <input id="tusd" type="number" min={0} step={0.00001} className="input" value={tusd} onChange={(e) => setTusd(e.target.value)} />
           </div>
           <div>
-            <label className="label" htmlFor="te">TE</label>
+            <label className="label" htmlFor="te">Consumo — TE</label>
             <input id="te" type="number" min={0} step={0.00001} className="input" value={te} onChange={(e) => setTe(e.target.value)} />
           </div>
           <div>
-            <label className="label" htmlFor="bandeira">Adic. bandeira</label>
-            <input id="bandeira" type="number" min={0} step={0.00001} className="input" value={bandeira} onChange={(e) => setBandeira(e.target.value)} />
-          </div>
-          <div>
-            <label className="label" htmlFor="fioB">Fio-B TUSD GII</label>
-            <input id="fioB" type="number" min={0} step={0.00001} className="input" value={fioB} onChange={(e) => setFioB(e.target.value)} />
+            <label className="label" htmlFor="fator">Fator multiplicador</label>
+            <input id="fator" type="number" min={0} step={0.0001} className="input" value={fator} onChange={(e) => setFator(e.target.value)} />
           </div>
         </div>
-        <p className="text-xs text-slate-400">A multa/juros é aplicada individualmente na tela de cada fatura, quando houver.</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Valores fixos (R$)</p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="label" htmlFor="taxaSolar">Taxa de energia solar</label>
+            <input id="taxaSolar" type="number" min={0} step={0.01} className="input" value={taxaSolar} onChange={(e) => setTaxaSolar(e.target.value)} />
+          </div>
+          <div>
+            <label className="label" htmlFor="bandeira">Adicional bandeira</label>
+            <input id="bandeira" type="number" min={0} step={0.01} className="input" value={bandeira} onChange={(e) => setBandeira(e.target.value)} />
+          </div>
+        </div>
+        <p className="text-xs text-slate-400">Multa/juros e tributos informativos são aplicados individualmente na tela de cada fatura, quando houver.</p>
       </div>
 
       {/* Tabela de leituras */}

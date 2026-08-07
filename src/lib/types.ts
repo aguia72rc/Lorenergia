@@ -8,6 +8,11 @@ export interface Cliente {
   cpf: string | null;
   email: string | null;
   telefone: string | null;
+  endereco: string | null;
+  cep: string | null;
+  cidade_uf: string | null;
+  numero_medidor: string | null;
+  tipo_ligacao: string | null;
   desconto_percentual: number;
   ativo: boolean;
   observacoes: string | null;
@@ -23,7 +28,11 @@ export interface Configuracoes {
   tarifa_te: number;
   adicional_bandeira: number;
   fio_b: number;
+  taxa_energia_solar: number;
   taxa_iluminacao_publica: number;
+  chave_pix: string | null;
+  pix_nome: string | null;
+  pix_cidade: string | null;
   dados_pagamento: string | null;
   mensagem_whatsapp: string;
   updated_at: string;
@@ -35,14 +44,19 @@ export interface Fatura {
   referencia: string; // YYYY-MM-DD (primeiro dia do mês)
   leitura_anterior: number | null;
   leitura_atual: number | null;
+  fator_multiplicador: number;
   consumo_kwh: number;
   tarifa_kwh: number;
   tarifa_tusd: number;
   tarifa_te: number;
   adicional_bandeira: number;
   fio_b: number;
+  taxa_energia_solar: number;
   taxa_iluminacao: number;
   multa_juros: number;
+  icms: number;
+  pis: number;
+  cofins: number;
   desconto_percentual: number;
   valor_bruto: number;
   valor_desconto: number;
@@ -57,7 +71,11 @@ export interface Fatura {
 }
 
 export interface FaturaComCliente extends Fatura {
-  clientes: Pick<Cliente, "id" | "nome" | "unidade" | "telefone" | "email"> | null;
+  clientes: Pick<
+    Cliente,
+    | "id" | "nome" | "unidade" | "telefone" | "email" | "cpf"
+    | "endereco" | "cep" | "cidade_uf" | "numero_medidor" | "tipo_ligacao"
+  > | null;
 }
 
 export interface Profile {

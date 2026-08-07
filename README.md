@@ -61,8 +61,9 @@ valor com desconto para a usina, e a **economia** é o quanto ele deixou de paga
 2. No menu **SQL Editor**, cole e execute, na ordem:
    [`0001_init.sql`](supabase/migrations/0001_init.sql),
    [`0002_leituras.sql`](supabase/migrations/0002_leituras.sql),
-   [`0003_whatsapp.sql`](supabase/migrations/0003_whatsapp.sql) e
-   [`0004_tarifas.sql`](supabase/migrations/0004_tarifas.sql).
+   [`0003_whatsapp.sql`](supabase/migrations/0003_whatsapp.sql),
+   [`0004_tarifas.sql`](supabase/migrations/0004_tarifas.sql) e
+   [`0005_modelo_fatura.sql`](supabase/migrations/0005_modelo_fatura.sql).
 3. (Opcional) Execute [`supabase/seed.sql`](supabase/seed.sql) para criar dados de teste.
 
 ### 2. Configure as variáveis de ambiente
