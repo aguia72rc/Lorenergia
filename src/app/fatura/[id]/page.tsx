@@ -159,9 +159,23 @@ export default async function FaturaPage({ params }: { params: { id: string } })
               </tbody>
             </table>
 
-            <div className="mt-4 flex items-center justify-between rounded-xl bg-brand-50 px-5 py-4">
-              <span className="font-semibold text-slate-700">Total a pagar</span>
-              <span className="text-3xl font-extrabold text-slate-900">{formatBRL(f.valor_liquido)}</span>
+            <div className="mt-4 rounded-xl bg-brand-50 px-5 py-4">
+              {Number(f.valor_desconto) > 0 && (
+                <div className="mb-3 flex items-center justify-between border-b border-brand-200 pb-3 text-sm">
+                  <span className="text-slate-500">Sem o desconto solar seria</span>
+                  <span className="font-medium text-slate-500 line-through">{formatBRL(f.valor_bruto)}</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-slate-700">Total a pagar</span>
+                <span className="text-3xl font-extrabold text-slate-900">{formatBRL(f.valor_liquido)}</span>
+              </div>
+              {Number(f.valor_desconto) > 0 && (
+                <div className="mt-3 flex items-center justify-between rounded-lg bg-eco-100 px-3 py-2 text-sm text-eco-800">
+                  <span>🌱 Você economizou com energia solar</span>
+                  <span className="font-bold">{formatBRL(f.valor_desconto)} ({numero(f.desconto_percentual, 0)}%)</span>
+                </div>
+              )}
             </div>
 
             {/* Medição + tributos */}
