@@ -23,31 +23,54 @@ export default async function ConfiguracoesPage() {
         </div>
 
         <div>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Tarifas padrão (R$/kWh)</p>
-          <div className="grid gap-4 sm:grid-cols-4">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Tarifas de energia padrão (R$/kWh)</p>
+          <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="label" htmlFor="tarifa_tusd">TUSD</label>
+              <label className="label" htmlFor="tarifa_tusd">Consumo — TUSD</label>
               <input id="tarifa_tusd" name="tarifa_tusd" type="number" min={0} step={0.00001} className="input" defaultValue={cfg?.tarifa_tusd ?? 0} />
             </div>
             <div>
-              <label className="label" htmlFor="tarifa_te">TE</label>
+              <label className="label" htmlFor="tarifa_te">Consumo — TE</label>
               <input id="tarifa_te" name="tarifa_te" type="number" min={0} step={0.00001} className="input" defaultValue={cfg?.tarifa_te ?? 0} />
             </div>
-            <div>
-              <label className="label" htmlFor="adicional_bandeira">Adic. bandeira</label>
-              <input id="adicional_bandeira" name="adicional_bandeira" type="number" min={0} step={0.00001} className="input" defaultValue={cfg?.adicional_bandeira ?? 0} />
-            </div>
-            <div>
-              <label className="label" htmlFor="fio_b">Fio-B TUSD GII</label>
-              <input id="fio_b" name="fio_b" type="number" min={0} step={0.00001} className="input" defaultValue={cfg?.fio_b ?? 0} />
-            </div>
           </div>
-          <p className="mt-1 text-xs text-slate-400">Valores por kWh cobrados pela distribuidora. O desconto incide sobre TUSD + TE + bandeira.</p>
         </div>
 
         <div>
-          <label className="label" htmlFor="taxa_iluminacao_publica">Iluminação pública padrão (R$)</label>
-          <input id="taxa_iluminacao_publica" name="taxa_iluminacao_publica" type="number" min={0} step={0.01} className="input" defaultValue={cfg?.taxa_iluminacao_publica ?? 0} />
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Valores fixos padrão (R$)</p>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div>
+              <label className="label" htmlFor="taxa_energia_solar">Taxa de energia solar</label>
+              <input id="taxa_energia_solar" name="taxa_energia_solar" type="number" min={0} step={0.01} className="input" defaultValue={cfg?.taxa_energia_solar ?? 0} />
+            </div>
+            <div>
+              <label className="label" htmlFor="adicional_bandeira">Adicional bandeira</label>
+              <input id="adicional_bandeira" name="adicional_bandeira" type="number" min={0} step={0.01} className="input" defaultValue={cfg?.adicional_bandeira ?? 0} />
+            </div>
+            <div>
+              <label className="label" htmlFor="taxa_iluminacao_publica">Iluminação pública</label>
+              <input id="taxa_iluminacao_publica" name="taxa_iluminacao_publica" type="number" min={0} step={0.01} className="input" defaultValue={cfg?.taxa_iluminacao_publica ?? 0} />
+            </div>
+          </div>
+          <p className="mt-1 text-xs text-slate-400">O desconto incide sobre TUSD + TE + bandeira + taxa de energia solar. Iluminação e multa/juros ficam fora do desconto.</p>
+        </div>
+
+        <div>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Pagamento via PIX (para o QR Code)</p>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div>
+              <label className="label" htmlFor="chave_pix">Chave PIX</label>
+              <input id="chave_pix" name="chave_pix" className="input" placeholder="CPF, e-mail, telefone ou aleatória" defaultValue={cfg?.chave_pix ?? ""} />
+            </div>
+            <div>
+              <label className="label" htmlFor="pix_nome">Nome do recebedor</label>
+              <input id="pix_nome" name="pix_nome" className="input" defaultValue={cfg?.pix_nome ?? ""} />
+            </div>
+            <div>
+              <label className="label" htmlFor="pix_cidade">Cidade do recebedor</label>
+              <input id="pix_cidade" name="pix_cidade" className="input" defaultValue={cfg?.pix_cidade ?? ""} />
+            </div>
+          </div>
         </div>
 
         <div>

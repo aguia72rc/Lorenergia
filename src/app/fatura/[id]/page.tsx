@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft, Sun, Leaf } from "lucide-react";
+import { ArrowLeft, Sun } from "lucide-react";
+import QRCode from "qrcode";
 import { createClient } from "@/lib/supabase/server";
 import { getSessao } from "@/lib/auth";
-import { formatBRL, formatKwh, formatReferencia, formatData, formatReferenciaCurta } from "@/lib/format";
+import { formatBRL, formatReferencia, formatData, formatReferenciaCurta } from "@/lib/format";
+import { gerarPixCopiaECola } from "@/lib/pix";
 import StatusBadge from "@/components/StatusBadge";
 import PrintButton from "@/components/PrintButton";
 import EconomiaChart from "@/components/EconomiaChart";
@@ -11,37 +13,57 @@ import type { FaturaComCliente, Configuracoes, Fatura } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
+function numero(v: number | null | undefined, casas = 2): string {
+  return (Number(v) || 0).toLocaleString("pt-BR", { minimumFractionDigits: casas, maximumFractionDigits: casas });
+}
+
 export default async function FaturaPage({ params }: { params: { id: string } }) {
   const sessao = await getSessao();
   if (!sessao) redirect(`/login?redirect=/fatura/${params.id}`);
 
   const supabase = createClient();
 
-  // O RLS garante que o morador só enxergue as próprias faturas.
   const { data: fatura } = await supabase
     .from("faturas")
-    .select("*, clientes(id, nome, unidade, telefone, email)")
+    .select("*, clientes(id, nome, unidade, telefone, email, cpf, endereco, cep, cidade_uf, numero_medidor, tipo_ligacao)")
     .eq("id", params.id)
     .single();
 
   if (!fatura) notFound();
   const f = fatura as FaturaComCliente;
+  const c = f.clientes;
 
   const { data: config } = await supabase.from("configuracoes").select("*").eq("id", 1).single();
   const cfg = config as Configuracoes | null;
 
-  // Histórico de economia do morador (para o gráfico), destacando este mês.
   const { data: historico } = await supabase
     .from("faturas")
-    .select("economia, referencia, status")
+    .select("consumo_kwh, economia, referencia, status")
     .eq("cliente_id", f.cliente_id)
     .neq("status", "cancelada")
     .order("referencia", { ascending: true });
 
-  const pontosEconomia = ((historico ?? []) as Pick<Fatura, "economia" | "referencia">[])
-    .slice(-12)
-    .map((h) => ({ label: formatReferenciaCurta(h.referencia), valor: Number(h.economia), referencia: h.referencia }));
+  const hist = (historico ?? []) as Pick<Fatura, "consumo_kwh" | "economia" | "referencia">[];
+  const pontosConsumo = hist.slice(-6).map((h) => ({ label: formatReferenciaCurta(h.referencia), valor: Number(h.consumo_kwh), referencia: h.referencia }));
+  const pontosEconomia = hist.slice(-6).map((h) => ({ label: formatReferenciaCurta(h.referencia), valor: Number(h.economia), referencia: h.referencia }));
+  const economiaAcumulada = hist.reduce((s, h) => s + Number(h.economia), 0);
 
+  // PIX / QR Code
+  let qrSvg: string | null = null;
+  let pixCopiaECola: string | null = null;
+  if (cfg?.chave_pix) {
+    pixCopiaECola = gerarPixCopiaECola({
+      chave: cfg.chave_pix,
+      nome: cfg.pix_nome || cfg.nome_usina || "Recebedor",
+      cidade: cfg.pix_cidade || "Cidade",
+      valor: Number(f.valor_liquido),
+    });
+    qrSvg = await QRCode.toString(pixCopiaECola, { type: "svg", margin: 1, width: 150 });
+  }
+
+  const valorTusd = Number(f.consumo_kwh) * Number(f.tarifa_tusd);
+  const valorTe = Number(f.consumo_kwh) * Number(f.tarifa_te);
+  const codigo = [c?.unidade, c?.tipo_ligacao].filter(Boolean).join(" · ");
   const voltarHref = sessao.profile?.role === "admin" ? "/admin/faturas" : "/portal";
 
   return (
@@ -56,90 +78,84 @@ export default async function FaturaPage({ params }: { params: { id: string } })
 
         <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
           {/* Cabeçalho */}
-          <div className="flex items-start justify-between bg-slate-900 p-6 text-white">
-            <div className="flex items-center gap-2">
-              <Sun className="h-8 w-8 text-brand-400" />
-              <div>
-                <p className="text-lg font-bold">{cfg?.nome_usina ?? "Usina Solar"}</p>
-                <p className="text-xs text-slate-400">Fatura de energia solar</p>
+          <div className="bg-slate-900 p-6 text-white">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <Sun className="h-8 w-8 shrink-0 text-brand-400" />
+                <div>
+                  <p className="text-lg font-bold leading-tight">{cfg?.nome_usina ?? "Lorenergia"}</p>
+                  <p className="text-xs text-slate-400">Rateio de geração compartilhada · Energia que vem de casa</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-slate-400">Referência</p>
+                <p className="font-semibold uppercase">{formatReferencia(f.referencia)}</p>
+                <p className="mt-1 text-xs text-slate-400">{numero(f.consumo_kwh, 0)} kWh consumidos</p>
               </div>
             </div>
-            <div className="text-right">
-              <p className="text-xs text-slate-400">Referência</p>
-              <p className="font-semibold">{formatReferencia(f.referencia)}</p>
-            </div>
+            <p className="mt-3 border-t border-slate-700 pt-2 text-[11px] text-slate-500">
+              Geração compartilhada nos termos da Lei 14.300/2022 · Gerado em {formatData((f.created_at ?? "").slice(0, 10))}
+            </p>
           </div>
 
-          {/* Dados do morador */}
+          {/* Dados do cliente + documento */}
           <div className="grid gap-4 border-b border-slate-100 p-6 sm:grid-cols-2">
             <div>
-              <p className="text-xs uppercase tracking-wide text-slate-400">Morador</p>
-              <p className="font-semibold text-slate-900">{f.clientes?.nome}</p>
-              {f.clientes?.unidade && <p className="text-sm text-slate-500">{f.clientes.unidade}</p>}
+              <p className="text-xs uppercase tracking-wide text-slate-400">Dados do cliente</p>
+              <p className="mt-1 font-semibold text-slate-900">{c?.nome}</p>
+              {c?.endereco && <p className="text-sm text-slate-500">{c.endereco}</p>}
+              {(c?.cidade_uf || c?.cep) && (
+                <p className="text-sm text-slate-500">{[c?.cidade_uf, c?.cep && `CEP ${c.cep}`].filter(Boolean).join(" — ")}</p>
+              )}
+              {c?.cpf && <p className="text-sm text-slate-500">CPF/CNPJ: {c.cpf}</p>}
+              {codigo && <p className="mt-1 text-sm text-slate-500">Código {codigo}</p>}
             </div>
             <div className="sm:text-right">
-              <p className="text-xs uppercase tracking-wide text-slate-400">Situação</p>
-              <div className="mt-1"><StatusBadge status={f.status} /></div>
-              {f.vencimento && <p className="mt-1 text-sm text-slate-500">Vence em {formatData(f.vencimento)}</p>}
+              <div className="mb-2"><StatusBadge status={f.status} /></div>
+              <dl className="space-y-1 text-sm">
+                <Info label="Emissão" valor={formatData((f.created_at ?? "").slice(0, 10))} />
+                <Info label="Vencimento" valor={formatData(f.vencimento)} />
+                <Info label="Nº medidor" valor={c?.numero_medidor || "—"} />
+                <Info label="Consumo" valor={`${numero(f.consumo_kwh, 0)} kWh`} />
+              </dl>
             </div>
           </div>
 
-          {/* Detalhamento */}
+          {/* PIX */}
+          {qrSvg && (
+            <div className="flex flex-col items-center gap-4 border-b border-slate-100 p-6 sm:flex-row">
+              <div className="h-[140px] w-[140px] shrink-0 [&>svg]:h-full [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: qrSvg }} />
+              <div className="min-w-0 flex-1">
+                <p className="text-xs uppercase tracking-wide text-slate-400">Pagamento via PIX</p>
+                <p className="mt-1 text-sm text-slate-600">Escaneie o QR Code no app do seu banco ou copie a chave abaixo:</p>
+                <p className="mt-2 break-all rounded-lg bg-slate-50 p-2 text-xs text-slate-700">{cfg?.chave_pix}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Composição da fatura */}
           <div className="p-6">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Composição da fatura</p>
             <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 text-xs uppercase text-slate-400">
+                  <th className="pb-2 text-left font-medium">Descrição</th>
+                  <th className="pb-2 text-right font-medium">Qtd (kWh)</th>
+                  <th className="pb-2 text-right font-medium">Preço</th>
+                  <th className="pb-2 text-right font-medium">Valor</th>
+                </tr>
+              </thead>
               <tbody>
-                {f.leitura_atual !== null && (
-                  <>
-                    <tr className="border-b border-slate-100">
-                      <td className="py-2.5 text-slate-600">Leitura anterior</td>
-                      <td className="py-2.5 text-right text-slate-900">{formatKwh(f.leitura_anterior ?? 0)}</td>
-                    </tr>
-                    <tr className="border-b border-slate-100">
-                      <td className="py-2.5 text-slate-600">Leitura atual</td>
-                      <td className="py-2.5 text-right text-slate-900">{formatKwh(f.leitura_atual)}</td>
-                    </tr>
-                  </>
-                )}
+                <LinhaComp desc="Consumo — TUSD" qtd={numero(f.consumo_kwh, 1)} preco={numero(f.tarifa_tusd, 2)} valor={valorTusd} />
+                <LinhaComp desc="Consumo — TE" qtd={numero(f.consumo_kwh, 1)} preco={numero(f.tarifa_te, 2)} valor={valorTe} />
+                <LinhaComp desc="Contribuição de iluminação pública" valor={f.taxa_iluminacao} />
+                <LinhaComp desc="Taxa de energia solar" valor={f.taxa_energia_solar} />
+                <LinhaComp desc="Adicional bandeira" valor={f.adicional_bandeira} />
+                <LinhaComp desc="Multa / juros" valor={f.multa_juros} destaque={Number(f.multa_juros) > 0} />
                 <tr className="border-b border-slate-100">
-                  <td className="py-2.5 text-slate-600">Consumo do mês</td>
-                  <td className="py-2.5 text-right font-medium text-slate-900">{formatKwh(f.consumo_kwh)}</td>
-                </tr>
-                <tr className="border-b border-slate-100">
-                  <td className="py-2.5 text-slate-600">Consumo — TUSD ({formatBRL(f.tarifa_tusd)}/kWh)</td>
-                  <td className="py-2.5 text-right text-slate-900">{formatBRL(Number(f.consumo_kwh) * Number(f.tarifa_tusd))}</td>
-                </tr>
-                <tr className="border-b border-slate-100">
-                  <td className="py-2.5 text-slate-600">Consumo — TE ({formatBRL(f.tarifa_te)}/kWh)</td>
-                  <td className="py-2.5 text-right text-slate-900">{formatBRL(Number(f.consumo_kwh) * Number(f.tarifa_te))}</td>
-                </tr>
-                {Number(f.adicional_bandeira) > 0 && (
-                  <tr className="border-b border-slate-100">
-                    <td className="py-2.5 text-slate-600">Adicional bandeira ({formatBRL(f.adicional_bandeira)}/kWh)</td>
-                    <td className="py-2.5 text-right text-slate-900">{formatBRL(Number(f.consumo_kwh) * Number(f.adicional_bandeira))}</td>
-                  </tr>
-                )}
-                <tr className="border-b border-slate-100">
-                  <td className="py-2.5 text-eco-700">Desconto energia solar ({f.desconto_percentual}%)</td>
+                  <td className="py-2.5 text-eco-700" colSpan={3}>Desconto aplicado ({numero(f.desconto_percentual, 0)}%)</td>
                   <td className="py-2.5 text-right font-medium text-eco-700">- {formatBRL(f.valor_desconto)}</td>
                 </tr>
-                {Number(f.fio_b) > 0 && (
-                  <tr className="border-b border-slate-100">
-                    <td className="py-2.5 text-slate-600">Taxa de Fio-B TUSD GII ({formatBRL(f.fio_b)}/kWh)</td>
-                    <td className="py-2.5 text-right text-slate-900">{formatBRL(Number(f.consumo_kwh) * Number(f.fio_b))}</td>
-                  </tr>
-                )}
-                {Number(f.taxa_iluminacao) > 0 && (
-                  <tr className="border-b border-slate-100">
-                    <td className="py-2.5 text-slate-600">Contribuição de iluminação pública</td>
-                    <td className="py-2.5 text-right text-slate-900">{formatBRL(f.taxa_iluminacao)}</td>
-                  </tr>
-                )}
-                {Number(f.multa_juros) > 0 && (
-                  <tr className="border-b border-slate-100">
-                    <td className="py-2.5 text-red-600">Multa / juros</td>
-                    <td className="py-2.5 text-right text-red-600">{formatBRL(f.multa_juros)}</td>
-                  </tr>
-                )}
               </tbody>
             </table>
 
@@ -148,41 +164,94 @@ export default async function FaturaPage({ params }: { params: { id: string } })
               <span className="text-3xl font-extrabold text-slate-900">{formatBRL(f.valor_liquido)}</span>
             </div>
 
-            <div className="mt-3 flex items-center gap-2 rounded-xl bg-eco-50 px-5 py-3 text-eco-700">
-              <Leaf className="h-5 w-5" />
-              <span className="text-sm">
-                Você economizou <strong>{formatBRL(f.economia)}</strong> usando energia solar este mês. ☀️
-              </span>
+            {/* Medição + tributos */}
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              <div className="rounded-xl border border-slate-200 p-4">
+                <p className="text-xs uppercase tracking-wide text-slate-400">Dados da medição</p>
+                <dl className="mt-2 space-y-1 text-sm">
+                  <Info label="Leitura anterior" valor={numero(f.leitura_anterior, 1)} />
+                  <Info label="Leitura atual" valor={numero(f.leitura_atual, 1)} />
+                  <Info label="Fator multiplicador" valor={numero(f.fator_multiplicador, 1)} />
+                  <Info label="Consumo do mês" valor={`${numero(f.consumo_kwh, 1)} kWh`} />
+                </dl>
+              </div>
+              <div className="rounded-xl border border-slate-200 p-4">
+                <p className="text-xs uppercase tracking-wide text-slate-400">Tributos (informativo)</p>
+                <dl className="mt-2 space-y-1 text-sm">
+                  <Info label="ICMS" valor={formatBRL(f.icms)} />
+                  <Info label="PIS" valor={formatBRL(f.pis)} />
+                  <Info label="COFINS" valor={formatBRL(f.cofins)} />
+                </dl>
+              </div>
             </div>
 
-            {pontosEconomia.length >= 2 && (
+            {/* Gráficos */}
+            {pontosConsumo.length >= 2 && (
               <div className="mt-5 rounded-xl border border-slate-200 p-4">
-                <p className="text-xs uppercase tracking-wide text-slate-400">Sua economia mês a mês (R$)</p>
+                <p className="text-xs uppercase tracking-wide text-slate-400">Consumo — últimos 6 meses (kWh)</p>
                 <div className="mt-2">
-                  <EconomiaChart dados={pontosEconomia} destaqueRef={f.referencia} altura={180} />
+                  <EconomiaChart dados={pontosConsumo} destaqueRef={f.referencia} altura={170} cor="#ca8a04" ariaLabel="Consumo mensal" textoVazio="Sem histórico de consumo." />
                 </div>
               </div>
             )}
 
-            {cfg?.dados_pagamento && (
-              <div className="mt-4 rounded-xl border border-slate-200 p-4">
-                <p className="text-xs uppercase tracking-wide text-slate-400">Pagamento</p>
-                <p className="mt-1 whitespace-pre-wrap text-sm text-slate-700">{cfg.dados_pagamento}</p>
+            <div className="mt-4 rounded-xl border border-slate-200 p-4">
+              <div className="flex items-center justify-between">
+                <p className="text-xs uppercase tracking-wide text-slate-400">Economia — últimos 6 meses</p>
+                <p className="text-xs text-slate-400">Acumulada: <strong className="text-eco-700">{formatBRL(economiaAcumulada)}</strong></p>
+              </div>
+              {pontosEconomia.length >= 2 ? (
+                <div className="mt-2"><EconomiaChart dados={pontosEconomia} destaqueRef={f.referencia} altura={170} /></div>
+              ) : (
+                <div className="mt-2 flex items-center gap-2 rounded-lg bg-eco-50 px-4 py-3 text-sm text-eco-700">
+                  🌱 Você economizou <strong>{formatBRL(f.economia)}</strong> usando energia solar este mês.
+                </div>
+              )}
+            </div>
+
+            {Number(f.taxa_iluminacao) === 0 && (
+              <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                <strong>Aviso importante:</strong> a contribuição de iluminação pública ainda não está sendo cobrada nesta fatura. Os valores acima são calculados automaticamente a partir dos parâmetros informados.
               </div>
             )}
 
-            {f.observacoes && (
-              <p className="mt-4 text-sm text-slate-500">
-                <strong>Obs.:</strong> {f.observacoes}
-              </p>
-            )}
+            {f.observacoes && <p className="mt-4 text-sm text-slate-500"><strong>Obs.:</strong> {f.observacoes}</p>}
           </div>
 
-          <div className="border-t border-slate-100 p-4 text-center text-xs text-slate-400">
-            Fatura gerada por Lorenergia · Energia limpa e mais barata ☀️
+          {/* Rodapé total */}
+          <div className="flex items-center justify-between bg-slate-900 px-6 py-4 text-white">
+            <div>
+              <p className="text-xs text-slate-400">Total a pagar</p>
+              {f.vencimento && <p className="text-xs text-slate-400">Vencimento em {formatData(f.vencimento)}</p>}
+            </div>
+            <p className="text-2xl font-extrabold text-brand-400">{formatBRL(f.valor_liquido)}</p>
           </div>
         </div>
+
+        <p className="mt-4 text-center text-xs text-slate-400">
+          Fatura gerada por {cfg?.nome_usina ?? "Lorenergia"} · Energia limpa e mais barata ☀️
+        </p>
       </div>
     </div>
+  );
+}
+
+function Info({ label, valor }: { label: string; valor: string }) {
+  return (
+    <div className="flex items-center justify-between gap-4 sm:justify-end">
+      <dt className="text-slate-400">{label}</dt>
+      <dd className="font-medium text-slate-700">{valor}</dd>
+    </div>
+  );
+}
+
+function LinhaComp({ desc, qtd, preco, valor, destaque }: { desc: string; qtd?: string; preco?: string; valor: number; destaque?: boolean }) {
+  return (
+    <tr className="border-b border-slate-100">
+      <td className={`py-2.5 ${destaque ? "text-red-600" : "text-slate-600"}`}>{desc}</td>
+      <td className="py-2.5 text-right text-slate-500">{qtd ?? "—"}</td>
+      <td className="py-2.5 text-right text-slate-500">{preco ?? "—"}</td>
+      <td className={`py-2.5 text-right ${destaque ? "text-red-600" : "text-slate-900"}`}>{formatBRL(valor)}</td>
+    </tr>
   );
 }

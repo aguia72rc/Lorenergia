@@ -30,12 +30,16 @@ export async function gerarFatura(formData: FormData) {
   const referenciaRaw = String(formData.get("referencia") ?? "");
   const leituraAnteriorRaw = String(formData.get("leitura_anterior") ?? "");
   const leituraAtualRaw = String(formData.get("leitura_atual") ?? "");
+  const fator_multiplicador = Number(formData.get("fator_multiplicador") ?? 1) || 1;
   const tarifa_tusd = Number(formData.get("tarifa_tusd") ?? 0);
   const tarifa_te = Number(formData.get("tarifa_te") ?? 0);
   const adicional_bandeira = Number(formData.get("adicional_bandeira") ?? 0);
-  const fio_b = Number(formData.get("fio_b") ?? 0);
+  const taxa_energia_solar = Number(formData.get("taxa_energia_solar") ?? 0);
   const taxa_iluminacao = Number(formData.get("taxa_iluminacao") ?? 0);
   const multa_juros = Number(formData.get("multa_juros") ?? 0);
+  const icms = Number(formData.get("icms") ?? 0);
+  const pis = Number(formData.get("pis") ?? 0);
+  const cofins = Number(formData.get("cofins") ?? 0);
   const desconto_percentual = Number(formData.get("desconto_percentual") ?? 0);
   const vencimento = String(formData.get("vencimento") ?? "") || null;
   const observacoes = String(formData.get("observacoes") ?? "").trim() || null;
@@ -47,10 +51,9 @@ export async function gerarFatura(formData: FormData) {
   const leitura_anterior = leituraAnteriorRaw === "" ? null : Number(leituraAnteriorRaw);
   const leitura_atual = leituraAtualRaw === "" ? null : Number(leituraAtualRaw);
 
-  // Consumo vem das leituras quando informadas; senão do campo consumo_kwh.
   const consumo_kwh =
     leitura_atual !== null
-      ? consumoDeLeituras(leitura_anterior, leitura_atual)
+      ? consumoDeLeituras(leitura_anterior, leitura_atual, fator_multiplicador)
       : Number(formData.get("consumo_kwh") ?? 0);
 
   const referencia = normalizarReferencia(referenciaRaw);
@@ -59,7 +62,7 @@ export async function gerarFatura(formData: FormData) {
     tarifaTusd: tarifa_tusd,
     tarifaTe: tarifa_te,
     adicionalBandeira: adicional_bandeira,
-    fioB: fio_b,
+    taxaEnergiaSolar: taxa_energia_solar,
     taxaIluminacao: taxa_iluminacao,
     multaJuros: multa_juros,
     descontoPercentual: desconto_percentual,
@@ -70,14 +73,18 @@ export async function gerarFatura(formData: FormData) {
     referencia,
     leitura_anterior,
     leitura_atual,
+    fator_multiplicador,
     consumo_kwh,
     tarifa_kwh: tarifa_tusd + tarifa_te, // compatibilidade (tarifa total)
     tarifa_tusd,
     tarifa_te,
     adicional_bandeira,
-    fio_b,
+    taxa_energia_solar,
     taxa_iluminacao,
     multa_juros,
+    icms,
+    pis,
+    cofins,
     desconto_percentual,
     valor_bruto: r.valorBruto,
     valor_desconto: r.valorDesconto,
@@ -141,10 +148,11 @@ export interface ItemLote {
 
 export interface ParametrosLote {
   referencia: string; // YYYY-MM
+  fator_multiplicador: number;
   tarifa_tusd: number;
   tarifa_te: number;
   adicional_bandeira: number;
-  fio_b: number;
+  taxa_energia_solar: number;
   taxa_iluminacao: number;
   vencimento: string | null;
   status: StatusFatura;
@@ -168,13 +176,13 @@ export async function gerarFaturasLote(
   const registros = params.itens
     .filter((it) => it.cliente_id && it.leitura_atual !== null && !Number.isNaN(it.leitura_atual))
     .map((it) => {
-      const consumo_kwh = consumoDeLeituras(it.leitura_anterior, it.leitura_atual);
+      const consumo_kwh = consumoDeLeituras(it.leitura_anterior, it.leitura_atual, params.fator_multiplicador);
       const r = calcularFaturaDetalhada({
         consumoKwh: consumo_kwh,
         tarifaTusd: params.tarifa_tusd,
         tarifaTe: params.tarifa_te,
         adicionalBandeira: params.adicional_bandeira,
-        fioB: params.fio_b,
+        taxaEnergiaSolar: params.taxa_energia_solar,
         taxaIluminacao: params.taxa_iluminacao,
         multaJuros: 0,
         descontoPercentual: it.desconto_percentual,
@@ -184,12 +192,13 @@ export async function gerarFaturasLote(
         referencia,
         leitura_anterior: it.leitura_anterior,
         leitura_atual: it.leitura_atual,
+        fator_multiplicador: params.fator_multiplicador,
         consumo_kwh,
         tarifa_kwh: params.tarifa_tusd + params.tarifa_te,
         tarifa_tusd: params.tarifa_tusd,
         tarifa_te: params.tarifa_te,
         adicional_bandeira: params.adicional_bandeira,
-        fio_b: params.fio_b,
+        taxa_energia_solar: params.taxa_energia_solar,
         taxa_iluminacao: params.taxa_iluminacao,
         multa_juros: 0,
         desconto_percentual: it.desconto_percentual,

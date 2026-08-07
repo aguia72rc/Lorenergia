@@ -35,11 +35,13 @@ function arredondar(valor: number): number {
  */
 export function consumoDeLeituras(
   leituraAnterior: number | null | undefined,
-  leituraAtual: number | null | undefined
+  leituraAtual: number | null | undefined,
+  fatorMultiplicador: number | null | undefined = 1
 ): number {
   const anterior = Number(leituraAnterior) || 0;
   const atual = Number(leituraAtual) || 0;
-  return arredondar(Math.max(0, atual - anterior));
+  const fator = Number(fatorMultiplicador) || 1;
+  return arredondar(Math.max(0, atual - anterior) * fator);
 }
 
 export function calcularFatura(entrada: EntradaCalculo): ResultadoCalculo {
@@ -74,22 +76,24 @@ export function calcularFatura(entrada: EntradaCalculo): ResultadoCalculo {
 
 export interface EntradaCalculoDetalhada {
   consumoKwh: number;
-  tarifaTusd: number;
-  tarifaTe: number;
-  adicionalBandeira: number; // R$/kWh
-  fioB: number; // R$/kWh
-  taxaIluminacao: number; // R$
-  multaJuros: number; // R$
+  tarifaTusd: number; // R$/kWh
+  tarifaTe: number; // R$/kWh
+  adicionalBandeira: number; // R$ fixo
+  taxaEnergiaSolar: number; // R$ fixo (entra no desconto)
+  taxaIluminacao: number; // R$ fixo (sem desconto)
+  multaJuros: number; // R$ fixo (sem desconto)
   descontoPercentual: number;
 }
 
 export interface ResultadoCalculoDetalhado {
-  energia: number;
+  energiaTusd: number;
+  energiaTe: number;
+  energia: number; // TUSD + TE
   bandeira: number;
-  fioB: number;
+  taxaSolar: number;
   iluminacao: number;
   multaJuros: number;
-  baseDesconto: number; // energia + bandeira
+  baseDesconto: number; // energia + bandeira + taxa solar
   valorDesconto: number;
   valorBruto: number; // tudo, antes do desconto
   valorLiquido: number; // total a pagar
@@ -100,32 +104,38 @@ export function calcularFaturaDetalhada(e: EntradaCalculoDetalhada): ResultadoCa
   const consumo = Math.max(0, Number(e.consumoKwh) || 0);
   const tusd = Math.max(0, Number(e.tarifaTusd) || 0);
   const te = Math.max(0, Number(e.tarifaTe) || 0);
-  const bandeiraKwh = Math.max(0, Number(e.adicionalBandeira) || 0);
-  const fioBKwh = Math.max(0, Number(e.fioB) || 0);
-  const iluminacao = Math.max(0, Number(e.taxaIluminacao) || 0);
-  const multaJuros = Math.max(0, Number(e.multaJuros) || 0);
+  const bandeira = arredondar(Math.max(0, Number(e.adicionalBandeira) || 0));
+  const taxaSolar = arredondar(Math.max(0, Number(e.taxaEnergiaSolar) || 0));
+  const iluminacao = arredondar(Math.max(0, Number(e.taxaIluminacao) || 0));
+  const multaJuros = arredondar(Math.max(0, Number(e.multaJuros) || 0));
   const desconto = Math.min(100, Math.max(0, Number(e.descontoPercentual) || 0));
 
-  const energia = arredondar(consumo * (tusd + te));
-  const bandeira = arredondar(consumo * bandeiraKwh);
-  const fioB = arredondar(consumo * fioBKwh);
+  // Os totais usam precisão cheia (arredonda só no fim, como na conta de luz);
+  // as linhas TUSD/TE são arredondadas apenas para exibição.
+  const energiaTusdRaw = consumo * tusd;
+  const energiaTeRaw = consumo * te;
+  const energiaRaw = energiaTusdRaw + energiaTeRaw;
 
-  const baseDesconto = arredondar(energia + bandeira);
-  const valorDesconto = arredondar(baseDesconto * (desconto / 100));
+  // Desconto incide sobre energia + bandeira + taxa de energia solar.
+  const baseRaw = energiaRaw + bandeira + taxaSolar;
+  const descontoRaw = baseRaw * (desconto / 100);
 
-  const valorBruto = arredondar(baseDesconto + fioB + iluminacao + multaJuros);
-  const valorLiquido = arredondar(valorBruto - valorDesconto);
+  // Iluminação e multa/juros somam por fora (sem desconto).
+  const brutoRaw = baseRaw + iluminacao + multaJuros;
+  const liquidoRaw = brutoRaw - descontoRaw;
 
   return {
-    energia,
+    energiaTusd: arredondar(energiaTusdRaw),
+    energiaTe: arredondar(energiaTeRaw),
+    energia: arredondar(energiaRaw),
     bandeira,
-    fioB,
+    taxaSolar,
     iluminacao,
     multaJuros,
-    baseDesconto,
-    valorDesconto,
-    valorBruto,
-    valorLiquido,
-    economia: valorDesconto,
+    baseDesconto: arredondar(baseRaw),
+    valorDesconto: arredondar(descontoRaw),
+    valorBruto: arredondar(brutoRaw),
+    valorLiquido: arredondar(liquidoRaw),
+    economia: arredondar(descontoRaw),
   };
 }

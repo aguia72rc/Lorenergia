@@ -17,8 +17,11 @@ export async function salvarConfiguracoes(formData: FormData) {
     tarifa_te,
     tarifa_kwh: tarifa_tusd + tarifa_te, // compatibilidade
     adicional_bandeira: Number(formData.get("adicional_bandeira") ?? 0),
-    fio_b: Number(formData.get("fio_b") ?? 0),
+    taxa_energia_solar: Number(formData.get("taxa_energia_solar") ?? 0),
     taxa_iluminacao_publica: Number(formData.get("taxa_iluminacao_publica") ?? 0),
+    chave_pix: String(formData.get("chave_pix") ?? "").trim() || null,
+    pix_nome: String(formData.get("pix_nome") ?? "").trim() || null,
+    pix_cidade: String(formData.get("pix_cidade") ?? "").trim() || null,
     dados_pagamento: String(formData.get("dados_pagamento") ?? "").trim() || null,
     mensagem_whatsapp: String(formData.get("mensagem_whatsapp") ?? "").trim(),
   };

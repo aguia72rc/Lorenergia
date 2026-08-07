@@ -30,6 +30,36 @@ export default function ClienteFormFields({ cliente }: { cliente?: Cliente }) {
         <p className="mt-1 text-xs text-slate-400">Apenas números, com código do país (55) e DDD.</p>
       </div>
 
+      <div className="sm:col-span-2">
+        <label className="label" htmlFor="endereco">Endereço</label>
+        <input id="endereco" name="endereco" className="input" placeholder="Rua José Paes de Barros, 156, Apt 04" defaultValue={cliente?.endereco ?? ""} />
+      </div>
+
+      <div>
+        <label className="label" htmlFor="cidade_uf">Cidade / UF</label>
+        <input id="cidade_uf" name="cidade_uf" className="input" placeholder="Recife - PE" defaultValue={cliente?.cidade_uf ?? ""} />
+      </div>
+
+      <div>
+        <label className="label" htmlFor="cep">CEP</label>
+        <input id="cep" name="cep" className="input" placeholder="51011-420" defaultValue={cliente?.cep ?? ""} />
+      </div>
+
+      <div>
+        <label className="label" htmlFor="numero_medidor">Nº do medidor</label>
+        <input id="numero_medidor" name="numero_medidor" className="input" defaultValue={cliente?.numero_medidor ?? ""} />
+      </div>
+
+      <div>
+        <label className="label" htmlFor="tipo_ligacao">Tipo de ligação</label>
+        <select id="tipo_ligacao" name="tipo_ligacao" className="input" defaultValue={cliente?.tipo_ligacao ?? ""}>
+          <option value="">—</option>
+          <option value="Monofásico">Monofásico</option>
+          <option value="Bifásico">Bifásico</option>
+          <option value="Trifásico">Trifásico</option>
+        </select>
+      </div>
+
       <div>
         <label className="label" htmlFor="desconto_percentual">Desconto (%)</label>
         <input
