@@ -149,7 +149,7 @@ export default async function FaturaPage({ params }: { params: { id: string } })
                 <LinhaComp desc="Consumo — TUSD" qtd={numero(f.consumo_kwh, 1)} preco={numero(f.tarifa_tusd, 2)} valor={valorTusd} />
                 <LinhaComp desc="Consumo — TE" qtd={numero(f.consumo_kwh, 1)} preco={numero(f.tarifa_te, 2)} valor={valorTe} />
                 <LinhaComp desc="Contribuição de iluminação pública" valor={f.taxa_iluminacao} />
-                <LinhaComp desc="Taxa de energia solar" valor={f.taxa_energia_solar} />
+                <LinhaComp desc="TUSD GD II" valor={f.taxa_energia_solar} />
                 <LinhaComp desc="Adicional bandeira" valor={f.adicional_bandeira} />
                 <LinhaComp desc="Multa / juros" valor={f.multa_juros} destaque={Number(f.multa_juros) > 0} />
                 <tr className="border-b border-slate-100">
