@@ -113,7 +113,7 @@ export default function NovaFaturaForm({
 
         <p className="pt-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Valores fixos (R$)</p>
         <div className="grid gap-4 sm:grid-cols-4">
-          <Campo label="Taxa energia solar" name="taxa_energia_solar" value={taxaSolar} onChange={setTaxaSolar} step={0.01} />
+          <Campo label="TUSD GD II" name="taxa_energia_solar" value={taxaSolar} onChange={setTaxaSolar} step={0.01} />
           <Campo label="Adic. bandeira" name="adicional_bandeira" value={bandeira} onChange={setBandeira} step={0.01} />
           <Campo label="Ilum. pública" name="taxa_iluminacao" value={iluminacao} onChange={setIluminacao} step={0.01} />
           <Campo label="Multa / juros" name="multa_juros" value={multa} onChange={setMulta} step={0.01} />
@@ -151,7 +151,7 @@ export default function NovaFaturaForm({
           <div className="mt-3 space-y-1.5 text-sm">
             <Linha rotulo="Consumo — TUSD" valor={formatBRL(r.energiaTusd)} />
             <Linha rotulo="Consumo — TE" valor={formatBRL(r.energiaTe)} />
-            {r.taxaSolar > 0 && <Linha rotulo="Taxa energia solar" valor={formatBRL(r.taxaSolar)} />}
+            {r.taxaSolar > 0 && <Linha rotulo="TUSD GD II" valor={formatBRL(r.taxaSolar)} />}
             {r.bandeira > 0 && <Linha rotulo="Adicional bandeira" valor={formatBRL(r.bandeira)} />}
             <Linha rotulo={`Desconto (${desconto || 0}%)`} valor={`- ${formatBRL(r.valorDesconto)}`} classe="text-eco-400" />
             {r.iluminacao > 0 && <Linha rotulo="Iluminação pública" valor={formatBRL(r.iluminacao)} />}

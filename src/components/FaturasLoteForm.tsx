@@ -156,7 +156,7 @@ export default function FaturasLoteForm({
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Valores fixos (R$)</p>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label className="label" htmlFor="taxaSolar">Taxa de energia solar</label>
+            <label className="label" htmlFor="taxaSolar">TUSD GD II</label>
             <input id="taxaSolar" type="number" min={0} step={0.01} className="input" value={taxaSolar} onChange={(e) => setTaxaSolar(e.target.value)} />
           </div>
           <div>

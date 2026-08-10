@@ -40,7 +40,7 @@ export default async function ConfiguracoesPage() {
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Valores fixos padrão (R$)</p>
           <div className="grid gap-4 sm:grid-cols-3">
             <div>
-              <label className="label" htmlFor="taxa_energia_solar">Taxa de energia solar</label>
+              <label className="label" htmlFor="taxa_energia_solar">TUSD GD II</label>
               <input id="taxa_energia_solar" name="taxa_energia_solar" type="number" min={0} step={0.01} className="input" defaultValue={cfg?.taxa_energia_solar ?? 0} />
             </div>
             <div>
@@ -52,7 +52,7 @@ export default async function ConfiguracoesPage() {
               <input id="taxa_iluminacao_publica" name="taxa_iluminacao_publica" type="number" min={0} step={0.01} className="input" defaultValue={cfg?.taxa_iluminacao_publica ?? 0} />
             </div>
           </div>
-          <p className="mt-1 text-xs text-slate-400">O desconto incide sobre TUSD + TE + bandeira + taxa de energia solar. Iluminação e multa/juros ficam fora do desconto.</p>
+          <p className="mt-1 text-xs text-slate-400">O desconto incide sobre TUSD + TE + bandeira + TUSD GD II. Iluminação e multa/juros ficam fora do desconto.</p>
         </div>
 
         <div>
