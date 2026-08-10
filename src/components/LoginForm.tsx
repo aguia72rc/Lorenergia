@@ -14,7 +14,11 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [carregando, setCarregando] = useState(false);
-  const [erro, setErro] = useState<string | null>(null);
+  const [erro, setErro] = useState<string | null>(
+    params.get("erro") === "link"
+      ? "O link de acesso expirou ou é inválido. Digite seu e-mail abaixo e clique em “Entrar com link por e-mail” para receber um novo."
+      : null
+  );
   const [aviso, setAviso] = useState<string | null>(null);
 
   async function entrarComSenha(e: React.FormEvent) {
