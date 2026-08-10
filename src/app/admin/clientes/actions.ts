@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getSessao } from "@/lib/auth";
 import { apenasDigitos } from "@/lib/format";
+import { getBaseUrl } from "@/lib/url";
 
 async function exigirAdmin() {
   const sessao = await getSessao();
@@ -94,7 +95,10 @@ export async function convidarMorador(clienteId: string): Promise<{ ok: boolean;
   }
 
   const admin = createAdminClient();
-  const { error } = await admin.auth.admin.inviteUserByEmail(cliente.email);
+  const { error } = await admin.auth.admin.inviteUserByEmail(cliente.email, {
+    // Garante que o link do convite volte para a página de callback correta.
+    redirectTo: `${getBaseUrl()}/auth/callback`,
+  });
   if (error) {
     return { ok: false, mensagem: `Não foi possível convidar: ${error.message}` };
   }
