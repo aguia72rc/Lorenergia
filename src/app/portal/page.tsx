@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Leaf, Wallet, FileText, TrendingDown, ChevronRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getSessao } from "@/lib/auth";
@@ -12,6 +13,11 @@ export const dynamic = "force-dynamic";
 export default async function PortalPage() {
   const sessao = await getSessao();
   const supabase = createClient();
+
+  // Primeiro acesso: obriga a definir uma senha pessoal.
+  if (sessao?.profile?.must_change_password) {
+    redirect("/portal/senha");
+  }
 
   if (!sessao?.profile?.cliente_id) {
     return (

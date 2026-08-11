@@ -83,5 +83,6 @@ export interface Profile {
   email: string | null;
   role: Role;
   cliente_id: string | null;
+  must_change_password: boolean;
   created_at: string;
 }
