@@ -10,11 +10,14 @@ export default async function PortalLayout({ children }: { children: React.React
 
   return (
     <div className="min-h-screen">
-      <header className="border-b border-slate-200 bg-white">
+      <header className="glass sticky top-0 z-10 border-x-0 border-t-0">
         <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-4">
-          <div className="flex items-center gap-2">
-            <Sun className="h-6 w-6 text-brand-500" />
-            <span className="font-bold text-slate-900">Lorenergia</span>
+          <div className="flex items-center gap-2.5">
+            <span className="relative inline-flex h-6 w-6 items-center justify-center">
+              <span className="absolute inset-0 rounded-full bg-brand-500/30 blur-md animate-pulse-glow" />
+              <Sun className="relative h-6 w-6 text-brand-400" />
+            </span>
+            <span className="font-bold text-white" style={{ fontFamily: "var(--font-display)" }}>Lorenergia</span>
           </div>
           <div className="flex items-center gap-3">
             <span className="hidden text-sm text-slate-500 sm:inline">{sessao.email}</span>

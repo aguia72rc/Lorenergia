@@ -37,7 +37,7 @@ export default function MonthFilter({
         aria-label="Filtrar por mês"
       />
       {permitirLimpar && mesAtual && (
-        <button onClick={() => navegar("")} className="text-sm text-slate-500 hover:text-slate-800 hover:underline">
+        <button onClick={() => navegar("")} className="text-sm text-slate-400 hover:text-white hover:underline">
           Todos os meses
         </button>
       )}

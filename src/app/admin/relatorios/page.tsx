@@ -61,29 +61,29 @@ export default async function RelatoriosPage({
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Relatórios</h1>
-          <p className="text-sm text-slate-500">Recebimentos de {formatReferencia(referencia)}</p>
+          <h1 className="text-2xl font-bold text-white">Relatórios</h1>
+          <p className="text-sm text-slate-400">Recebimentos de {formatReferencia(referencia)}</p>
         </div>
         <MonthFilter basePath="/admin/relatorios" defaultValue={mesPadrao} permitirLimpar={false} />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Kpi icon={<Wallet />} titulo="Faturado no mês" valor={formatBRL(faturado)} cor="bg-brand-100 text-brand-700" />
-        <Kpi icon={<CheckCircle2 />} titulo="Recebido" valor={formatBRL(recebido)} cor="bg-eco-100 text-eco-700" />
-        <Kpi icon={<Clock />} titulo="A receber" valor={formatBRL(aReceber)} cor="bg-amber-100 text-amber-700" />
-        <Kpi icon={<Leaf />} titulo="Economia gerada" valor={formatBRL(economia)} cor="bg-eco-100 text-eco-700" />
+        <Kpi icon={<Wallet />} titulo="Faturado no mês" valor={formatBRL(faturado)} cor="bg-brand-500/15 text-brand-300" />
+        <Kpi icon={<CheckCircle2 />} titulo="Recebido" valor={formatBRL(recebido)} cor="bg-eco-500/15 text-eco-300" />
+        <Kpi icon={<Clock />} titulo="A receber" valor={formatBRL(aReceber)} cor="bg-amber-500/15 text-amber-300" />
+        <Kpi icon={<Leaf />} titulo="Economia gerada" valor={formatBRL(economia)} cor="bg-eco-500/15 text-eco-300" />
       </div>
 
       {vencidas.length > 0 && (
-        <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+        <div className="flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
           <AlertTriangle className="h-4 w-4 shrink-0" />
           {vencidas.length} fatura(s) vencida(s) neste mês, somando <strong>{formatBRL(valorVencido)}</strong>.
         </div>
       )}
 
       <div className="card">
-        <h2 className="mb-1 font-semibold text-slate-900">Recebimentos mês a mês</h2>
-        <p className="mb-4 text-sm text-slate-500">Total recebido (faturas pagas) por mês.</p>
+        <h2 className="mb-1 font-semibold text-white">Recebimentos mês a mês</h2>
+        <p className="mb-4 text-sm text-slate-400">Total recebido (faturas pagas) por mês.</p>
         <EconomiaChart
           dados={pontosRecebido}
           destaqueRef={referencia}
@@ -94,13 +94,13 @@ export default async function RelatoriosPage({
       </div>
 
       <div className="card overflow-x-auto">
-        <h2 className="mb-4 font-semibold text-slate-900">Detalhe por morador — {formatReferencia(referencia)}</h2>
+        <h2 className="mb-4 font-semibold text-white">Detalhe por morador — {formatReferencia(referencia)}</h2>
         {ativas.length === 0 ? (
-          <p className="py-6 text-center text-sm text-slate-500">Nenhuma fatura neste mês.</p>
+          <p className="py-6 text-center text-sm text-slate-400">Nenhuma fatura neste mês.</p>
         ) : (
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-200 text-left text-slate-500">
+              <tr className="border-b border-white/10 text-left text-slate-400">
                 <th className="pb-2 font-medium">Morador</th>
                 <th className="pb-2 font-medium">Vencimento</th>
                 <th className="pb-2 text-right font-medium">Valor</th>
@@ -112,28 +112,28 @@ export default async function RelatoriosPage({
               {ativas.map((f) => {
                 const venc = faturaVencida(f.vencimento, f.status);
                 return (
-                  <tr key={f.id} className="border-b border-slate-100 last:border-0">
-                    <td className="py-2.5 font-medium text-slate-900">
+                  <tr key={f.id} className="border-b border-white/5 last:border-0">
+                    <td className="py-2.5 font-medium text-white">
                       {f.clientes?.nome}
                       <span className="ml-1 text-xs text-slate-400">{f.clientes?.unidade}</span>
                     </td>
-                    <td className={`py-2.5 ${venc ? "font-medium text-red-600" : "text-slate-600"}`}>
+                    <td className={`py-2.5 ${venc ? "font-medium text-red-400" : "text-slate-300"}`}>
                       {formatData(f.vencimento)}
                     </td>
-                    <td className="py-2.5 text-right text-slate-900">{formatBRL(f.valor_liquido)}</td>
-                    <td className="py-2.5 text-right text-eco-700">{formatBRL(f.economia)}</td>
+                    <td className="py-2.5 text-right text-white">{formatBRL(f.valor_liquido)}</td>
+                    <td className="py-2.5 text-right text-eco-300">{formatBRL(f.economia)}</td>
                     <td className="py-2.5">
-                      {venc ? <span className="badge bg-red-100 text-red-700">Vencida</span> : <StatusBadge status={f.status} />}
+                      {venc ? <span className="badge bg-red-500/15 text-red-300">Vencida</span> : <StatusBadge status={f.status} />}
                     </td>
                   </tr>
                 );
               })}
             </tbody>
             <tfoot>
-              <tr className="border-t border-slate-200 font-semibold text-slate-900">
+              <tr className="border-t border-white/10 font-semibold text-white">
                 <td className="pt-3" colSpan={2}>Total</td>
                 <td className="pt-3 text-right">{formatBRL(faturado)}</td>
-                <td className="pt-3 text-right text-eco-700">{formatBRL(economia)}</td>
+                <td className="pt-3 text-right text-eco-300">{formatBRL(economia)}</td>
                 <td></td>
               </tr>
             </tfoot>
@@ -148,8 +148,8 @@ function Kpi({ icon, titulo, valor, cor }: { icon: React.ReactNode; titulo: stri
   return (
     <div className="card">
       <div className={`mb-3 inline-flex h-9 w-9 items-center justify-center rounded-lg ${cor}`}>{icon}</div>
-      <p className="text-sm text-slate-500">{titulo}</p>
-      <p className="mt-1 text-xl font-bold text-slate-900">{valor}</p>
+      <p className="text-sm text-slate-400">{titulo}</p>
+      <p className="mt-1 text-xl font-bold text-white">{valor}</p>
     </div>
   );
 }

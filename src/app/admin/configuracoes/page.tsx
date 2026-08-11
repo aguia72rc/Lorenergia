@@ -12,8 +12,8 @@ export default async function ConfiguracoesPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Configurações</h1>
-        <p className="text-sm text-slate-500">Parâmetros usados no cálculo e no envio das faturas.</p>
+        <h1 className="text-2xl font-bold text-white">Configurações</h1>
+        <p className="text-sm text-slate-400">Parâmetros usados no cálculo e no envio das faturas.</p>
       </div>
 
       <form action={salvarConfiguracoes} className="card space-y-5">
@@ -81,8 +81,8 @@ export default async function ConfiguracoesPage() {
         <div>
           <label className="label" htmlFor="mensagem_whatsapp">Mensagem do WhatsApp</label>
           <textarea id="mensagem_whatsapp" name="mensagem_whatsapp" rows={8} className="input font-mono text-xs" defaultValue={cfg?.mensagem_whatsapp ?? ""} />
-          <div className="mt-2 rounded-lg bg-slate-50 p-3 text-xs text-slate-500">
-            <p className="mb-1 font-medium text-slate-600">Variáveis disponíveis:</p>
+          <div className="mt-2 rounded-lg bg-white/5 p-3 text-xs text-slate-400">
+            <p className="mb-1 font-medium text-slate-300">Variáveis disponíveis:</p>
             <p><code>{"{nome}"}</code>, <code>{"{referencia}"}</code>, <code>{"{consumo}"}</code>, <code>{"{valor}"}</code>, <code>{"{economia}"}</code>, <code>{"{vencimento}"}</code>, <code>{"{link}"}</code></p>
           </div>
         </div>

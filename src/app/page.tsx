@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Sun, Zap, Leaf, FileText } from "lucide-react";
+import { Sun, Zap, FileText, Leaf, ArrowRight, ShieldCheck } from "lucide-react";
 import { getSessao } from "@/lib/auth";
+import { Reveal, AnimatedNumber } from "@/components/motion";
+
+export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   const sessao = await getSessao();
@@ -9,64 +12,128 @@ export default async function HomePage() {
   if (sessao?.profile?.role === "cliente") redirect("/portal");
 
   return (
-    <main className="min-h-screen">
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-          <div className="flex items-center gap-2">
-            <Sun className="h-7 w-7 text-brand-500" />
-            <span className="text-xl font-bold text-slate-900">Lorenergia</span>
-          </div>
-          <Link href="/login" className="btn-primary">
-            Entrar
-          </Link>
+    <main className="relative min-h-screen">
+      {/* Nav */}
+      <header className="mx-auto flex max-w-6xl items-center justify-between px-5 py-5">
+        <div className="flex items-center gap-2.5">
+          <span className="relative inline-flex h-9 w-9 items-center justify-center">
+            <span className="absolute inset-0 rounded-full bg-brand-500/30 blur-md animate-pulse-glow" />
+            <Sun className="relative h-7 w-7 text-brand-400" />
+          </span>
+          <span className="text-xl font-bold tracking-tight text-white" style={{ fontFamily: "var(--font-display)" }}>
+            Lorenergia
+          </span>
         </div>
+        <Link href="/login" className="btn-primary">
+          Entrar <ArrowRight className="h-4 w-4" />
+        </Link>
       </header>
 
-      <section className="mx-auto max-w-6xl px-4 py-16">
-        <div className="grid items-center gap-10 md:grid-cols-2">
-          <div>
-            <span className="badge bg-eco-100 text-eco-700">☀️ Energia limpa e mais barata</span>
-            <h1 className="mt-4 text-4xl font-extrabold leading-tight text-slate-900 md:text-5xl">
-              Gestão da sua usina solar de forma simples
+      {/* Hero */}
+      <section className="mx-auto grid max-w-6xl items-center gap-12 px-5 pb-10 pt-8 md:grid-cols-2 md:pt-16">
+        <div>
+          <Reveal>
+            <span className="eyebrow">
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-brand-400 shadow-[0_0_12px_var(--brand)]" />
+              Energia que vem de casa
+            </span>
+          </Reveal>
+          <Reveal delay={0.08}>
+            <h1
+              className="mt-4 text-5xl font-extrabold leading-[1.05] tracking-tight text-white md:text-6xl"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
+              Sua usina solar,<br />
+              <span className="grad-text">no controle total.</span>
             </h1>
-            <p className="mt-4 text-lg text-slate-600">
-              Cadastre os moradores, calcule o consumo de cada um, gere faturas com
-              desconto e envie pelo WhatsApp. Seus moradores acompanham as faturas e
-              quanto economizam com a energia solar.
+          </Reveal>
+          <Reveal delay={0.16}>
+            <p className="mt-6 max-w-md text-lg leading-relaxed text-slate-300">
+              Cadastre os moradores, calcule o consumo, gere faturas com desconto e
+              envie pelo WhatsApp. Cada morador acompanha suas faturas e o quanto
+              economiza — em tempo real.
             </p>
+          </Reveal>
+          <Reveal delay={0.24}>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link href="/login" className="btn-primary">
-                Acessar o sistema
+                Acessar o sistema <ArrowRight className="h-4 w-4" />
               </Link>
-              <a href="#recursos" className="btn-outline">
-                Ver recursos
-              </a>
+              <a href="#recursos" className="btn-outline">Ver recursos</a>
             </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4" id="recursos">
-            <Recurso icon={<Zap />} titulo="Cálculo automático" texto="Informe o consumo e o sistema calcula tudo, aplicando o desconto." />
-            <Recurso icon={<FileText />} titulo="Faturas & WhatsApp" texto="Gere a fatura e envie pelo WhatsApp com um clique." />
-            <Recurso icon={<Leaf />} titulo="Economia visível" texto="Cada morador vê quanto economiza usando energia solar." />
-            <Recurso icon={<Sun />} titulo="Portal do morador" texto="Acesso próprio para ver o histórico de faturas." />
+          </Reveal>
+
+          <Reveal delay={0.32}>
+            <div className="mt-12 grid max-w-md grid-cols-3 gap-4">
+              <Stat valor={20} sufixo="%" label="de desconto" />
+              <Stat valor={100} sufixo="%" label="energia limpa" />
+              <Stat valor={24} sufixo="/7" label="acesso online" />
+            </div>
+          </Reveal>
+        </div>
+
+        {/* Núcleo de energia animado */}
+        <div className="relative mx-auto hidden aspect-square w-full max-w-md items-center justify-center md:flex">
+          <div className="absolute h-72 w-72 rounded-full bg-brand-500/20 blur-3xl animate-pulse-glow" />
+          <div className="absolute h-80 w-80 rounded-full border border-white/10 animate-spin-slow"
+            style={{ background: "conic-gradient(from 0deg, transparent, rgba(255,176,32,0.35), transparent 40%)" }} />
+          <div className="absolute h-60 w-60 rounded-full border border-white/10 animate-spin-slow [animation-direction:reverse]"
+            style={{ background: "conic-gradient(from 180deg, transparent, rgba(34,211,238,0.30), transparent 45%)" }} />
+          <div className="relative flex h-40 w-40 animate-float items-center justify-center rounded-full"
+            style={{ background: "radial-gradient(circle at 35% 30%, #ffd24a, #f59e0b 55%, #b45309)", boxShadow: "0 0 90px 10px rgba(255,176,32,0.55)" }}>
+            <Sun className="h-16 w-16 text-white/90" />
           </div>
         </div>
       </section>
 
-      <footer className="border-t border-slate-200 py-6 text-center text-sm text-slate-500">
-        Lorenergia · Energia solar para todos ☀️
+      {/* Recursos */}
+      <section id="recursos" className="mx-auto max-w-6xl px-5 py-16">
+        <Reveal>
+          <div className="mb-10 text-center">
+            <span className="eyebrow justify-center">O que você faz aqui</span>
+            <h2 className="mt-3 text-3xl font-bold text-white md:text-4xl" style={{ fontFamily: "var(--font-display)" }}>
+              Tudo da usina em um só lugar
+            </h2>
+          </div>
+        </Reveal>
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <Recurso i={0} icon={<Zap />} titulo="Cálculo automático" texto="Informe as leituras e o sistema calcula tudo, com o desconto aplicado." />
+          <Recurso i={1} icon={<FileText />} titulo="Faturas & WhatsApp" texto="Gere a fatura completa e envie pelo WhatsApp com um clique." />
+          <Recurso i={2} icon={<Leaf />} titulo="Economia visível" texto="Cada morador vê, mês a mês, o quanto economiza com energia solar." />
+          <Recurso i={3} icon={<ShieldCheck />} titulo="Portal seguro" texto="Acesso próprio e protegido: cada um enxerga só as próprias faturas." />
+        </div>
+      </section>
+
+      <footer className="mx-auto max-w-6xl px-5 py-10 text-center text-sm text-slate-500">
+        <div className="hr-line mb-6" />
+        Lorenergia · Energia limpa e mais barata ☀️
       </footer>
     </main>
   );
 }
 
-function Recurso({ icon, titulo, texto }: { icon: React.ReactNode; titulo: string; texto: string }) {
+function Stat({ valor, sufixo, label }: { valor: number; sufixo: string; label: string }) {
   return (
-    <div className="card">
-      <div className="mb-2 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-brand-100 text-brand-600">
-        {icon}
-      </div>
-      <h3 className="font-semibold text-slate-900">{titulo}</h3>
-      <p className="mt-1 text-sm text-slate-600">{texto}</p>
+    <div>
+      <p className="text-3xl font-extrabold text-white" style={{ fontFamily: "var(--font-display)" }}>
+        <AnimatedNumber value={valor} />
+        <span className="neon-text">{sufixo}</span>
+      </p>
+      <p className="mt-1 text-xs text-slate-400">{label}</p>
     </div>
+  );
+}
+
+function Recurso({ i, icon, titulo, texto }: { i: number; icon: React.ReactNode; titulo: string; texto: string }) {
+  return (
+    <Reveal delay={i * 0.08}>
+      <div className="card card-hover h-full">
+        <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-brand-500/10 text-brand-400">
+          {icon}
+        </div>
+        <h3 className="font-semibold text-white">{titulo}</h3>
+        <p className="mt-1.5 text-sm leading-relaxed text-slate-400">{texto}</p>
+      </div>
+    </Reveal>
   );
 }

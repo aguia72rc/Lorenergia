@@ -20,12 +20,12 @@ export default async function FaturasLotePage() {
 
   return (
     <div className="space-y-6">
-      <Link href="/admin/faturas" className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800">
+      <Link href="/admin/faturas" className="inline-flex items-center gap-1 text-sm text-slate-400 hover:text-white">
         <ArrowLeft className="h-4 w-4" /> Voltar
       </Link>
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Faturas do mês em lote</h1>
-        <p className="text-sm text-slate-500">
+        <h1 className="text-2xl font-bold text-white">Faturas do mês em lote</h1>
+        <p className="text-sm text-slate-400">
           Digite a leitura atual de cada morador. A leitura anterior vem da última fatura.
         </p>
       </div>
@@ -33,7 +33,7 @@ export default async function FaturasLotePage() {
       {(clientes ?? []).length === 0 ? (
         <div className="card flex flex-col items-center py-12 text-center">
           <Users className="h-10 w-10 text-slate-300" />
-          <p className="mt-3 text-slate-600">Cadastre moradores ativos antes de gerar faturas.</p>
+          <p className="mt-3 text-slate-300">Cadastre moradores ativos antes de gerar faturas.</p>
           <Link href="/admin/clientes/novo" className="btn-primary mt-4">Cadastrar morador</Link>
         </div>
       ) : (

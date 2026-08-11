@@ -101,7 +101,7 @@ export default function NovaFaturaForm({
           <Campo label="Fator mult." name="fator_multiplicador" value={fator} onChange={setFator} step={0.0001} />
           <div>
             <label className="label">Consumo</label>
-            <div className="flex h-[38px] items-center rounded-lg bg-slate-100 px-3 text-sm font-semibold text-slate-700">{formatKwh(consumo)}</div>
+            <div className="flex h-[38px] items-center rounded-lg bg-white/10 px-3 text-sm font-semibold text-slate-200">{formatKwh(consumo)}</div>
           </div>
         </div>
 

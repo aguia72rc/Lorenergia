@@ -20,15 +20,15 @@ export default async function NovaFaturaPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <Link href="/admin/faturas" className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800">
+      <Link href="/admin/faturas" className="inline-flex items-center gap-1 text-sm text-slate-400 hover:text-white">
         <ArrowLeft className="h-4 w-4" /> Voltar
       </Link>
-      <h1 className="text-2xl font-bold text-slate-900">Nova fatura</h1>
+      <h1 className="text-2xl font-bold text-white">Nova fatura</h1>
 
       {(clientes ?? []).length === 0 ? (
         <div className="card flex flex-col items-center py-12 text-center">
           <Users className="h-10 w-10 text-slate-300" />
-          <p className="mt-3 text-slate-600">Cadastre um morador ativo antes de gerar faturas.</p>
+          <p className="mt-3 text-slate-300">Cadastre um morador ativo antes de gerar faturas.</p>
           <Link href="/admin/clientes/novo" className="btn-primary mt-4">Cadastrar morador</Link>
         </div>
       ) : (

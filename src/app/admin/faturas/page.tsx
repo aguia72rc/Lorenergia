@@ -70,8 +70,8 @@ export default async function FaturasPage({
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Faturas</h1>
-          <p className="text-sm text-slate-500">{lista.length} fatura(s)</p>
+          <h1 className="text-2xl font-bold text-white">Faturas</h1>
+          <p className="text-sm text-slate-400">{lista.length} fatura(s)</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Link href="/admin/faturas/enviar" className="btn-eco">
@@ -93,7 +93,7 @@ export default async function FaturasPage({
               key={f.chave}
               href={hrefStatus(f.chave)}
               className={`rounded-full px-3 py-1.5 text-sm font-medium ${
-                statusFiltro === f.chave ? "bg-brand-500 text-brand-950" : "bg-white text-slate-600 hover:bg-slate-100"
+                statusFiltro === f.chave ? "bg-brand-500 text-brand-950 shadow-[0_4px_16px_-4px_rgba(255,176,32,0.6)]" : "glass text-slate-300 hover:bg-white/5"
               }`}
             >
               {f.rotulo}
@@ -106,7 +106,7 @@ export default async function FaturasPage({
       {lista.length === 0 ? (
         <div className="card flex flex-col items-center py-12 text-center">
           <FileText className="h-10 w-10 text-slate-300" />
-          <p className="mt-3 text-slate-600">Nenhuma fatura encontrada.</p>
+          <p className="mt-3 text-slate-300">Nenhuma fatura encontrada.</p>
           <Link href="/admin/faturas/nova" className="btn-primary mt-4">
             <Plus className="h-4 w-4" /> Gerar fatura
           </Link>
@@ -115,7 +115,7 @@ export default async function FaturasPage({
         <div className="card overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-200 text-left text-slate-500">
+              <tr className="border-b border-white/10 text-left text-slate-400">
                 <th className="pb-2 font-medium">Morador</th>
                 <th className="pb-2 font-medium">Referência</th>
                 <th className="pb-2 font-medium">Consumo</th>
@@ -131,21 +131,21 @@ export default async function FaturasPage({
                 const mensagem = montarMensagem(f, cfg, `${baseUrl}/fatura/${f.id}`);
                 const link = gerarLinkWhatsApp(f.clientes?.telefone, mensagem);
                 return (
-                  <tr key={f.id} className="border-b border-slate-100 last:border-0">
+                  <tr key={f.id} className="border-b border-white/5 last:border-0">
                     <td className="py-3">
-                      <span className="font-medium text-slate-900">{f.clientes?.nome ?? "-"}</span>
+                      <span className="font-medium text-white">{f.clientes?.nome ?? "-"}</span>
                       <span className="ml-1 text-xs text-slate-400">{f.clientes?.unidade}</span>
                     </td>
-                    <td className="py-3 text-slate-600">{formatReferencia(f.referencia)}</td>
-                    <td className="py-3 text-slate-600">{f.consumo_kwh} kWh</td>
-                    <td className="py-3 font-medium text-slate-900">{formatBRL(f.valor_liquido)}</td>
-                    <td className="py-3 text-eco-700">{formatBRL(f.economia)}</td>
-                    <td className={`py-3 ${faturaVencida(f.vencimento, f.status) ? "font-medium text-red-600" : "text-slate-600"}`}>
+                    <td className="py-3 text-slate-300">{formatReferencia(f.referencia)}</td>
+                    <td className="py-3 text-slate-300">{f.consumo_kwh} kWh</td>
+                    <td className="py-3 font-medium text-white">{formatBRL(f.valor_liquido)}</td>
+                    <td className="py-3 text-eco-300">{formatBRL(f.economia)}</td>
+                    <td className={`py-3 ${faturaVencida(f.vencimento, f.status) ? "font-medium text-red-400" : "text-slate-300"}`}>
                       {formatData(f.vencimento)}
                     </td>
                     <td className="py-3">
                       {faturaVencida(f.vencimento, f.status) ? (
-                        <span className="badge bg-red-100 text-red-700">Vencida</span>
+                        <span className="badge bg-red-500/15 text-red-300 ring-1 ring-red-500/25">Vencida</span>
                       ) : (
                         <StatusBadge status={f.status} />
                       )}

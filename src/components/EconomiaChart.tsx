@@ -18,7 +18,7 @@ export default function EconomiaChart({
   dados,
   destaqueRef,
   altura = 200,
-  cor = "#16a34a",
+  cor = "#34d399",
   ariaLabel = "Gráfico de economia mensal com energia solar",
   textoVazio = "Ainda não há dados de economia para exibir.",
 }: {
@@ -47,9 +47,9 @@ export default function EconomiaChart({
   const larguraBarra = Math.min(46, passo * 0.6);
 
   const corBarra = cor; // série única (verde por padrão)
-  const corDestaque = "#eab308"; // brand-500 (mês em foco)
-  const corTinta = "#64748b"; // slate-500 (rótulos)
-  const corBase = "#e2e8f0"; // slate-200 (linha de base)
+  const corDestaque = "#ffca3a"; // brand (mês em foco)
+  const corTinta = "#94a3b8"; // slate-400 (rótulos)
+  const corBase = "rgba(255,255,255,0.14)"; // linha de base sutil
 
   return (
     <div className="w-full overflow-x-auto">

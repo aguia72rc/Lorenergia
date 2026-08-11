@@ -3,6 +3,7 @@ import { Users, FileText, Wallet, Leaf, Plus, AlertTriangle, Send } from "lucide
 import { createClient } from "@/lib/supabase/server";
 import { formatBRL, formatReferencia, primeiroDiaMesAtual, hojeISO } from "@/lib/format";
 import StatusBadge from "@/components/StatusBadge";
+import { AnimatedNumber } from "@/components/motion";
 import type { FaturaComCliente } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -34,8 +35,8 @@ export default async function AdminDashboard() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Painel</h1>
-          <p className="text-sm text-slate-500">Resumo de {formatReferencia(refMes)}</p>
+          <h1 className="text-2xl font-bold text-white" style={{ fontFamily: "var(--font-display)" }}>Painel</h1>
+          <p className="text-sm text-slate-400">Resumo de {formatReferencia(refMes)}</p>
         </div>
         <Link href="/admin/faturas/nova" className="btn-primary">
           <Plus className="h-4 w-4" /> Nova fatura
@@ -43,15 +44,15 @@ export default async function AdminDashboard() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Kpi icon={<Users />} titulo="Moradores ativos" valor={String(totalMoradores ?? 0)} cor="bg-blue-100 text-blue-700" />
-        <Kpi icon={<Wallet />} titulo="A receber (pendente)" valor={formatBRL(totalPendente)} cor="bg-amber-100 text-amber-700" />
-        <Kpi icon={<FileText />} titulo="Faturado no mês" valor={formatBRL(receitaMes)} cor="bg-brand-100 text-brand-700" />
-        <Kpi icon={<Leaf />} titulo="Economia gerada no mês" valor={formatBRL(economiaMes)} cor="bg-eco-100 text-eco-700" />
+        <Kpi icon={<Users />} titulo="Moradores ativos" valor={totalMoradores ?? 0} cor="bg-blue-500/15 text-blue-300" />
+        <Kpi icon={<Wallet />} titulo="A receber (pendente)" valor={totalPendente} fmt="brl" cor="bg-amber-500/15 text-amber-300" />
+        <Kpi icon={<FileText />} titulo="Faturado no mês" valor={receitaMes} fmt="brl" cor="bg-brand-500/15 text-brand-300" />
+        <Kpi icon={<Leaf />} titulo="Economia gerada no mês" valor={economiaMes} fmt="brl" cor="bg-eco-500/15 text-eco-300" />
       </div>
 
       {qtdVencidas > 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 p-4">
-          <div className="flex items-center gap-3 text-red-700">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 backdrop-blur">
+          <div className="flex items-center gap-3 text-red-300">
             <AlertTriangle className="h-5 w-5 shrink-0" />
             <p className="text-sm">
               <strong>{qtdVencidas} fatura(s) vencida(s)</strong> somando {formatBRL(totalVencido)}. Envie um lembrete aos moradores.
@@ -66,20 +67,20 @@ export default async function AdminDashboard() {
 
       <div className="card">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="font-semibold text-slate-900">Últimas faturas</h2>
-          <Link href="/admin/faturas" className="text-sm text-brand-700 hover:underline">
+          <h2 className="font-semibold text-white">Últimas faturas</h2>
+          <Link href="/admin/faturas" className="text-sm text-brand-300 hover:underline">
             Ver todas →
           </Link>
         </div>
         {(ultimas ?? []).length === 0 ? (
-          <p className="py-6 text-center text-sm text-slate-500">
+          <p className="py-6 text-center text-sm text-slate-400">
             Nenhuma fatura ainda. Cadastre os moradores e gere a primeira fatura.
           </p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-200 text-left text-slate-500">
+                <tr className="border-b border-white/10 text-left text-slate-500">
                   <th className="pb-2 font-medium">Morador</th>
                   <th className="pb-2 font-medium">Referência</th>
                   <th className="pb-2 font-medium">Valor</th>
@@ -88,15 +89,15 @@ export default async function AdminDashboard() {
               </thead>
               <tbody>
                 {(ultimas as FaturaComCliente[]).map((f) => (
-                  <tr key={f.id} className="border-b border-slate-100 last:border-0">
+                  <tr key={f.id} className="border-b border-white/5 last:border-0">
                     <td className="py-2.5">
-                      <Link href={`/fatura/${f.id}`} className="font-medium text-slate-900 hover:underline">
+                      <Link href={`/fatura/${f.id}`} className="font-medium text-white hover:text-brand-300">
                         {f.clientes?.nome ?? "-"}
                       </Link>
-                      <span className="ml-1 text-xs text-slate-400">{f.clientes?.unidade}</span>
+                      <span className="ml-1 text-xs text-slate-500">{f.clientes?.unidade}</span>
                     </td>
-                    <td className="py-2.5">{formatReferencia(f.referencia)}</td>
-                    <td className="py-2.5">{formatBRL(f.valor_liquido)}</td>
+                    <td className="py-2.5 text-slate-300">{formatReferencia(f.referencia)}</td>
+                    <td className="py-2.5 text-slate-200">{formatBRL(f.valor_liquido)}</td>
                     <td className="py-2.5"><StatusBadge status={f.status} /></td>
                   </tr>
                 ))}
@@ -109,14 +110,14 @@ export default async function AdminDashboard() {
   );
 }
 
-function Kpi({ icon, titulo, valor, cor }: { icon: React.ReactNode; titulo: string; valor: string; cor: string }) {
+function Kpi({ icon, titulo, valor, fmt = "int", cor }: { icon: React.ReactNode; titulo: string; valor: number; fmt?: "int" | "brl"; cor: string }) {
   return (
-    <div className="card">
-      <div className={`mb-3 inline-flex h-9 w-9 items-center justify-center rounded-lg ${cor}`}>
-        {icon}
-      </div>
-      <p className="text-sm text-slate-500">{titulo}</p>
-      <p className="mt-1 text-xl font-bold text-slate-900">{valor}</p>
+    <div className="card card-hover">
+      <div className={`mb-3 inline-flex h-9 w-9 items-center justify-center rounded-xl ${cor}`}>{icon}</div>
+      <p className="text-sm text-slate-400">{titulo}</p>
+      <p className="mt-1 text-xl font-bold text-white">
+        <AnimatedNumber value={valor} format={fmt} />
+      </p>
     </div>
   );
 }

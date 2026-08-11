@@ -75,7 +75,7 @@ export default function ClienteFormFields({ cliente }: { cliente?: Cliente }) {
       </div>
 
       <div className="flex items-end">
-        <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+        <label className="flex items-center gap-2 text-sm font-medium text-slate-200">
           <input type="checkbox" name="ativo" defaultChecked={cliente?.ativo ?? true} className="h-4 w-4 rounded border-slate-300" />
           Morador ativo
         </label>

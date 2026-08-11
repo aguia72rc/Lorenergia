@@ -7,18 +7,24 @@ export async function getSessao(): Promise<{
   email: string | null;
   profile: Profile | null;
 } | null> {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  try {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-  if (!user) return null;
+    if (!user) return null;
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .single();
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", user.id)
+      .single();
 
-  return { userId: user.id, email: user.email ?? null, profile: (profile as Profile) ?? null };
+    return { userId: user.id, email: user.email ?? null, profile: (profile as Profile) ?? null };
+  } catch {
+    // Se o serviço de auth estiver indisponível, trata como deslogado
+    // em vez de derrubar a página.
+    return null;
+  }
 }
