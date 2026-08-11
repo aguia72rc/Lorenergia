@@ -105,7 +105,6 @@ export default async function HomePage() {
               controls
               preload="metadata"
               playsInline
-              poster="/video-capa.jpg"
             >
               <source src="/institucional.mp4" type="video/mp4" />
               Seu navegador não suporta vídeo.{" "}
