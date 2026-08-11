@@ -6,6 +6,7 @@ import { getSessao } from "@/lib/auth";
 import { formatBRL, formatReferencia, formatData, formatReferenciaCurta } from "@/lib/format";
 import StatusBadge from "@/components/StatusBadge";
 import EconomiaChart from "@/components/EconomiaChart";
+import { AnimatedNumber } from "@/components/motion";
 import type { Cliente, Fatura } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -22,8 +23,8 @@ export default async function PortalPage() {
   if (!sessao?.profile?.cliente_id) {
     return (
       <div className="card text-center">
-        <h1 className="text-xl font-bold text-slate-900">Conta ainda não vinculada</h1>
-        <p className="mt-2 text-sm text-slate-600">
+        <h1 className="text-xl font-bold text-white">Conta ainda não vinculada</h1>
+        <p className="mt-2 text-sm text-slate-300">
           Seu acesso foi criado, mas ainda não está ligado a um cadastro de morador.
           Peça ao responsável pela usina para vincular o e-mail <strong>{sessao?.email}</strong> ao seu cadastro.
         </p>
@@ -61,48 +62,52 @@ export default async function PortalPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Olá, {c?.nome?.split(" ")[0]} 👋</h1>
-        <p className="text-sm text-slate-500">Acompanhe suas faturas e sua economia com energia solar.</p>
+        <h1 className="text-2xl font-bold text-white" style={{ fontFamily: "var(--font-display)" }}>Olá, {c?.nome?.split(" ")[0]} 👋</h1>
+        <p className="text-sm text-slate-400">Acompanhe suas faturas e sua economia com energia solar.</p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Kpi icon={<Leaf />} titulo="Economia total" valor={formatBRL(economiaTotal)} cor="bg-eco-100 text-eco-700" destaque />
-        <Kpi icon={<TrendingDown />} titulo={`Economia em ${anoAtual}`} valor={formatBRL(economiaAno)} cor="bg-eco-100 text-eco-700" />
-        <Kpi icon={<Wallet />} titulo="Em aberto" valor={formatBRL(totalPendente)} cor="bg-amber-100 text-amber-700" />
-        <Kpi icon={<FileText />} titulo="Faturas" valor={String(lista.length)} cor="bg-blue-100 text-blue-700" />
+        <Kpi icon={<Leaf />} titulo="Economia total" valor={economiaTotal} fmt="brl" cor="bg-eco-500/15 text-eco-300" destaque />
+        <Kpi icon={<TrendingDown />} titulo={`Economia em ${anoAtual}`} valor={economiaAno} fmt="brl" cor="bg-eco-500/15 text-eco-300" />
+        <Kpi icon={<Wallet />} titulo="Em aberto" valor={totalPendente} fmt="brl" cor="bg-amber-500/15 text-amber-300" />
+        <Kpi icon={<FileText />} titulo="Faturas" valor={lista.length} cor="bg-blue-500/15 text-blue-300" />
       </div>
 
       {economiaTotal > 0 && (
-        <div className="rounded-xl bg-gradient-to-r from-eco-600 to-eco-500 p-6 text-white">
-          <p className="text-sm text-eco-50">Desde que você usa energia solar</p>
-          <p className="mt-1 text-3xl font-extrabold">{formatBRL(economiaTotal)} economizados 🌱</p>
-          <p className="mt-1 text-sm text-eco-50">Obrigado por escolher energia limpa!</p>
+        <div className="relative overflow-hidden rounded-2xl border border-eco-500/30 p-6"
+          style={{ background: "linear-gradient(120deg, rgba(16,185,129,0.22), rgba(34,211,238,0.12))" }}>
+          <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-eco-500/20 blur-3xl" />
+          <p className="relative text-sm text-eco-200">Desde que você usa energia solar</p>
+          <p className="relative mt-1 text-3xl font-extrabold text-white" style={{ fontFamily: "var(--font-display)" }}>
+            <AnimatedNumber value={economiaTotal} format="brl" /> economizados 🌱
+          </p>
+          <p className="relative mt-1 text-sm text-eco-200">Obrigado por escolher energia limpa!</p>
         </div>
       )}
 
       {pontosEconomia.length > 0 && (
         <div className="card">
-          <h2 className="mb-1 font-semibold text-slate-900">Sua economia mês a mês</h2>
-          <p className="mb-4 text-sm text-slate-500">Quanto você economizou (R$) usando energia solar.</p>
+          <h2 className="mb-1 font-semibold text-white">Sua economia mês a mês</h2>
+          <p className="mb-4 text-sm text-slate-400">Quanto você economizou (R$) usando energia solar.</p>
           <EconomiaChart dados={pontosEconomia} />
         </div>
       )}
 
       <div className="card">
-        <h2 className="mb-4 font-semibold text-slate-900">Minhas faturas</h2>
+        <h2 className="mb-4 font-semibold text-white">Minhas faturas</h2>
         {lista.length === 0 ? (
-          <p className="py-6 text-center text-sm text-slate-500">Você ainda não tem faturas.</p>
+          <p className="py-6 text-center text-sm text-slate-400">Você ainda não tem faturas.</p>
         ) : (
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y divide-white/5">
             {lista.map((f) => (
               <Link
                 key={f.id}
                 href={`/fatura/${f.id}`}
-                className="flex items-center justify-between py-3 transition-colors hover:bg-slate-50"
+                className="-mx-2 flex items-center justify-between rounded-xl px-2 py-3 transition-colors hover:bg-white/5"
               >
                 <div>
-                  <p className="font-medium capitalize text-slate-900">{formatReferencia(f.referencia)}</p>
-                  <p className="text-xs text-slate-500">
+                  <p className="font-medium capitalize text-white">{formatReferencia(f.referencia)}</p>
+                  <p className="text-xs text-slate-400">
                     {f.consumo_kwh} kWh · economia {formatBRL(f.economia)}
                     {f.vencimento ? ` · vence ${formatData(f.vencimento)}` : ""}
                   </p>
@@ -110,12 +115,12 @@ export default async function PortalPage() {
                 <div className="flex items-center gap-3">
                   <div className="text-right">
                     {Number(f.valor_desconto) > 0 && (
-                      <p className="text-sm font-bold text-red-600">{formatBRL(f.valor_bruto)}</p>
+                      <p className="text-sm font-bold text-red-400">{formatBRL(f.valor_bruto)}</p>
                     )}
-                    <p className="font-semibold text-slate-900">{formatBRL(f.valor_liquido)}</p>
+                    <p className="font-semibold text-white">{formatBRL(f.valor_liquido)}</p>
                     <StatusBadge status={f.status} />
                   </div>
-                  <ChevronRight className="h-4 w-4 text-slate-400" />
+                  <ChevronRight className="h-4 w-4 text-slate-500" />
                 </div>
               </Link>
             ))}
@@ -130,20 +135,24 @@ function Kpi({
   icon,
   titulo,
   valor,
+  fmt = "int",
   cor,
   destaque,
 }: {
   icon: React.ReactNode;
   titulo: string;
-  valor: string;
+  valor: number;
+  fmt?: "int" | "brl";
   cor: string;
   destaque?: boolean;
 }) {
   return (
-    <div className={`card ${destaque ? "ring-2 ring-eco-200" : ""}`}>
-      <div className={`mb-3 inline-flex h-9 w-9 items-center justify-center rounded-lg ${cor}`}>{icon}</div>
-      <p className="text-sm text-slate-500">{titulo}</p>
-      <p className="mt-1 text-xl font-bold text-slate-900">{valor}</p>
+    <div className={`card card-hover ${destaque ? "ring-1 ring-eco-400/40" : ""}`}>
+      <div className={`mb-3 inline-flex h-9 w-9 items-center justify-center rounded-xl ${cor}`}>{icon}</div>
+      <p className="text-sm text-slate-400">{titulo}</p>
+      <p className="mt-1 text-xl font-bold text-white">
+        <AnimatedNumber value={valor} format={fmt} />
+      </p>
     </div>
   );
 }

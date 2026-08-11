@@ -37,18 +37,18 @@ export default function FaturaRowActions({
   return (
     <div className="flex items-center justify-end gap-1">
       <WhatsAppButton faturaId={id} link={whatsappLink} enviadoEm={whatsappEnviadoEm} />
-      <Link href={`/fatura/${id}`} title="Ver fatura" className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-brand-700">
+      <Link href={`/fatura/${id}`} title="Ver fatura" className="rounded-md p-1.5 text-slate-400 hover:bg-white/5 hover:text-brand-300">
         <Eye className="h-4 w-4" />
       </Link>
       <button
         onClick={alternarPaga}
         disabled={pending}
         title={status === "paga" ? "Marcar como pendente" : "Marcar como paga"}
-        className={`rounded-md p-1.5 hover:bg-slate-100 ${status === "paga" ? "text-slate-400 hover:text-amber-600" : "text-slate-500 hover:text-eco-700"}`}
+        className={`rounded-md p-1.5 hover:bg-white/5 ${status === "paga" ? "text-slate-400 hover:text-amber-600" : "text-slate-400 hover:text-eco-300"}`}
       >
         {status === "paga" ? <RotateCcw className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
       </button>
-      <button onClick={onExcluir} disabled={pending} title="Excluir" className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-red-600">
+      <button onClick={onExcluir} disabled={pending} title="Excluir" className="rounded-md p-1.5 text-slate-400 hover:bg-white/5 hover:text-red-400">
         <Trash2 className="h-4 w-4" />
       </button>
     </div>

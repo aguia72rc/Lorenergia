@@ -16,10 +16,13 @@ export default function AdminNav({ email }: { email: string | null }) {
   const pathname = usePathname();
 
   return (
-    <aside className="flex w-full flex-col border-b border-slate-200 bg-white md:h-screen md:w-64 md:border-b-0 md:border-r">
-      <div className="flex items-center gap-2 px-5 py-4">
-        <Sun className="h-6 w-6 text-brand-500" />
-        <span className="font-bold text-slate-900">Lorenergia</span>
+    <aside className="glass flex w-full flex-col border-x-0 border-t-0 md:h-screen md:w-64 md:border-b-0 md:border-r">
+      <div className="flex items-center gap-2.5 px-5 py-4">
+        <span className="relative inline-flex h-7 w-7 items-center justify-center">
+          <span className="absolute inset-0 rounded-full bg-brand-500/30 blur-md animate-pulse-glow" />
+          <Sun className="relative h-6 w-6 text-brand-400" />
+        </span>
+        <span className="font-bold text-white" style={{ fontFamily: "var(--font-display)" }}>Lorenergia</span>
       </div>
       <nav className="flex flex-1 gap-1 overflow-x-auto px-3 pb-3 md:flex-col md:overflow-visible">
         {itens.map(({ href, label, icon: Icon }) => {
@@ -28,8 +31,10 @@ export default function AdminNav({ email }: { email: string | null }) {
             <Link
               key={href}
               href={href}
-              className={`flex items-center gap-3 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                ativo ? "bg-brand-100 text-brand-800" : "text-slate-600 hover:bg-slate-100"
+              className={`flex items-center gap-3 whitespace-nowrap rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
+                ativo
+                  ? "bg-brand-500/15 text-brand-300 shadow-[inset_0_0_0_1px_rgba(255,176,32,0.25)]"
+                  : "text-slate-400 hover:bg-white/5 hover:text-white"
               }`}
             >
               <Icon className="h-4 w-4" />
@@ -38,10 +43,10 @@ export default function AdminNav({ email }: { email: string | null }) {
           );
         })}
       </nav>
-      <div className="hidden border-t border-slate-200 p-3 md:block">
+      <div className="hidden border-t border-white/10 p-3 md:block">
         <p className="mb-2 truncate px-2 text-xs text-slate-500">{email}</p>
         <form action="/auth/signout" method="post">
-          <button type="submit" className="btn-outline w-full text-slate-600">
+          <button type="submit" className="btn-outline w-full">
             <LogOut className="h-4 w-4" /> Sair
           </button>
         </form>

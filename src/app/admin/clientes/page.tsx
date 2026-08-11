@@ -19,8 +19,8 @@ export default async function ClientesPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Moradores</h1>
-          <p className="text-sm text-slate-500">{lista.length} cadastrado(s)</p>
+          <h1 className="text-2xl font-bold text-white">Moradores</h1>
+          <p className="text-sm text-slate-400">{lista.length} cadastrado(s)</p>
         </div>
         <Link href="/admin/clientes/novo" className="btn-primary">
           <Plus className="h-4 w-4" /> Novo morador
@@ -30,7 +30,7 @@ export default async function ClientesPage() {
       {lista.length === 0 ? (
         <div className="card flex flex-col items-center py-12 text-center">
           <Users className="h-10 w-10 text-slate-300" />
-          <p className="mt-3 text-slate-600">Nenhum morador cadastrado ainda.</p>
+          <p className="mt-3 text-slate-300">Nenhum morador cadastrado ainda.</p>
           <Link href="/admin/clientes/novo" className="btn-primary mt-4">
             <Plus className="h-4 w-4" /> Cadastrar primeiro morador
           </Link>
@@ -39,7 +39,7 @@ export default async function ClientesPage() {
         <div className="card overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-200 text-left text-slate-500">
+              <tr className="border-b border-white/10 text-left text-slate-400">
                 <th className="pb-2 font-medium">Nome</th>
                 <th className="pb-2 font-medium">Unidade</th>
                 <th className="pb-2 font-medium">WhatsApp</th>
@@ -50,16 +50,16 @@ export default async function ClientesPage() {
             </thead>
             <tbody>
               {lista.map((c) => (
-                <tr key={c.id} className="border-b border-slate-100 last:border-0">
-                  <td className="py-3 font-medium text-slate-900">{c.nome}</td>
-                  <td className="py-3 text-slate-600">{c.unidade ?? "-"}</td>
-                  <td className="py-3 text-slate-600">{c.telefone ?? "-"}</td>
-                  <td className="py-3 text-slate-600">{c.desconto_percentual}%</td>
+                <tr key={c.id} className="border-b border-white/5 last:border-0">
+                  <td className="py-3 font-medium text-white">{c.nome}</td>
+                  <td className="py-3 text-slate-300">{c.unidade ?? "-"}</td>
+                  <td className="py-3 text-slate-300">{c.telefone ?? "-"}</td>
+                  <td className="py-3 text-slate-300">{c.desconto_percentual}%</td>
                   <td className="py-3">
                     {c.ativo ? (
-                      <span className="badge bg-eco-100 text-eco-700">Ativo</span>
+                      <span className="badge bg-eco-500/15 text-eco-300">Ativo</span>
                     ) : (
-                      <span className="badge bg-slate-200 text-slate-600">Inativo</span>
+                      <span className="badge bg-white/10 text-slate-300">Inativo</span>
                     )}
                   </td>
                   <td className="py-3">

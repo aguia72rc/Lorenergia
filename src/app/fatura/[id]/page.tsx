@@ -67,16 +67,16 @@ export default async function FaturaPage({ params }: { params: { id: string } })
   const voltarHref = sessao.profile?.role === "admin" ? "/admin/faturas" : "/portal";
 
   return (
-    <div className="min-h-screen bg-slate-100 py-8">
+    <div className="min-h-screen py-8">
       <div className="mx-auto max-w-2xl px-4">
         <div className="no-print mb-4 flex items-center justify-between">
-          <Link href={voltarHref} className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800">
+          <Link href={voltarHref} className="inline-flex items-center gap-1 text-sm text-slate-400 hover:text-white">
             <ArrowLeft className="h-4 w-4" /> Voltar
           </Link>
           <PrintButton />
         </div>
 
-        <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
+        <div className="print-light overflow-hidden rounded-2xl bg-white shadow-[0_0_60px_-12px_rgba(255,176,32,0.35)] ring-1 ring-white/10">
           {/* Cabeçalho */}
           <div className="bg-slate-900 p-6 text-white">
             <div className="flex items-start justify-between gap-4">

@@ -49,14 +49,14 @@ export default function ClienteRowActions({ id, temEmail }: { id: string; temEma
   return (
     <div className="flex flex-col items-end gap-1">
       <div className="flex items-center justify-end gap-1">
-        {msg && <span className="mr-2 text-xs text-slate-500">{msg}</span>}
+        {msg && <span className="mr-2 text-xs text-slate-400">{msg}</span>}
         {temEmail && (
           <>
             <button
               onClick={onGerarAcesso}
               disabled={pending}
               title="Gerar senha de acesso (troca no 1º acesso)"
-              className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-brand-700"
+              className="rounded-md p-1.5 text-slate-400 hover:bg-white/5 hover:text-brand-300"
             >
               <KeyRound className="h-4 w-4" />
             </button>
@@ -64,25 +64,25 @@ export default function ClienteRowActions({ id, temEmail }: { id: string; temEma
               onClick={onConvidar}
               disabled={pending}
               title="Convidar por e-mail (link mágico)"
-              className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-eco-700"
+              className="rounded-md p-1.5 text-slate-400 hover:bg-white/5 hover:text-eco-300"
             >
               <Send className="h-4 w-4" />
             </button>
           </>
         )}
-        <Link href={`/admin/clientes/${id}`} title="Editar" className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-brand-700">
+        <Link href={`/admin/clientes/${id}`} title="Editar" className="rounded-md p-1.5 text-slate-400 hover:bg-white/5 hover:text-brand-300">
           <Pencil className="h-4 w-4" />
         </Link>
-        <button onClick={onExcluir} disabled={pending} title="Excluir" className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-red-600">
+        <button onClick={onExcluir} disabled={pending} title="Excluir" className="rounded-md p-1.5 text-slate-400 hover:bg-white/5 hover:text-red-400">
           <Trash2 className="h-4 w-4" />
         </button>
       </div>
 
       {senha && (
-        <div className="flex items-center gap-2 rounded-lg bg-brand-50 px-2.5 py-1.5 text-xs">
-          <span className="text-slate-600">Senha temporária:</span>
-          <code className="font-mono font-bold text-slate-900">{senha}</code>
-          <button onClick={copiar} title="Copiar" className="text-slate-500 hover:text-brand-700">
+        <div className="flex items-center gap-2 rounded-lg bg-brand-500/10 px-2.5 py-1.5 text-xs">
+          <span className="text-slate-300">Senha temporária:</span>
+          <code className="font-mono font-bold text-white">{senha}</code>
+          <button onClick={copiar} title="Copiar" className="text-slate-400 hover:text-brand-300">
             {copiado ? <Check className="h-3.5 w-3.5 text-eco-600" /> : <Copy className="h-3.5 w-3.5" />}
           </button>
         </div>

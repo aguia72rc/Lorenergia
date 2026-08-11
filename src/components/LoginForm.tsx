@@ -92,8 +92,8 @@ export default function LoginPage() {
             />
           </div>
 
-          {erro && <p className="text-sm text-red-600">{erro}</p>}
-          {aviso && <p className="text-sm text-eco-700">{aviso}</p>}
+          {erro && <p className="text-sm text-red-400">{erro}</p>}
+          {aviso && <p className="text-sm text-eco-300">{aviso}</p>}
 
           <button type="submit" className="btn-primary w-full" disabled={carregando}>
             {carregando ? "Entrando..." : "Entrar"}

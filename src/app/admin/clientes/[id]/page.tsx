@@ -18,10 +18,10 @@ export default async function EditarClientePage({ params }: { params: { id: stri
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <Link href="/admin/clientes" className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800">
+      <Link href="/admin/clientes" className="inline-flex items-center gap-1 text-sm text-slate-400 hover:text-white">
         <ArrowLeft className="h-4 w-4" /> Voltar
       </Link>
-      <h1 className="text-2xl font-bold text-slate-900">Editar morador</h1>
+      <h1 className="text-2xl font-bold text-white">Editar morador</h1>
 
       <form action={acao} className="card space-y-6">
         <ClienteFormFields cliente={cliente} />

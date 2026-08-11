@@ -42,27 +42,27 @@ export default async function EnviarWhatsappPage({
 
   return (
     <div className="space-y-6">
-      <Link href="/admin/faturas" className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800">
+      <Link href="/admin/faturas" className="inline-flex items-center gap-1 text-sm text-slate-400 hover:text-white">
         <ArrowLeft className="h-4 w-4" /> Voltar
       </Link>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Enviar faturas pelo WhatsApp</h1>
-          <p className="text-sm text-slate-500">
+          <h1 className="text-2xl font-bold text-white">Enviar faturas pelo WhatsApp</h1>
+          <p className="text-sm text-slate-400">
             {formatReferencia(referencia)} · {totalEnviadas} de {lista.length} enviada(s)
           </p>
         </div>
         <MonthFilter basePath="/admin/faturas/enviar" />
       </div>
 
-      <div className="rounded-lg border border-brand-200 bg-brand-50 p-3 text-sm text-brand-800">
+      <div className="rounded-lg border border-brand-500/30 bg-brand-500/10 p-3 text-sm text-brand-300">
         💡 Clique em <strong>Enviar WhatsApp</strong> em cada morador: abre o WhatsApp com a mensagem e o link da
         fatura prontos — é só apertar enviar. O sistema marca automaticamente quem já foi enviado.
       </div>
 
       {semTelefone > 0 && (
-        <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+        <div className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-300">
           <AlertTriangle className="h-4 w-4 shrink-0" />
           {semTelefone} morador(es) sem WhatsApp cadastrado — o link abrirá sem destinatário.
         </div>
@@ -71,7 +71,7 @@ export default async function EnviarWhatsappPage({
       {lista.length === 0 ? (
         <div className="card flex flex-col items-center py-12 text-center">
           <Send className="h-10 w-10 text-slate-300" />
-          <p className="mt-3 text-slate-600">Nenhuma fatura para {formatReferencia(referencia)}.</p>
+          <p className="mt-3 text-slate-300">Nenhuma fatura para {formatReferencia(referencia)}.</p>
           <Link href="/admin/faturas/lote" className="btn-primary mt-4">Gerar faturas do mês</Link>
         </div>
       ) : (
@@ -83,7 +83,7 @@ export default async function EnviarWhatsappPage({
               <div key={f.id} className="card flex flex-col gap-3">
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <p className="font-semibold text-slate-900">{f.clientes?.nome}</p>
+                    <p className="font-semibold text-white">{f.clientes?.nome}</p>
                     <p className="text-xs text-slate-400">
                       {f.clientes?.unidade} {f.clientes?.telefone ? `· ${f.clientes.telefone}` : "· sem WhatsApp"}
                     </p>
@@ -91,11 +91,11 @@ export default async function EnviarWhatsappPage({
                   <StatusBadge status={f.status} />
                 </div>
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-500">A pagar</span>
-                  <span className="font-semibold text-slate-900">{formatBRL(f.valor_liquido)}</span>
+                  <span className="text-slate-400">A pagar</span>
+                  <span className="font-semibold text-white">{formatBRL(f.valor_liquido)}</span>
                 </div>
                 {f.whatsapp_enviado_em && (
-                  <p className="text-xs text-eco-700">✓ Enviado em {formatData(f.whatsapp_enviado_em.slice(0, 10))}</p>
+                  <p className="text-xs text-eco-300">✓ Enviado em {formatData(f.whatsapp_enviado_em.slice(0, 10))}</p>
                 )}
                 <WhatsAppButton faturaId={f.id} link={link} enviadoEm={f.whatsapp_enviado_em} variante="grande" />
               </div>

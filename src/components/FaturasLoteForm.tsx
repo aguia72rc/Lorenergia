@@ -171,7 +171,7 @@ export default function FaturasLoteForm({
       <div className="card overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-slate-200 text-left text-slate-500">
+            <tr className="border-b border-white/10 text-left text-slate-400">
               <th className="pb-2 font-medium">Morador</th>
               <th className="pb-2 font-medium">Leitura anterior</th>
               <th className="pb-2 font-medium">Leitura atual</th>
@@ -183,9 +183,9 @@ export default function FaturasLoteForm({
           </thead>
           <tbody>
             {calculados.map(({ cliente: c, consumo, valorLiquido, economia, preenchida }) => (
-              <tr key={c.id} className="border-b border-slate-100 last:border-0">
+              <tr key={c.id} className="border-b border-white/5 last:border-0">
                 <td className="py-2 pr-2">
-                  <span className="font-medium text-slate-900">{c.nome}</span>
+                  <span className="font-medium text-white">{c.nome}</span>
                   {c.unidade && <span className="ml-1 text-xs text-slate-400">{c.unidade}</span>}
                 </td>
                 <td className="py-2 pr-2">
@@ -208,25 +208,25 @@ export default function FaturasLoteForm({
                     onChange={(e) => atualizar(c.id, "leituraAtual", e.target.value)}
                   />
                 </td>
-                <td className="py-2 pr-2 text-slate-600">{preenchida ? formatKwh(consumo) : "-"}</td>
-                <td className="py-2 pr-2 text-slate-600">{c.desconto_percentual}%</td>
-                <td className="py-2 pr-2 text-right font-medium text-slate-900">{preenchida ? formatBRL(valorLiquido) : "-"}</td>
-                <td className="py-2 text-right text-eco-700">{preenchida ? formatBRL(economia) : "-"}</td>
+                <td className="py-2 pr-2 text-slate-300">{preenchida ? formatKwh(consumo) : "-"}</td>
+                <td className="py-2 pr-2 text-slate-300">{c.desconto_percentual}%</td>
+                <td className="py-2 pr-2 text-right font-medium text-white">{preenchida ? formatBRL(valorLiquido) : "-"}</td>
+                <td className="py-2 text-right text-eco-300">{preenchida ? formatBRL(economia) : "-"}</td>
               </tr>
             ))}
           </tbody>
           <tfoot>
-            <tr className="border-t border-slate-200 font-semibold text-slate-900">
+            <tr className="border-t border-white/10 font-semibold text-white">
               <td className="pt-3" colSpan={5}>Total ({preenchidas.length} fatura(s))</td>
               <td className="pt-3 text-right">{formatBRL(totalPagar)}</td>
-              <td className="pt-3 text-right text-eco-700">{formatBRL(totalEconomia)}</td>
+              <td className="pt-3 text-right text-eco-300">{formatBRL(totalEconomia)}</td>
             </tr>
           </tfoot>
         </table>
       </div>
 
       <div className="flex flex-wrap items-center justify-end gap-3">
-        {mensagem && <span className="text-sm text-slate-600">{mensagem}</span>}
+        {mensagem && <span className="text-sm text-slate-300">{mensagem}</span>}
         <Link href="/admin/faturas" className="btn-outline">Cancelar</Link>
         <button type="submit" className="btn-primary" disabled={pending || preenchidas.length === 0}>
           {pending ? "Gerando..." : `Gerar ${preenchidas.length} fatura(s)`}
