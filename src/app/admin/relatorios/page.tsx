@@ -1,7 +1,8 @@
-import { Wallet, CheckCircle2, Clock, Leaf, AlertTriangle } from "lucide-react";
+import { Wallet, CheckCircle2, Clock, Leaf, AlertTriangle, Sun, Zap, BatteryCharging } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import {
   formatBRL,
+  formatKwh,
   formatReferencia,
   formatReferenciaCurta,
   formatData,
@@ -11,7 +12,8 @@ import {
 import MonthFilter from "@/components/MonthFilter";
 import EconomiaChart from "@/components/EconomiaChart";
 import StatusBadge from "@/components/StatusBadge";
-import type { FaturaComCliente, Fatura } from "@/lib/types";
+import { salvarGeracaoMensal } from "./actions";
+import type { FaturaComCliente, Fatura, GeracaoMensal } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -27,13 +29,14 @@ export default async function RelatoriosPage({
   const [ano, m] = mesParam.split("-");
   const referencia = `${ano}-${(m ?? "01").padStart(2, "0")}-01`;
 
-  const [{ data: doMes }, { data: todas }] = await Promise.all([
+  const [{ data: doMes }, { data: todas }, { data: geracaoTodas }] = await Promise.all([
     supabase
       .from("faturas")
       .select("*, clientes(id, nome, unidade, telefone, email)")
       .eq("referencia", referencia)
       .order("created_at", { ascending: true }),
-    supabase.from("faturas").select("referencia, valor_liquido, economia, status"),
+    supabase.from("faturas").select("referencia, valor_liquido, economia, consumo_kwh, status"),
+    supabase.from("geracao_mensal").select("referencia, kwh_injetado"),
   ]);
 
   const faturasMes = (doMes ?? []) as FaturaComCliente[];
@@ -45,6 +48,39 @@ export default async function RelatoriosPage({
   const economia = ativas.reduce((s, f) => s + Number(f.economia), 0);
   const vencidas = ativas.filter((f) => faturaVencida(f.vencimento, f.status));
   const valorVencido = vencidas.reduce((s, f) => s + Number(f.valor_liquido), 0);
+
+  // ---- Energia (kWh): geração, consumo e créditos ----
+  type FaturaEnergia = Pick<Fatura, "referencia" | "consumo_kwh" | "status">;
+  const faturasEnergia = (todas ?? []) as (FaturaEnergia & Pick<Fatura, "valor_liquido" | "economia">)[];
+  const geracao = (geracaoTodas ?? []) as Pick<GeracaoMensal, "referencia" | "kwh_injetado">[];
+
+  // Consumo do mês selecionado (soma das faturas ativas do mês).
+  const consumidoMes = ativas.reduce((s, f) => s + Number(f.consumo_kwh), 0);
+  // Injetado do mês selecionado (leitura lançada pelo admin).
+  const injetadoMes = Number(geracao.find((g) => g.referencia === referencia)?.kwh_injetado ?? 0);
+
+  // Consumo e injeção por mês (todos os meses), para o saldo acumulado.
+  const consumoPorMes = new Map<string, number>();
+  for (const f of faturasEnergia) {
+    if (f.status === "cancelada") continue;
+    consumoPorMes.set(f.referencia, (consumoPorMes.get(f.referencia) ?? 0) + Number(f.consumo_kwh));
+  }
+  const injetadoPorMes = new Map<string, number>();
+  for (const g of geracao) {
+    injetadoPorMes.set(g.referencia, (injetadoPorMes.get(g.referencia) ?? 0) + Number(g.kwh_injetado));
+  }
+
+  // Saldo de créditos acumulado até o mês selecionado (rollover, sem ficar negativo).
+  const meses = Array.from(
+    new Set(Array.from(consumoPorMes.keys()).concat(Array.from(injetadoPorMes.keys())))
+  )
+    .filter((ref) => ref <= referencia)
+    .sort((a, b) => a.localeCompare(b));
+  let saldoCreditos = 0;
+  for (const ref of meses) {
+    saldoCreditos += (injetadoPorMes.get(ref) ?? 0) - (consumoPorMes.get(ref) ?? 0);
+    if (saldoCreditos < 0) saldoCreditos = 0;
+  }
 
   // Gráfico: recebido (faturas pagas) por mês, últimos 12 meses.
   const porMes = new Map<string, number>();
@@ -80,6 +116,43 @@ export default async function RelatoriosPage({
           {vencidas.length} fatura(s) vencida(s) neste mês, somando <strong>{formatBRL(valorVencido)}</strong>.
         </div>
       )}
+
+      {/* ---- Energia da usina (kWh) ---- */}
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="font-semibold text-white">Geração e consumo da usina</h2>
+            <p className="text-sm text-slate-400">Acompanhe a energia da sua usina em {formatReferencia(referencia)}.</p>
+          </div>
+          <form action={salvarGeracaoMensal} className="flex items-end gap-2">
+            <input type="hidden" name="referencia" value={referencia} />
+            <div>
+              <label className="label" htmlFor="kwh_injetado">Energia injetada na rede (kWh)</label>
+              <input
+                id="kwh_injetado"
+                name="kwh_injetado"
+                type="number"
+                min={0}
+                step={0.01}
+                defaultValue={injetadoMes || ""}
+                placeholder="0"
+                className="input w-48"
+              />
+            </div>
+            <button type="submit" className="btn-primary">Salvar</button>
+          </form>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Kpi icon={<BatteryCharging />} titulo="Créditos de kWh (acumulado)" valor={formatKwh(saldoCreditos)} cor="bg-eco-500/15 text-eco-300" />
+          <Kpi icon={<Zap />} titulo="kWh consumido no mês" valor={formatKwh(consumidoMes)} cor="bg-amber-500/15 text-amber-300" />
+          <Kpi icon={<Sun />} titulo="kWh injetado no mês" valor={formatKwh(injetadoMes)} cor="bg-brand-500/15 text-brand-300" />
+        </div>
+        <p className="text-xs text-slate-500">
+          Créditos = energia injetada − energia consumida, acumulados mês a mês (o saldo nunca fica negativo).
+          Lance a energia injetada de cada mês no campo acima para manter o saldo em dia.
+        </p>
+      </div>
 
       <div className="card">
         <h2 className="mb-1 font-semibold text-white">Recebimentos mês a mês</h2>

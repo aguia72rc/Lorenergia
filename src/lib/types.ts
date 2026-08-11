@@ -79,6 +79,14 @@ export interface FaturaComCliente extends Fatura {
   > | null;
 }
 
+export interface GeracaoMensal {
+  referencia: string; // YYYY-MM-DD (1º dia do mês)
+  kwh_injetado: number;
+  kwh_gerado: number | null;
+  observacoes: string | null;
+  updated_at: string;
+}
+
 export interface Profile {
   id: string;
   email: string | null;
