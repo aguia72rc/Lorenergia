@@ -170,12 +170,13 @@ export default async function FaturaPage({ params }: { params: { id: string } })
                 <span className="font-semibold text-slate-700">Total a pagar</span>
                 <span className="text-3xl font-extrabold text-slate-900">{formatBRL(f.valor_liquido)}</span>
               </div>
-              {Number(f.valor_desconto) > 0 && (
-                <div className="mt-3 flex items-center justify-between rounded-lg bg-eco-100 px-3 py-2 text-sm text-eco-800">
-                  <span>🌱 Você economizou com energia solar</span>
-                  <span className="font-bold">{formatBRL(f.valor_desconto)} ({numero(f.desconto_percentual, 0)}%)</span>
-                </div>
-              )}
+              <div className="mt-3 flex items-center justify-between rounded-lg bg-eco-100 px-3 py-2 text-sm text-eco-800">
+                <span>🌱 Você economizou com energia solar</span>
+                <span className="font-bold">
+                  {formatBRL(f.economia)}
+                  {Number(f.desconto_percentual) > 0 ? ` (${numero(f.desconto_percentual, 0)}%)` : ""}
+                </span>
+              </div>
             </div>
 
             {/* Medição + tributos */}
