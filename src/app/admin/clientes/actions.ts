@@ -104,3 +104,73 @@ export async function convidarMorador(clienteId: string): Promise<{ ok: boolean;
   }
   return { ok: true, mensagem: `Convite enviado para ${cliente.email}.` };
 }
+
+/** Gera uma senha temporária legível (sem caracteres ambíguos). */
+function gerarSenhaTemporaria(): string {
+  const alfabeto = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789abcdefghijkmnpqrstuvwxyz";
+  let s = "";
+  for (let i = 0; i < 8; i++) s += alfabeto[Math.floor(Math.random() * alfabeto.length)];
+  return s;
+}
+
+/**
+ * Cria (ou redefine) o acesso do morador com uma SENHA TEMPORÁRIA, sem
+ * depender de e-mail. Marca must_change_password para forçar a troca no
+ * primeiro acesso. Retorna a senha para o admin repassar (ex.: WhatsApp).
+ */
+export async function gerarAcessoMorador(
+  clienteId: string
+): Promise<{ ok: boolean; senha?: string; mensagem: string }> {
+  await exigirAdmin();
+  const supabase = createClient();
+
+  const { data: cliente } = await supabase
+    .from("clientes")
+    .select("email, nome")
+    .eq("id", clienteId)
+    .single();
+
+  if (!cliente?.email) {
+    return { ok: false, mensagem: "Cadastre um e-mail para este morador antes de gerar o acesso." };
+  }
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return { ok: false, mensagem: "Acesso indisponível: falta configurar SUPABASE_SERVICE_ROLE_KEY." };
+  }
+
+  const admin = createAdminClient();
+  const senha = gerarSenhaTemporaria();
+  const email = cliente.email.toLowerCase();
+
+  // Já existe um usuário com esse e-mail?
+  const { data: lista } = await admin.auth.admin.listUsers();
+  const existente = lista?.users?.find((u) => (u.email ?? "").toLowerCase() === email);
+
+  let userId: string;
+  if (existente) {
+    const { error } = await admin.auth.admin.updateUserById(existente.id, {
+      password: senha,
+      email_confirm: true,
+    });
+    if (error) return { ok: false, mensagem: `Não foi possível redefinir a senha: ${error.message}` };
+    userId = existente.id;
+  } else {
+    const { data, error } = await admin.auth.admin.createUser({
+      email,
+      password: senha,
+      email_confirm: true,
+    });
+    if (error || !data.user) return { ok: false, mensagem: `Não foi possível criar o acesso: ${error?.message}` };
+    userId = data.user.id;
+  }
+
+  // Vincula ao morador e força a troca de senha no primeiro acesso.
+  await admin
+    .from("profiles")
+    .upsert(
+      { id: userId, email, role: "cliente", cliente_id: clienteId, must_change_password: true },
+      { onConflict: "id" }
+    );
+
+  revalidatePath("/admin/clientes");
+  return { ok: true, senha, mensagem: `Acesso criado. Senha temporária: ${senha}` };
+}
