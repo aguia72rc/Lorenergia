@@ -1,8 +1,8 @@
-import { formatBRL } from "@/lib/format";
+import { formatBRL, formatKwh } from "@/lib/format";
 
 export interface PontoEconomia {
   label: string; // ex.: "ago/26"
-  valor: number; // economia em R$
+  valor: number; // economia em R$ (ou kWh, conforme "formato")
   referencia?: string; // YYYY-MM-DD (para destacar)
 }
 
@@ -19,6 +19,7 @@ export default function EconomiaChart({
   destaqueRef,
   altura = 200,
   cor = "#34d399",
+  formato = "brl",
   ariaLabel = "Gráfico de economia mensal com energia solar",
   textoVazio = "Ainda não há dados de economia para exibir.",
 }: {
@@ -26,9 +27,11 @@ export default function EconomiaChart({
   destaqueRef?: string;
   altura?: number;
   cor?: string;
+  formato?: "brl" | "kwh";
   ariaLabel?: string;
   textoVazio?: string;
 }) {
+  const formatarValor = (v: number) => (formato === "kwh" ? formatKwh(v) : formatBRL(v));
   if (!dados || dados.length === 0) {
     return <p className="py-6 text-center text-sm text-slate-400">{textoVazio}</p>;
   }
@@ -70,7 +73,7 @@ export default function EconomiaChart({
           const emFoco = destaqueRef && d.referencia === destaqueRef;
           return (
             <g key={i}>
-              <title>{`${d.label}: ${formatBRL(d.valor)}`}</title>
+              <title>{`${d.label}: ${formatarValor(d.valor)}`}</title>
               <rect x={x} y={y} width={larguraBarra} height={h} rx={4} fill={emFoco ? corDestaque : corBarra} />
               {/* Valor acima da barra */}
               <text

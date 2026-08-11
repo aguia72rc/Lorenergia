@@ -11,6 +11,7 @@ import {
 } from "@/lib/format";
 import MonthFilter from "@/components/MonthFilter";
 import EconomiaChart from "@/components/EconomiaChart";
+import GeracaoConsumoChart from "@/components/GeracaoConsumoChart";
 import StatusBadge from "@/components/StatusBadge";
 import { salvarGeracaoMensal } from "./actions";
 import type { FaturaComCliente, Fatura, GeracaoMensal } from "@/lib/types";
@@ -88,6 +89,18 @@ export default async function RelatoriosPage({
     saldoCreditos += (injetadoPorMes.get(ref) ?? 0) - (consumoPorMes.get(ref) ?? 0);
     if (saldoCreditos < 0) saldoCreditos = 0;
   }
+
+  // Gráfico injetado × consumido por mês (todos os meses com dados, últimos 12).
+  const mesesEnergia = Array.from(
+    new Set(Array.from(consumoPorMes.keys()).concat(Array.from(injetadoPorMes.keys())))
+  )
+    .sort((a, b) => a.localeCompare(b))
+    .slice(-12);
+  const pontosEnergia = mesesEnergia.map((ref) => ({
+    label: formatReferenciaCurta(ref),
+    injetado: injetadoPorMes.get(ref) ?? 0,
+    consumido: consumoPorMes.get(ref) ?? 0,
+  }));
 
   // Gráfico: recebido (faturas pagas) por mês, últimos 12 meses.
   const porMes = new Map<string, number>();
@@ -173,6 +186,12 @@ export default async function RelatoriosPage({
           Lance o injetado e o consumido de cada mês nos campos acima. Se deixar o consumido em branco,
           o sistema usa automaticamente a soma do consumo das faturas do mês.
         </p>
+      </div>
+
+      <div className="card">
+        <h2 className="mb-1 font-semibold text-white">Injetado × consumido mês a mês</h2>
+        <p className="mb-4 text-sm text-slate-400">Energia injetada na rede e energia consumida (kWh), por mês.</p>
+        <GeracaoConsumoChart dados={pontosEnergia} />
       </div>
 
       <div className="card">
