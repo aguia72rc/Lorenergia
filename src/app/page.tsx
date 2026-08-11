@@ -72,33 +72,10 @@ export default async function HomePage() {
           </Reveal>
         </div>
 
-        {/* Núcleo de energia animado */}
-        <div className="relative mx-auto hidden aspect-square w-full max-w-md items-center justify-center md:flex">
-          <div className="absolute h-72 w-72 rounded-full bg-brand-500/20 blur-3xl animate-pulse-glow" />
-          <div className="absolute h-80 w-80 rounded-full border border-white/10 animate-spin-slow"
-            style={{ background: "conic-gradient(from 0deg, transparent, rgba(255,176,32,0.35), transparent 40%)" }} />
-          <div className="absolute h-60 w-60 rounded-full border border-white/10 animate-spin-slow [animation-direction:reverse]"
-            style={{ background: "conic-gradient(from 180deg, transparent, rgba(34,211,238,0.30), transparent 45%)" }} />
-          <div className="relative flex h-40 w-40 animate-float items-center justify-center rounded-full"
-            style={{ background: "radial-gradient(circle at 35% 30%, #ffd24a, #f59e0b 55%, #b45309)", boxShadow: "0 0 90px 10px rgba(255,176,32,0.55)" }}>
-            <Sun className="h-16 w-16 text-white/90" />
-          </div>
-        </div>
-      </section>
-
-      {/* Vídeo institucional */}
-      <section id="video" className="mx-auto max-w-5xl px-5 py-16">
-        <Reveal>
-          <div className="mb-8 text-center">
-            <span className="eyebrow justify-center">Veja como funciona</span>
-            <h2 className="mt-3 text-3xl font-bold text-white md:text-4xl" style={{ fontFamily: "var(--font-display)" }}>
-              Conheça a Lorenergia
-            </h2>
-          </div>
-        </Reveal>
-        <Reveal delay={0.1}>
+        {/* Vídeo institucional (no lugar do sol animado) */}
+        <Reveal delay={0.1} className="relative mx-auto w-full max-w-md">
           <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-slate-900/60 shadow-2xl">
-            <div className="pointer-events-none absolute -left-16 -top-16 h-48 w-48 rounded-full bg-brand-500/20 blur-3xl" />
+            <div className="pointer-events-none absolute -left-16 -top-16 h-48 w-48 rounded-full bg-brand-500/20 blur-3xl animate-pulse-glow" />
             <div className="pointer-events-none absolute -right-16 bottom-0 h-48 w-48 rounded-full bg-cyan-500/20 blur-3xl" />
             <video
               className="relative aspect-video w-full bg-black"
