@@ -86,6 +86,34 @@ export default async function HomePage() {
         </div>
       </section>
 
+      {/* Vídeo institucional */}
+      <section id="video" className="mx-auto max-w-5xl px-5 py-16">
+        <Reveal>
+          <div className="mb-8 text-center">
+            <span className="eyebrow justify-center">Veja como funciona</span>
+            <h2 className="mt-3 text-3xl font-bold text-white md:text-4xl" style={{ fontFamily: "var(--font-display)" }}>
+              Conheça a Lorenergia
+            </h2>
+          </div>
+        </Reveal>
+        <Reveal delay={0.1}>
+          <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-slate-900/60 shadow-2xl">
+            <div className="pointer-events-none absolute -left-16 -top-16 h-48 w-48 rounded-full bg-brand-500/20 blur-3xl" />
+            <div className="pointer-events-none absolute -right-16 bottom-0 h-48 w-48 rounded-full bg-cyan-500/20 blur-3xl" />
+            <video
+              className="relative aspect-video w-full bg-black"
+              controls
+              preload="metadata"
+              playsInline
+            >
+              <source src="/institucional.mp4" type="video/mp4" />
+              Seu navegador não suporta vídeo.{" "}
+              <a href="/institucional.mp4" className="underline">Baixe o vídeo</a>.
+            </video>
+          </div>
+        </Reveal>
+      </section>
+
       {/* Recursos */}
       <section id="recursos" className="mx-auto max-w-6xl px-5 py-16">
         <Reveal>
