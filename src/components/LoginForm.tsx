@@ -59,9 +59,12 @@ export default function LoginPage() {
     <main className="flex min-h-screen items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center">
-          <Sun className="h-10 w-10 text-brand-500" />
-          <h1 className="mt-2 text-2xl font-bold text-slate-900">Lorenergia</h1>
-          <p className="text-sm text-slate-500">Acesse sua conta</p>
+          <span className="relative inline-flex h-12 w-12 items-center justify-center">
+            <span className="absolute inset-0 rounded-full bg-brand-500/30 blur-md animate-pulse-glow" />
+            <Sun className="relative h-10 w-10 text-brand-400" />
+          </span>
+          <h1 className="mt-3 text-2xl font-bold text-white" style={{ fontFamily: "var(--font-display)" }}>Lorenergia</h1>
+          <p className="text-sm text-slate-400">Acesse sua conta</p>
         </div>
 
         <form onSubmit={entrarComSenha} className="card space-y-4">
