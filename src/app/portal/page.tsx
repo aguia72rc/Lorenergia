@@ -60,11 +60,20 @@ export default async function PortalPage() {
   const projecaoAno = Math.round(mediaMensalEconomia * 12);
 
   // Pontos do gráfico (ordem cronológica, até os últimos 12 meses).
-  const pontosEconomia = [...lista]
+  const faturasGrafico = [...lista]
     .filter((f) => f.status !== "cancelada")
     .sort((a, b) => a.referencia.localeCompare(b.referencia))
-    .slice(-12)
-    .map((f) => ({ label: formatReferenciaCurta(f.referencia), valor: Number(f.economia), referencia: f.referencia }));
+    .slice(-12);
+  const pontosEconomia = faturasGrafico.map((f) => ({
+    label: formatReferenciaCurta(f.referencia),
+    valor: Number(f.economia),
+    referencia: f.referencia,
+  }));
+  const pontosConsumo = faturasGrafico.map((f) => ({
+    label: formatReferenciaCurta(f.referencia),
+    valor: Number(f.consumo_kwh),
+    referencia: f.referencia,
+  }));
 
   return (
     <div className="space-y-6">
@@ -104,6 +113,20 @@ export default async function PortalPage() {
           <h2 className="mb-1 font-semibold text-white">Sua economia mês a mês</h2>
           <p className="mb-4 text-sm text-slate-400">Quanto você economizou (R$) usando energia solar.</p>
           <EconomiaChart dados={pontosEconomia} />
+        </div>
+      )}
+
+      {pontosConsumo.length > 0 && (
+        <div className="card">
+          <h2 className="mb-1 font-semibold text-white">Seu consumo mês a mês</h2>
+          <p className="mb-4 text-sm text-slate-400">Energia que você consumiu (kWh) por mês.</p>
+          <EconomiaChart
+            dados={pontosConsumo}
+            cor="#38bdf8"
+            formato="kwh"
+            ariaLabel="Gráfico de consumo mensal em kWh"
+            textoVazio="Ainda não há consumo para exibir."
+          />
         </div>
       )}
 
