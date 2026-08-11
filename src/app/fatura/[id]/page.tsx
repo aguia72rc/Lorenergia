@@ -64,6 +64,7 @@ export default async function FaturaPage({ params }: { params: { id: string } })
   const valorTusd = Number(f.consumo_kwh) * Number(f.tarifa_tusd);
   const valorTe = Number(f.consumo_kwh) * Number(f.tarifa_te);
   const codigo = [c?.unidade, c?.tipo_ligacao].filter(Boolean).join(" · ");
+  const dataEmissao = (f.data_emissao ?? f.created_at ?? "").slice(0, 10);
   const voltarHref = sessao.profile?.role === "admin" ? "/admin/faturas" : "/portal";
 
   return (
@@ -94,7 +95,7 @@ export default async function FaturaPage({ params }: { params: { id: string } })
               </div>
             </div>
             <p className="mt-3 border-t border-slate-700 pt-2 text-[11px] text-slate-500">
-              Geração compartilhada nos termos da Lei 14.300/2022 · Gerado em {formatData((f.created_at ?? "").slice(0, 10))}
+              Geração compartilhada nos termos da Lei 14.300/2022 · Emitida em {formatData(dataEmissao)}
             </p>
           </div>
 
@@ -113,7 +114,7 @@ export default async function FaturaPage({ params }: { params: { id: string } })
             <div className="sm:text-right">
               <div className="mb-2"><StatusBadge status={f.status} /></div>
               <dl className="space-y-1 text-sm">
-                <Info label="Emissão" valor={formatData((f.created_at ?? "").slice(0, 10))} />
+                <Info label="Data de emissão" valor={formatData(dataEmissao)} />
                 <Info label="Vencimento" valor={formatData(f.vencimento)} />
                 <Info label="Nº medidor" valor={c?.numero_medidor || "—"} />
                 <Info label="Consumo" valor={`${numero(f.consumo_kwh, 0)} kWh`} />

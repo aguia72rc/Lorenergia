@@ -32,6 +32,7 @@ export default function NovaFaturaForm({
   tarifas: TarifasPadrao;
   referenciaPadrao: string; // YYYY-MM
 }) {
+  const hoje = new Date().toISOString().slice(0, 10);
   const primeiro = clientes[0];
   const [clienteId, setClienteId] = useState(primeiro?.id ?? "");
   const [leituraAnterior, setLeituraAnterior] = useState(
@@ -83,10 +84,14 @@ export default function NovaFaturaForm({
           </select>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-3">
           <div>
             <label className="label" htmlFor="referencia">Mês de referência *</label>
             <input id="referencia" name="referencia" type="month" className="input" defaultValue={referenciaPadrao} required />
+          </div>
+          <div>
+            <label className="label" htmlFor="data_emissao">Data de emissão</label>
+            <input id="data_emissao" name="data_emissao" type="date" className="input" defaultValue={hoje} />
           </div>
           <div>
             <label className="label" htmlFor="vencimento">Vencimento</label>

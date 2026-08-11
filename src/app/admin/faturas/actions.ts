@@ -22,6 +22,23 @@ function normalizarReferencia(valor: string): string {
   return `${ano}-${mes}-01`;
 }
 
+/**
+ * Detecta o erro do PostgREST/Postgres quando a coluna `data_emissao` ainda
+ * não existe (migração 0007 não aplicada). Permite gerar a fatura mesmo assim,
+ * sem o campo, até que a migração seja rodada.
+ */
+function erroColunaEmissaoAusente(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  if (error.code === "PGRST204" || error.code === "42703") return true;
+  return /data_emissao/.test(error.message ?? "");
+}
+
+function semDataEmissao<T extends { data_emissao?: unknown }>(registro: T): Omit<T, "data_emissao"> {
+  const { data_emissao: _omitido, ...resto } = registro;
+  void _omitido;
+  return resto;
+}
+
 export async function gerarFatura(formData: FormData) {
   await exigirAdmin();
   const supabase = createClient();
@@ -41,6 +58,7 @@ export async function gerarFatura(formData: FormData) {
   const pis = Number(formData.get("pis") ?? 0);
   const cofins = Number(formData.get("cofins") ?? 0);
   const desconto_percentual = Number(formData.get("desconto_percentual") ?? 0);
+  const data_emissao = String(formData.get("data_emissao") ?? "") || new Date().toISOString().slice(0, 10);
   const vencimento = String(formData.get("vencimento") ?? "") || null;
   const observacoes = String(formData.get("observacoes") ?? "").trim() || null;
   const status = (String(formData.get("status") ?? "pendente") as StatusFatura);
@@ -90,17 +108,27 @@ export async function gerarFatura(formData: FormData) {
     valor_desconto: r.valorDesconto,
     valor_liquido: r.valorLiquido,
     economia: r.economia,
+    data_emissao,
     vencimento,
     status,
     observacoes,
   };
 
   // Regenerar a mesma referência sobrescreve os valores.
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from("faturas")
     .upsert(registro, { onConflict: "cliente_id,referencia" })
     .select("id")
     .single();
+
+  // Migração 0007 ainda não aplicada: grava sem a data de emissão.
+  if (erroColunaEmissaoAusente(error)) {
+    ({ data, error } = await supabase
+      .from("faturas")
+      .upsert(semDataEmissao(registro), { onConflict: "cliente_id,referencia" })
+      .select("id")
+      .single());
+  }
 
   if (error) throw new Error(error.message);
 
@@ -154,6 +182,7 @@ export interface ParametrosLote {
   adicional_bandeira: number;
   taxa_energia_solar: number;
   taxa_iluminacao: number;
+  data_emissao: string | null;
   vencimento: string | null;
   status: StatusFatura;
   itens: ItemLote[];
@@ -172,6 +201,7 @@ export async function gerarFaturasLote(
   if (!params.referencia) return { ok: false, geradas: 0, mensagem: "Informe o mês de referência." };
 
   const referencia = normalizarReferencia(params.referencia);
+  const data_emissao = params.data_emissao || new Date().toISOString().slice(0, 10);
 
   const registros = params.itens
     .filter((it) => it.cliente_id && it.leitura_atual !== null && !Number.isNaN(it.leitura_atual))
@@ -206,6 +236,7 @@ export async function gerarFaturasLote(
         valor_desconto: r.valorDesconto,
         valor_liquido: r.valorLiquido,
         economia: r.economia,
+        data_emissao,
         vencimento: params.vencimento,
         status: params.status,
       };
@@ -215,9 +246,16 @@ export async function gerarFaturasLote(
     return { ok: false, geradas: 0, mensagem: "Nenhuma leitura atual informada." };
   }
 
-  const { error } = await supabase
+  let { error } = await supabase
     .from("faturas")
     .upsert(registros, { onConflict: "cliente_id,referencia" });
+
+  // Migração 0007 ainda não aplicada: grava sem a data de emissão.
+  if (erroColunaEmissaoAusente(error)) {
+    ({ error } = await supabase
+      .from("faturas")
+      .upsert(registros.map(semDataEmissao), { onConflict: "cliente_id,referencia" }));
+  }
 
   if (error) return { ok: false, geradas: 0, mensagem: error.message };
 

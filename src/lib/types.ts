@@ -62,6 +62,7 @@ export interface Fatura {
   valor_desconto: number;
   valor_liquido: number;
   economia: number;
+  data_emissao: string | null;
   vencimento: string | null;
   status: StatusFatura;
   observacoes: string | null;

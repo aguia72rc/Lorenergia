@@ -6,6 +6,7 @@ import { getSessao } from "@/lib/auth";
 import { formatBRL, formatReferencia, formatData, formatReferenciaCurta } from "@/lib/format";
 import StatusBadge from "@/components/StatusBadge";
 import EconomiaChart from "@/components/EconomiaChart";
+import BoasVindasModal from "@/components/BoasVindasModal";
 import { AnimatedNumber } from "@/components/motion";
 import type { Cliente, Fatura } from "@/lib/types";
 
@@ -52,6 +53,12 @@ export default async function PortalPage() {
   const pendentes = lista.filter((f) => f.status === "pendente");
   const totalPendente = pendentes.reduce((s, f) => s + Number(f.valor_liquido), 0);
 
+  // Projeção anual de economia: média mensal das faturas válidas × 12.
+  const faturasValidas = lista.filter((f) => f.status !== "cancelada");
+  const mediaMensalEconomia =
+    faturasValidas.length > 0 ? economiaTotal / faturasValidas.length : 0;
+  const projecaoAno = Math.round(mediaMensalEconomia * 12);
+
   // Pontos do gráfico (ordem cronológica, até os últimos 12 meses).
   const pontosEconomia = [...lista]
     .filter((f) => f.status !== "cancelada")
@@ -61,6 +68,13 @@ export default async function PortalPage() {
 
   return (
     <div className="space-y-6">
+      <BoasVindasModal
+        nome={c?.nome?.split(" ")[0] ?? "morador"}
+        descontoPercentual={Number(c?.desconto_percentual ?? 0)}
+        economiaAno={economiaAno}
+        economiaTotal={economiaTotal}
+        projecaoAno={projecaoAno}
+      />
       <div>
         <h1 className="text-2xl font-bold text-white" style={{ fontFamily: "var(--font-display)" }}>Olá, {c?.nome?.split(" ")[0]} 👋</h1>
         <p className="text-sm text-slate-400">Acompanhe suas faturas e sua economia com energia solar.</p>
