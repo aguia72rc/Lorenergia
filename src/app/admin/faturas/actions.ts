@@ -41,6 +41,7 @@ export async function gerarFatura(formData: FormData) {
   const pis = Number(formData.get("pis") ?? 0);
   const cofins = Number(formData.get("cofins") ?? 0);
   const desconto_percentual = Number(formData.get("desconto_percentual") ?? 0);
+  const data_emissao = String(formData.get("data_emissao") ?? "") || new Date().toISOString().slice(0, 10);
   const vencimento = String(formData.get("vencimento") ?? "") || null;
   const observacoes = String(formData.get("observacoes") ?? "").trim() || null;
   const status = (String(formData.get("status") ?? "pendente") as StatusFatura);
@@ -90,6 +91,7 @@ export async function gerarFatura(formData: FormData) {
     valor_desconto: r.valorDesconto,
     valor_liquido: r.valorLiquido,
     economia: r.economia,
+    data_emissao,
     vencimento,
     status,
     observacoes,
@@ -154,6 +156,7 @@ export interface ParametrosLote {
   adicional_bandeira: number;
   taxa_energia_solar: number;
   taxa_iluminacao: number;
+  data_emissao: string | null;
   vencimento: string | null;
   status: StatusFatura;
   itens: ItemLote[];
@@ -172,6 +175,7 @@ export async function gerarFaturasLote(
   if (!params.referencia) return { ok: false, geradas: 0, mensagem: "Informe o mês de referência." };
 
   const referencia = normalizarReferencia(params.referencia);
+  const data_emissao = params.data_emissao || new Date().toISOString().slice(0, 10);
 
   const registros = params.itens
     .filter((it) => it.cliente_id && it.leitura_atual !== null && !Number.isNaN(it.leitura_atual))
@@ -206,6 +210,7 @@ export async function gerarFaturasLote(
         valor_desconto: r.valorDesconto,
         valor_liquido: r.valorLiquido,
         economia: r.economia,
+        data_emissao,
         vencimento: params.vencimento,
         status: params.status,
       };

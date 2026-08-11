@@ -36,7 +36,9 @@ export default function FaturasLoteForm({
   const [pending, startTransition] = useTransition();
   const [mensagem, setMensagem] = useState<string | null>(null);
 
+  const hoje = new Date().toISOString().slice(0, 10);
   const [referencia, setReferencia] = useState(referenciaPadrao);
+  const [dataEmissao, setDataEmissao] = useState(hoje);
   const [fator, setFator] = useState("1");
   const [tusd, setTusd] = useState(String(tarifas.tusd));
   const [te, setTe] = useState(String(tarifas.te));
@@ -104,6 +106,7 @@ export default function FaturasLoteForm({
         adicional_bandeira: Number(bandeira),
         taxa_energia_solar: Number(taxaSolar),
         taxa_iluminacao: Number(taxa),
+        data_emissao: dataEmissao || null,
         vencimento: vencimento || null,
         status,
         itens,
@@ -117,10 +120,14 @@ export default function FaturasLoteForm({
     <form onSubmit={onSubmit} className="space-y-6">
       {/* Parâmetros do mês (aplicados a todos os moradores) */}
       <div className="card space-y-4">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <div>
             <label className="label" htmlFor="referencia">Mês de referência *</label>
             <input id="referencia" type="month" className="input" value={referencia} onChange={(e) => setReferencia(e.target.value)} required />
+          </div>
+          <div>
+            <label className="label" htmlFor="data_emissao">Data de emissão</label>
+            <input id="data_emissao" type="date" className="input" value={dataEmissao} onChange={(e) => setDataEmissao(e.target.value)} />
           </div>
           <div>
             <label className="label" htmlFor="vencimento">Vencimento</label>
