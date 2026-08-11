@@ -22,6 +22,23 @@ function normalizarReferencia(valor: string): string {
   return `${ano}-${mes}-01`;
 }
 
+/**
+ * Detecta o erro do PostgREST/Postgres quando a coluna `data_emissao` ainda
+ * não existe (migração 0007 não aplicada). Permite gerar a fatura mesmo assim,
+ * sem o campo, até que a migração seja rodada.
+ */
+function erroColunaEmissaoAusente(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  if (error.code === "PGRST204" || error.code === "42703") return true;
+  return /data_emissao/.test(error.message ?? "");
+}
+
+function semDataEmissao<T extends { data_emissao?: unknown }>(registro: T): Omit<T, "data_emissao"> {
+  const { data_emissao: _omitido, ...resto } = registro;
+  void _omitido;
+  return resto;
+}
+
 export async function gerarFatura(formData: FormData) {
   await exigirAdmin();
   const supabase = createClient();
@@ -98,11 +115,20 @@ export async function gerarFatura(formData: FormData) {
   };
 
   // Regenerar a mesma referência sobrescreve os valores.
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from("faturas")
     .upsert(registro, { onConflict: "cliente_id,referencia" })
     .select("id")
     .single();
+
+  // Migração 0007 ainda não aplicada: grava sem a data de emissão.
+  if (erroColunaEmissaoAusente(error)) {
+    ({ data, error } = await supabase
+      .from("faturas")
+      .upsert(semDataEmissao(registro), { onConflict: "cliente_id,referencia" })
+      .select("id")
+      .single());
+  }
 
   if (error) throw new Error(error.message);
 
@@ -220,9 +246,16 @@ export async function gerarFaturasLote(
     return { ok: false, geradas: 0, mensagem: "Nenhuma leitura atual informada." };
   }
 
-  const { error } = await supabase
+  let { error } = await supabase
     .from("faturas")
     .upsert(registros, { onConflict: "cliente_id,referencia" });
+
+  // Migração 0007 ainda não aplicada: grava sem a data de emissão.
+  if (erroColunaEmissaoAusente(error)) {
+    ({ error } = await supabase
+      .from("faturas")
+      .upsert(registros.map(semDataEmissao), { onConflict: "cliente_id,referencia" }));
+  }
 
   if (error) return { ok: false, geradas: 0, mensagem: error.message };
 
