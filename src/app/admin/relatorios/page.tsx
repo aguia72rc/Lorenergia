@@ -36,7 +36,7 @@ export default async function RelatoriosPage({
       .eq("referencia", referencia)
       .order("created_at", { ascending: true }),
     supabase.from("faturas").select("referencia, valor_liquido, economia, consumo_kwh, status"),
-    supabase.from("geracao_mensal").select("referencia, kwh_injetado"),
+    supabase.from("geracao_mensal").select("referencia, kwh_injetado, kwh_consumido"),
   ]);
 
   const faturasMes = (doMes ?? []) as FaturaComCliente[];
@@ -52,23 +52,30 @@ export default async function RelatoriosPage({
   // ---- Energia (kWh): geração, consumo e créditos ----
   type FaturaEnergia = Pick<Fatura, "referencia" | "consumo_kwh" | "status">;
   const faturasEnergia = (todas ?? []) as (FaturaEnergia & Pick<Fatura, "valor_liquido" | "economia">)[];
-  const geracao = (geracaoTodas ?? []) as Pick<GeracaoMensal, "referencia" | "kwh_injetado">[];
+  const geracao = (geracaoTodas ?? []) as Pick<GeracaoMensal, "referencia" | "kwh_injetado" | "kwh_consumido">[];
+  const geracaoMes = geracao.find((g) => g.referencia === referencia);
 
-  // Consumo do mês selecionado (soma das faturas ativas do mês).
-  const consumidoMes = ativas.reduce((s, f) => s + Number(f.consumo_kwh), 0);
-  // Injetado do mês selecionado (leitura lançada pelo admin).
-  const injetadoMes = Number(geracao.find((g) => g.referencia === referencia)?.kwh_injetado ?? 0);
-
-  // Consumo e injeção por mês (todos os meses), para o saldo acumulado.
-  const consumoPorMes = new Map<string, number>();
+  // Injeção e consumo por mês (todos os meses), para o saldo acumulado.
+  // O consumo lançado manualmente tem prioridade sobre a soma das faturas.
+  const consumoFaturasPorMes = new Map<string, number>();
   for (const f of faturasEnergia) {
     if (f.status === "cancelada") continue;
-    consumoPorMes.set(f.referencia, (consumoPorMes.get(f.referencia) ?? 0) + Number(f.consumo_kwh));
+    consumoFaturasPorMes.set(f.referencia, (consumoFaturasPorMes.get(f.referencia) ?? 0) + Number(f.consumo_kwh));
   }
+  const consumoPorMes = new Map<string, number>(consumoFaturasPorMes);
   const injetadoPorMes = new Map<string, number>();
   for (const g of geracao) {
     injetadoPorMes.set(g.referencia, (injetadoPorMes.get(g.referencia) ?? 0) + Number(g.kwh_injetado));
+    if (g.kwh_consumido != null) consumoPorMes.set(g.referencia, Number(g.kwh_consumido));
   }
+
+  // Consumo automático (soma das faturas) do mês selecionado, usado como
+  // valor pré-preenchido no formulário.
+  const consumidoMesAuto = ativas.reduce((s, f) => s + Number(f.consumo_kwh), 0);
+  // Consumo exibido: manual quando lançado, senão a soma das faturas.
+  const consumidoMes = geracaoMes?.kwh_consumido != null ? Number(geracaoMes.kwh_consumido) : consumidoMesAuto;
+  // Injetado do mês selecionado (leitura lançada pelo admin).
+  const injetadoMes = Number(geracaoMes?.kwh_injetado ?? 0);
 
   // Saldo de créditos acumulado até o mês selecionado (rollover, sem ficar negativo).
   const meses = Array.from(
@@ -124,10 +131,10 @@ export default async function RelatoriosPage({
             <h2 className="font-semibold text-white">Geração e consumo da usina</h2>
             <p className="text-sm text-slate-400">Acompanhe a energia da sua usina em {formatReferencia(referencia)}.</p>
           </div>
-          <form action={salvarGeracaoMensal} className="flex items-end gap-2">
+          <form action={salvarGeracaoMensal} className="flex flex-wrap items-end gap-2">
             <input type="hidden" name="referencia" value={referencia} />
             <div>
-              <label className="label" htmlFor="kwh_injetado">Energia injetada na rede (kWh)</label>
+              <label className="label" htmlFor="kwh_injetado">Injetado na rede (kWh)</label>
               <input
                 id="kwh_injetado"
                 name="kwh_injetado"
@@ -136,7 +143,20 @@ export default async function RelatoriosPage({
                 step={0.01}
                 defaultValue={injetadoMes || ""}
                 placeholder="0"
-                className="input w-48"
+                className="input w-40"
+              />
+            </div>
+            <div>
+              <label className="label" htmlFor="kwh_consumido">Consumido (kWh)</label>
+              <input
+                id="kwh_consumido"
+                name="kwh_consumido"
+                type="number"
+                min={0}
+                step={0.01}
+                defaultValue={geracaoMes?.kwh_consumido != null ? Number(geracaoMes.kwh_consumido) : ""}
+                placeholder={consumidoMesAuto ? `${consumidoMesAuto} (faturas)` : "0"}
+                className="input w-40"
               />
             </div>
             <button type="submit" className="btn-primary">Salvar</button>
@@ -150,7 +170,8 @@ export default async function RelatoriosPage({
         </div>
         <p className="text-xs text-slate-500">
           Créditos = energia injetada − energia consumida, acumulados mês a mês (o saldo nunca fica negativo).
-          Lance a energia injetada de cada mês no campo acima para manter o saldo em dia.
+          Lance o injetado e o consumido de cada mês nos campos acima. Se deixar o consumido em branco,
+          o sistema usa automaticamente a soma do consumo das faturas do mês.
         </p>
       </div>
 

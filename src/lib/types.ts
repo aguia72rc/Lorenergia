@@ -82,6 +82,7 @@ export interface FaturaComCliente extends Fatura {
 export interface GeracaoMensal {
   referencia: string; // YYYY-MM-DD (1º dia do mês)
   kwh_injetado: number;
+  kwh_consumido: number | null; // null = usa a soma das faturas do mês
   kwh_gerado: number | null;
   observacoes: string | null;
   updated_at: string;

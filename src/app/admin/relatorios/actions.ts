@@ -28,10 +28,14 @@ export async function salvarGeracaoMensal(formData: FormData) {
 
   const kwh_injetado = Number(formData.get("kwh_injetado") ?? 0) || 0;
 
+  // Consumo manual: vazio => null (o relatório volta a somar as faturas do mês).
+  const consumidoRaw = String(formData.get("kwh_consumido") ?? "").trim();
+  const kwh_consumido = consumidoRaw === "" ? null : Number(consumidoRaw) || 0;
+
   const { error } = await supabase
     .from("geracao_mensal")
     .upsert(
-      { referencia, kwh_injetado, updated_at: new Date().toISOString() },
+      { referencia, kwh_injetado, kwh_consumido, updated_at: new Date().toISOString() },
       { onConflict: "referencia" }
     );
 
