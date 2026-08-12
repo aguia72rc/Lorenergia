@@ -30,7 +30,7 @@ export default async function HomePage() {
       </header>
 
       {/* Hero */}
-      <section className="mx-auto grid max-w-6xl items-center gap-12 px-5 pb-10 pt-8 md:grid-cols-2 md:pt-16">
+      <section className="mx-auto grid max-w-6xl items-center gap-12 px-5 pb-10 pt-8 md:grid-cols-[1fr_1.2fr] md:pt-16">
         <div>
           <Reveal>
             <span className="eyebrow">
@@ -73,15 +73,18 @@ export default async function HomePage() {
         </div>
 
         {/* Vídeo institucional (no lugar do sol animado) */}
-        <Reveal delay={0.1} className="relative mx-auto w-full max-w-md">
+        <Reveal delay={0.1} className="relative mx-auto w-full max-w-xl lg:max-w-2xl">
           <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-slate-900/60 shadow-2xl">
             <div className="pointer-events-none absolute -left-16 -top-16 h-48 w-48 rounded-full bg-brand-500/20 blur-3xl animate-pulse-glow" />
             <div className="pointer-events-none absolute -right-16 bottom-0 h-48 w-48 rounded-full bg-cyan-500/20 blur-3xl" />
             <video
               className="relative aspect-video w-full bg-black"
-              controls
-              preload="metadata"
+              autoPlay
+              muted
+              loop
               playsInline
+              controls
+              preload="auto"
             >
               <source src="/institucional.mp4" type="video/mp4" />
               Seu navegador não suporta vídeo.{" "}
