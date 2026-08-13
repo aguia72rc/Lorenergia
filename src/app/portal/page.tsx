@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Leaf, Wallet, FileText, TrendingDown, ChevronRight } from "lucide-react";
+import { Leaf, Wallet, FileText, TrendingDown, ChevronRight, Home, ExternalLink } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getSessao } from "@/lib/auth";
 import { formatBRL, formatReferencia, formatData, formatReferenciaCurta } from "@/lib/format";
@@ -108,6 +108,28 @@ export default async function PortalPage() {
         <Kpi icon={<Wallet />} titulo="Em aberto" valor={totalPendente} fmt="brl" cor="bg-amber-500/15 text-amber-300" />
         <Kpi icon={<FileText />} titulo="Faturas" valor={lista.length} cor="bg-blue-500/15 text-blue-300" />
       </div>
+
+      {/* Link para site externo (Meu Aluguel) */}
+      <a
+        href="https://meualuguel.vercel.app/#/login"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-brand-400/30 p-5 transition-colors hover:border-brand-400/60"
+        style={{ background: "linear-gradient(120deg, rgba(255,176,32,0.14), rgba(34,211,238,0.08))" }}
+      >
+        <div className="flex items-center gap-4">
+          <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-brand-500/15 text-brand-300">
+            <Home className="h-6 w-6" />
+          </span>
+          <div>
+            <p className="font-semibold text-white">Meu Aluguel</p>
+            <p className="text-sm text-slate-400">Acesse o portal do seu aluguel.</p>
+          </div>
+        </div>
+        <span className="btn-primary shrink-0">
+          Acessar <ExternalLink className="h-4 w-4" />
+        </span>
+      </a>
 
       {economiaTotal > 0 && (
         <div className="relative overflow-hidden rounded-2xl border border-eco-500/30 p-6"
