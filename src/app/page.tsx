@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
   Sun, Zap, FileText, Leaf, ArrowRight, ShieldCheck,
-  Gauge, ReceiptText, PiggyBank, Lock, Quote,
+  Gauge, ReceiptText, PiggyBank, Lock,
 } from "lucide-react";
 import { getSessao } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -196,23 +196,6 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Depoimentos */}
-      <section id="depoimentos" className="mx-auto max-w-6xl px-5 py-16">
-        <Reveal>
-          <div className="mb-10 text-center">
-            <span className="eyebrow justify-center">Quem usa, recomenda</span>
-            <h2 className="mt-3 text-3xl font-bold text-white md:text-4xl" style={{ fontFamily: "var(--font-display)" }}>
-              O que dizem os moradores
-            </h2>
-          </div>
-        </Reveal>
-        <div className="grid gap-5 md:grid-cols-3">
-          {DEPOIMENTOS.map((d, i) => (
-            <Depoimento key={i} i={i} {...d} />
-          ))}
-        </div>
-      </section>
-
       {/* CTA final */}
       <section className="mx-auto max-w-6xl px-5 pb-8">
         <Reveal>
@@ -242,13 +225,6 @@ export default async function HomePage() {
   );
 }
 
-// Depoimentos — EXEMPLOS. Substitua pelos depoimentos reais dos seus moradores.
-const DEPOIMENTOS = [
-  { nome: "Morador", unidade: "Apto 101", texto: "Minha conta de luz caiu todo mês e ainda acompanho tudo pelo celular. Muito prático." },
-  { nome: "Moradora", unidade: "Apto 204", texto: "Adoro ver quanto economizo com energia solar. As faturas são claras e chegam pelo WhatsApp." },
-  { nome: "Morador", unidade: "Apto 302", texto: "Simples de entender e o desconto aparece direitinho na fatura. Recomendo." },
-];
-
 function Stat({ valor, sufixo = "", label, formato = "int" }: { valor: number; sufixo?: string; label: string; formato?: "int" | "brl" | "kwh" }) {
   return (
     <div>
@@ -271,26 +247,6 @@ function Passo({ n, icon, titulo, texto }: { n: number; icon: React.ReactNode; t
         </div>
         <h3 className="font-semibold text-white">{titulo}</h3>
         <p className="mt-1.5 text-sm leading-relaxed text-slate-400">{texto}</p>
-      </div>
-    </Reveal>
-  );
-}
-
-function Depoimento({ i, nome, unidade, texto }: { i: number; nome: string; unidade: string; texto: string }) {
-  return (
-    <Reveal delay={i * 0.08}>
-      <div className="card card-hover h-full">
-        <Quote className="h-6 w-6 text-brand-400/70" />
-        <p className="mt-3 text-sm leading-relaxed text-slate-200">“{texto}”</p>
-        <div className="mt-4 flex items-center gap-3">
-          <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-brand-500/15 text-sm font-bold text-brand-300">
-            {nome.charAt(0)}
-          </span>
-          <div>
-            <p className="text-sm font-semibold text-white">{nome}</p>
-            <p className="text-xs text-slate-400">{unidade}</p>
-          </div>
-        </div>
       </div>
     </Reveal>
   );
