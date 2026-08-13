@@ -6,6 +6,7 @@ import { getSessao } from "@/lib/auth";
 import { formatBRL, formatReferencia, formatData, formatReferenciaCurta } from "@/lib/format";
 import StatusBadge from "@/components/StatusBadge";
 import EconomiaChart from "@/components/EconomiaChart";
+import EconomiaRing from "@/components/EconomiaRing";
 import BoasVindasModal from "@/components/BoasVindasModal";
 import { AnimatedNumber } from "@/components/motion";
 import type { Cliente, Fatura } from "@/lib/types";
@@ -59,6 +60,18 @@ export default async function PortalPage() {
     faturasValidas.length > 0 ? economiaTotal / faturasValidas.length : 0;
   const projecaoAno = Math.round(mediaMensalEconomia * 12);
 
+  // % de economia média (desconto / valor cheio) para o anel.
+  const brutoTotal = faturasValidas.reduce((s, f) => s + Number(f.valor_bruto), 0);
+  const descontoTotal = faturasValidas.reduce((s, f) => s + Number(f.valor_desconto), 0);
+  const pctEconomia = brutoTotal > 0 ? (descontoTotal / brutoTotal) * 100 : 0;
+
+  // Conquistas.
+  const mesesAtivos = faturasValidas.length;
+  const consumoTotal = faturasValidas.reduce((s, f) => s + Number(f.consumo_kwh), 0);
+  // CO₂ evitado (estimativa) — fator aproximado do SIN: ~0,0817 kg CO₂/kWh.
+  const co2Kg = consumoTotal * 0.0817;
+  const co2Texto = co2Kg >= 1000 ? `${(co2Kg / 1000).toFixed(1)} t` : `${Math.round(co2Kg)} kg`;
+
   // Pontos do gráfico (ordem cronológica, até os últimos 12 meses).
   const faturasGrafico = [...lista]
     .filter((f) => f.status !== "cancelada")
@@ -105,6 +118,29 @@ export default async function PortalPage() {
             <AnimatedNumber value={economiaTotal} format="brl" /> economizados 🌱
           </p>
           <p className="relative mt-1 text-sm text-eco-200">Obrigado por escolher energia limpa!</p>
+        </div>
+      )}
+
+      {mesesAtivos > 0 && (
+        <div className="card">
+          <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-center">
+            <div className="shrink-0">
+              <EconomiaRing percent={pctEconomia} legenda="de economia" />
+            </div>
+            <div className="flex-1">
+              <h2 className="font-semibold text-white">Suas conquistas com energia solar</h2>
+              <p className="mt-1 text-sm text-slate-400">
+                Em média você paga <strong className="text-eco-300">{numeroPct(pctEconomia)}% menos</strong> do que pagaria à distribuidora.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Conquista emoji="🌱" texto={`${mesesAtivos} ${mesesAtivos === 1 ? "mês" : "meses"} de energia solar`} />
+                <Conquista emoji="💰" texto={`${formatBRL(economiaTotal)} economizados`} />
+                <Conquista emoji="🌍" texto={`~${co2Texto} de CO₂ evitado`} />
+                <Conquista emoji="⚡" texto="Geração compartilhada" />
+              </div>
+              <p className="mt-3 text-xs text-slate-500">CO₂ evitado é uma estimativa com base no seu consumo.</p>
+            </div>
+          </div>
         </div>
       )}
 
@@ -192,4 +228,17 @@ function Kpi({
       </p>
     </div>
   );
+}
+
+function Conquista({ emoji, texto }: { emoji: string; texto: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-slate-200">
+      <span aria-hidden>{emoji}</span> {texto}
+    </span>
+  );
+}
+
+function numeroPct(v: number): string {
+  const n = Number(v) || 0;
+  return Number.isInteger(n) ? String(n) : n.toFixed(1).replace(".", ",");
 }
