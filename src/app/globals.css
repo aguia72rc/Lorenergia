@@ -95,6 +95,9 @@ body {
   .btn {
     @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed;
   }
+  .btn:active {
+    transform: translateY(1px) scale(0.99);
+  }
   .btn-primary {
     @apply btn text-ink-950;
     background: linear-gradient(135deg, var(--brand-soft), var(--brand));
@@ -163,6 +166,34 @@ body {
   .hr-line {
     height: 1px;
     background: linear-gradient(90deg, transparent, var(--border-strong), transparent);
+  }
+}
+
+/* Acessibilidade: foco visível consistente para teclado */
+a:focus-visible,
+button:focus-visible,
+[role="button"]:focus-visible,
+.btn:focus-visible,
+.input:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: 10px;
+}
+
+/* Respeita quem prefere menos movimento: desliga fundo animado e transições longas */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .aurora::before,
+  .aurora::after {
+    animation: none !important;
   }
 }
 

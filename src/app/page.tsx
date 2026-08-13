@@ -1,15 +1,55 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Sun, Zap, FileText, Leaf, ArrowRight, ShieldCheck } from "lucide-react";
+import {
+  Sun, Zap, FileText, Leaf, ArrowRight, ShieldCheck,
+  Gauge, ReceiptText, PiggyBank, Lock, Quote,
+} from "lucide-react";
 import { getSessao } from "@/lib/auth";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { Reveal, AnimatedNumber } from "@/components/motion";
 
 export const dynamic = "force-dynamic";
+
+interface EstatisticasHome {
+  economiaTotal: number;
+  moradores: number;
+  kwhLimpa: number;
+}
+
+/**
+ * Números reais para o hero (economia total, moradores ativos, energia limpa).
+ * Usa o cliente de serviço (agregados públicos, sem expor dados individuais).
+ * Em qualquer falha, retorna zeros e a home cai nos valores padrão.
+ */
+async function carregarEstatisticas(): Promise<EstatisticasHome> {
+  try {
+    const admin = createAdminClient();
+    const [{ data: faturas }, { count: moradores }, { data: geracao }] = await Promise.all([
+      admin.from("faturas").select("economia, status"),
+      admin.from("clientes").select("id", { count: "exact", head: true }).eq("ativo", true),
+      admin.from("geracao_mensal").select("kwh_injetado"),
+    ]);
+
+    const economiaTotal = (faturas ?? [])
+      .filter((f: { status: string }) => f.status !== "cancelada")
+      .reduce((s: number, f: { economia: number | null }) => s + Number(f.economia ?? 0), 0);
+    const kwhLimpa = (geracao ?? []).reduce(
+      (s: number, g: { kwh_injetado: number | null }) => s + Number(g.kwh_injetado ?? 0),
+      0
+    );
+
+    return { economiaTotal, moradores: moradores ?? 0, kwhLimpa };
+  } catch {
+    return { economiaTotal: 0, moradores: 0, kwhLimpa: 0 };
+  }
+}
 
 export default async function HomePage() {
   const sessao = await getSessao();
   if (sessao?.profile?.role === "admin") redirect("/admin");
   if (sessao?.profile?.role === "cliente") redirect("/portal");
+
+  const stats = await carregarEstatisticas();
 
   return (
     <main className="relative min-h-screen">
@@ -65,9 +105,21 @@ export default async function HomePage() {
 
           <Reveal delay={0.32}>
             <div className="mt-12 grid max-w-md grid-cols-3 gap-4">
-              <Stat valor={20} sufixo="%" label="de desconto" />
-              <Stat valor={100} sufixo="%" label="energia limpa" />
-              <Stat valor={24} sufixo="/7" label="acesso online" />
+              {stats.economiaTotal > 0 ? (
+                <Stat valor={stats.economiaTotal} formato="brl" label="já economizados" />
+              ) : (
+                <Stat valor={20} sufixo="%" label="de desconto" />
+              )}
+              {stats.moradores > 0 ? (
+                <Stat valor={stats.moradores} label={stats.moradores === 1 ? "morador ativo" : "moradores ativos"} />
+              ) : (
+                <Stat valor={100} sufixo="%" label="energia limpa" />
+              )}
+              {stats.kwhLimpa > 0 ? (
+                <Stat valor={stats.kwhLimpa} label="kWh de energia limpa" />
+              ) : (
+                <Stat valor={24} sufixo="/7" label="acesso online" />
+              )}
             </div>
           </Reveal>
         </div>
@@ -85,6 +137,7 @@ export default async function HomePage() {
               playsInline
               controls
               preload="auto"
+              poster="/video-poster"
             >
               <source src="/institucional.mp4" type="video/mp4" />
               Seu navegador não suporta vídeo.{" "}
@@ -92,6 +145,33 @@ export default async function HomePage() {
             </video>
           </div>
         </Reveal>
+      </section>
+
+      {/* Faixa de confiança */}
+      <div className="border-y border-white/5 bg-white/[0.02]">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-8 gap-y-3 px-5 py-4 text-sm text-slate-400">
+          <span className="inline-flex items-center gap-2"><Lock className="h-4 w-4 text-brand-400" /> Dados protegidos</span>
+          <span className="inline-flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-brand-400" /> Geração compartilhada · Lei 14.300/2022</span>
+          <span className="inline-flex items-center gap-2"><Leaf className="h-4 w-4 text-eco-400" /> 100% energia solar</span>
+          <span className="inline-flex items-center gap-2"><Sun className="h-4 w-4 text-brand-400" /> Economia todo mês</span>
+        </div>
+      </div>
+
+      {/* Como funciona (3 passos) */}
+      <section id="como-funciona" className="mx-auto max-w-6xl px-5 py-16">
+        <Reveal>
+          <div className="mb-10 text-center">
+            <span className="eyebrow justify-center">Simples assim</span>
+            <h2 className="mt-3 text-3xl font-bold text-white md:text-4xl" style={{ fontFamily: "var(--font-display)" }}>
+              Como funciona
+            </h2>
+          </div>
+        </Reveal>
+        <div className="grid gap-5 md:grid-cols-3">
+          <Passo n={1} icon={<Gauge />} titulo="Leitura do medidor" texto="A cada mês registramos a leitura da sua unidade — anterior e atual." />
+          <Passo n={2} icon={<ReceiptText />} titulo="Fatura com desconto" texto="O sistema calcula o consumo e aplica o desconto da energia solar automaticamente." />
+          <Passo n={3} icon={<PiggyBank />} titulo="Você economiza" texto="Você paga menos que na distribuidora e acompanha sua economia no portal." />
+        </div>
       </section>
 
       {/* Recursos */}
@@ -112,6 +192,44 @@ export default async function HomePage() {
         </div>
       </section>
 
+      {/* Depoimentos */}
+      <section id="depoimentos" className="mx-auto max-w-6xl px-5 py-16">
+        <Reveal>
+          <div className="mb-10 text-center">
+            <span className="eyebrow justify-center">Quem usa, recomenda</span>
+            <h2 className="mt-3 text-3xl font-bold text-white md:text-4xl" style={{ fontFamily: "var(--font-display)" }}>
+              O que dizem os moradores
+            </h2>
+          </div>
+        </Reveal>
+        <div className="grid gap-5 md:grid-cols-3">
+          {DEPOIMENTOS.map((d, i) => (
+            <Depoimento key={i} i={i} {...d} />
+          ))}
+        </div>
+      </section>
+
+      {/* CTA final */}
+      <section className="mx-auto max-w-6xl px-5 pb-8">
+        <Reveal>
+          <div className="relative overflow-hidden rounded-3xl border border-brand-400/20 px-6 py-12 text-center"
+            style={{ background: "linear-gradient(120deg, rgba(255,176,32,0.16), rgba(34,211,238,0.10))" }}>
+            <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-brand-500/25 blur-3xl" />
+            <h2 className="text-3xl font-bold text-white md:text-4xl" style={{ fontFamily: "var(--font-display)" }}>
+              Pronto para economizar com energia solar?
+            </h2>
+            <p className="mx-auto mt-3 max-w-xl text-slate-300">
+              Acesse seu portal e acompanhe suas faturas e sua economia em tempo real.
+            </p>
+            <div className="mt-7 flex justify-center">
+              <Link href="/login" className="btn-primary">
+                Acessar o sistema <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+          </div>
+        </Reveal>
+      </section>
+
       <footer className="mx-auto max-w-6xl px-5 py-10 text-center text-sm text-slate-500">
         <div className="hr-line mb-6" />
         Lorenergia · Energia limpa e mais barata ☀️
@@ -120,15 +238,57 @@ export default async function HomePage() {
   );
 }
 
-function Stat({ valor, sufixo, label }: { valor: number; sufixo: string; label: string }) {
+// Depoimentos — EXEMPLOS. Substitua pelos depoimentos reais dos seus moradores.
+const DEPOIMENTOS = [
+  { nome: "Morador", unidade: "Apto 101", texto: "Minha conta de luz caiu todo mês e ainda acompanho tudo pelo celular. Muito prático." },
+  { nome: "Moradora", unidade: "Apto 204", texto: "Adoro ver quanto economizo com energia solar. As faturas são claras e chegam pelo WhatsApp." },
+  { nome: "Morador", unidade: "Apto 302", texto: "Simples de entender e o desconto aparece direitinho na fatura. Recomendo." },
+];
+
+function Stat({ valor, sufixo = "", label, formato = "int" }: { valor: number; sufixo?: string; label: string; formato?: "int" | "brl" | "kwh" }) {
   return (
     <div>
       <p className="text-3xl font-extrabold text-white" style={{ fontFamily: "var(--font-display)" }}>
-        <AnimatedNumber value={valor} />
-        <span className="neon-text">{sufixo}</span>
+        <AnimatedNumber value={valor} format={formato} />
+        {sufixo && <span className="neon-text">{sufixo}</span>}
       </p>
       <p className="mt-1 text-xs text-slate-400">{label}</p>
     </div>
+  );
+}
+
+function Passo({ n, icon, titulo, texto }: { n: number; icon: React.ReactNode; titulo: string; texto: string }) {
+  return (
+    <Reveal delay={n * 0.08}>
+      <div className="card card-hover h-full">
+        <div className="mb-4 flex items-center gap-3">
+          <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-brand-500/15 text-sm font-bold text-brand-300">{n}</span>
+          <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-brand-500/10 text-brand-400">{icon}</span>
+        </div>
+        <h3 className="font-semibold text-white">{titulo}</h3>
+        <p className="mt-1.5 text-sm leading-relaxed text-slate-400">{texto}</p>
+      </div>
+    </Reveal>
+  );
+}
+
+function Depoimento({ i, nome, unidade, texto }: { i: number; nome: string; unidade: string; texto: string }) {
+  return (
+    <Reveal delay={i * 0.08}>
+      <div className="card card-hover h-full">
+        <Quote className="h-6 w-6 text-brand-400/70" />
+        <p className="mt-3 text-sm leading-relaxed text-slate-200">“{texto}”</p>
+        <div className="mt-4 flex items-center gap-3">
+          <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-brand-500/15 text-sm font-bold text-brand-300">
+            {nome.charAt(0)}
+          </span>
+          <div>
+            <p className="text-sm font-semibold text-white">{nome}</p>
+            <p className="text-xs text-slate-400">{unidade}</p>
+          </div>
+        </div>
+      </div>
+    </Reveal>
   );
 }
 
