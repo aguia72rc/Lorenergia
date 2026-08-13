@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Sun, LayoutDashboard, Users, FileText, BarChart3, Settings, LogOut } from "lucide-react";
+import ThemeToggle from "@/components/ThemeToggle";
 
 const itens = [
   { href: "/admin", label: "Painel", icon: LayoutDashboard },
@@ -23,6 +24,7 @@ export default function AdminNav({ email }: { email: string | null }) {
           <Sun className="relative h-6 w-6 text-brand-400" />
         </span>
         <span className="font-bold text-white" style={{ fontFamily: "var(--font-display)" }}>Lorenergia</span>
+        <ThemeToggle className="ml-auto" />
       </div>
       <nav className="flex flex-1 gap-1 overflow-x-auto px-3 pb-3 md:flex-col md:overflow-visible">
         {itens.map(({ href, label, icon: Icon }) => {

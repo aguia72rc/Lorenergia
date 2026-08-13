@@ -231,3 +231,92 @@ summary:focus-visible {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.2);
 }
+
+/* =====================================================================
+   MODO CLARO (Light Mode)
+   Ativado por data-theme="light" no <html>. Redefine os tokens e remapeia
+   as cores fixas mais usadas (texto, superfícies, bordas, acentos) para
+   versões legíveis sobre fundo claro.
+   ===================================================================== */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f5f7fb;
+  --surface: rgba(15, 23, 42, 0.035);
+  --surface-2: rgba(15, 23, 42, 0.06);
+  --border: rgba(15, 23, 42, 0.12);
+  --border-strong: rgba(15, 23, 42, 0.20);
+  --ink: #0f172a;
+  --muted: #475569;
+  --faint: #64748b;
+}
+
+/* Fundo animado mais suave e linhas escuras no claro */
+:root[data-theme="light"] .aurora::before { opacity: 0.28; }
+:root[data-theme="light"] .aurora::after { opacity: 0.22; }
+:root[data-theme="light"] .aurora .grid-lines {
+  background-image:
+    linear-gradient(rgba(15, 23, 42, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 23, 42, 0.05) 1px, transparent 1px);
+}
+
+/* Componentes com texto fixo claro */
+:root[data-theme="light"] .btn-outline { color: var(--ink); }
+:root[data-theme="light"] .input {
+  color: var(--ink);
+  background: #ffffff;
+}
+:root[data-theme="light"] select.input option {
+  background: #ffffff;
+  color: #0f172a;
+}
+
+/* Acentos de texto que dependiam do fundo escuro */
+:root[data-theme="light"] .eyebrow { color: #b45309; }
+:root[data-theme="light"] .neon-text { color: #b45309; text-shadow: none; }
+:root[data-theme="light"] .grad-text {
+  background: linear-gradient(120deg, #0f172a, #b45309 55%, #0e7490);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Texto: cinzas/branco -> tons escuros */
+:root[data-theme="light"] .text-white { color: #0f172a; }
+:root[data-theme="light"] .text-white\/90,
+:root[data-theme="light"] .text-white\/80,
+:root[data-theme="light"] .text-white\/70 { color: #1e293b; }
+:root[data-theme="light"] .text-slate-200 { color: #334155; }
+:root[data-theme="light"] .text-slate-300 { color: #334155; }
+:root[data-theme="light"] .text-slate-400 { color: #475569; }
+:root[data-theme="light"] .text-slate-500 { color: #64748b; }
+:root[data-theme="light"] .hover\:text-white:hover { color: #0f172a; }
+
+/* Acentos coloridos: tons mais escuros para contraste no claro */
+:root[data-theme="light"] .text-eco-200 { color: #047857; }
+:root[data-theme="light"] .text-eco-300 { color: #059669; }
+:root[data-theme="light"] .text-eco-400 { color: #059669; }
+:root[data-theme="light"] .text-brand-300 { color: #b45309; }
+:root[data-theme="light"] .text-brand-400 { color: #b45309; }
+:root[data-theme="light"] .text-amber-300 { color: #b45309; }
+:root[data-theme="light"] .text-blue-300 { color: #2563eb; }
+:root[data-theme="light"] .text-red-300 { color: #dc2626; }
+:root[data-theme="light"] .text-red-400 { color: #dc2626; }
+
+/* Superfícies e bordas que eram brancas translúcidas -> escuras translúcidas */
+:root[data-theme="light"] .bg-white\/5 { background-color: rgba(15, 23, 42, 0.04); }
+:root[data-theme="light"] .bg-white\/10 { background-color: rgba(15, 23, 42, 0.06); }
+:root[data-theme="light"] .bg-white\/\[0\.02\] { background-color: rgba(15, 23, 42, 0.02); }
+:root[data-theme="light"] .hover\:bg-white\/5:hover { background-color: rgba(15, 23, 42, 0.04); }
+:root[data-theme="light"] .border-white\/10 { border-color: rgba(15, 23, 42, 0.12); }
+:root[data-theme="light"] .border-white\/5 { border-color: rgba(15, 23, 42, 0.08); }
+:root[data-theme="light"] .ring-white\/10 { --tw-ring-color: rgba(15, 23, 42, 0.12); }
+:root[data-theme="light"] .divide-white\/5 > :not([hidden]) ~ :not([hidden]) { border-color: rgba(15, 23, 42, 0.08); }
+
+/* Painéis escuros sólidos -> claros */
+:root[data-theme="light"] .bg-slate-900,
+:root[data-theme="light"] .bg-slate-900\/90,
+:root[data-theme="light"] .bg-slate-900\/60 { background-color: #ffffff; }
+
+/* Barra de rolagem no claro */
+:root[data-theme="light"] ::-webkit-scrollbar-thumb { background: rgba(15, 23, 42, 0.18); }
+:root[data-theme="light"] ::-webkit-scrollbar-thumb:hover { background: rgba(15, 23, 42, 0.28); }

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Sun, LogOut, KeyRound } from "lucide-react";
 import { getSessao } from "@/lib/auth";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
   const sessao = await getSessao();
@@ -21,6 +22,7 @@ export default async function PortalLayout({ children }: { children: React.React
           </div>
           <div className="flex items-center gap-3">
             <span className="hidden text-sm text-slate-500 sm:inline">{sessao.email}</span>
+            <ThemeToggle />
             <Link href="/portal/senha" className="btn-outline">
               <KeyRound className="h-4 w-4" /> Trocar senha
             </Link>
