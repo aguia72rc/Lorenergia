@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { getSessao } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import ThemeToggle from "@/components/ThemeToggle";
 import { Reveal, AnimatedNumber } from "@/components/motion";
 
 export const dynamic = "force-dynamic";
@@ -64,9 +65,12 @@ export default async function HomePage() {
             Lorenergia
           </span>
         </div>
-        <Link href="/login" className="btn-primary">
-          Entrar <ArrowRight className="h-4 w-4" />
-        </Link>
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <Link href="/login" className="btn-primary">
+            Entrar <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
       </header>
 
       {/* Hero */}
