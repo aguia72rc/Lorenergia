@@ -98,7 +98,7 @@ export function calcularScore(opts: { consumo: number; temContato: boolean; segm
 /** Monta a query Overpass QL para comércio/indústria num raio ao redor do centro. */
 export function construirQueryOverpass(lat: number, lng: number, raioM: number, limite = 200): string {
   const a = `(around:${Math.round(raioM)},${lat},${lng})`;
-  return `[out:json][timeout:25];
+  return `[out:json][timeout:20];
 (
   node["shop"]${a};
   node["office"]${a};
