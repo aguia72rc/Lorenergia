@@ -130,8 +130,8 @@ const htmlTopo = `
               <div style="font-size:13px; color:rgba(255,246,227,.6); line-height:1.35;">famílias já economizam em PE</div>
             </div>
             <div>
-              <div style="font-family:${AR}; font-weight:900; font-size:30px; color:#FFF6E3;">26 mil</div>
-              <div style="font-size:13px; color:rgba(255,246,227,.6); line-height:1.35;">kWh/mês gerados em 2 usinas</div>
+              <div style="font-family:${AR}; font-weight:900; font-size:30px; color:#FFF6E3;">4.000</div>
+              <div style="font-size:13px; color:rgba(255,246,227,.6); line-height:1.35;">kWh/mês gerados na usina</div>
             </div>
           </div>
         </div>
