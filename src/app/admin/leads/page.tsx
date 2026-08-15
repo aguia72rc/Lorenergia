@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Target, Zap, Coins, Trophy, PiggyBank, Plus, KanbanSquare, BarChart3 } from "lucide-react";
+import { Target, Zap, Coins, Trophy, PiggyBank, Plus, KanbanSquare, BarChart3, Radar } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { formatBRL, formatKwh } from "@/lib/format";
 import { consumoLead, comissaoLead, economiaLead } from "@/lib/leads";
@@ -32,6 +32,7 @@ export default async function LeadsPage() {
           <p className="text-sm text-slate-400">Prospecção Lorenergia — {total} lead(s) no funil</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Link href="/admin/leads/scanner" className="btn-outline"><Radar className="h-4 w-4" /> Scanner</Link>
           <Link href="/admin/leads/pipeline" className="btn-outline"><KanbanSquare className="h-4 w-4" /> Pipeline</Link>
           <Link href="/admin/leads/relatorios" className="btn-outline"><BarChart3 className="h-4 w-4" /> Relatórios</Link>
           <Link href="/admin/leads/novo" className="btn-primary"><Plus className="h-4 w-4" /> Novo lead</Link>
