@@ -131,9 +131,25 @@ export async function escanear(input: { cidade: string; raioKm: number; segmento
   }
 
   const supabase = createClient();
+
+  // Dedupe em código: consulta os que já existem (por fonte_id_externo) e
+  // insere só os novos. Evita depender do ON CONFLICT (o índice é parcial).
+  const ids = rows.map((r) => r.fonte_id_externo);
+  const { data: existentes } = await supabase.from("leads").select("fonte_id_externo").in("fonte_id_externo", ids);
+  const jaExiste = new Set((existentes ?? []).map((e: { fonte_id_externo: string | null }) => e.fonte_id_externo));
+  const novosRows = rows.filter((r) => !jaExiste.has(r.fonte_id_externo));
+
+  if (novosRows.length === 0) {
+    return {
+      ok: true,
+      mensagem: `✅ ${analisados} estabelecimentos analisados · 0 novos (todos já estavam no banco).`,
+      analisados, novos: 0, duplicados: analisados, consumoTotal: 0, comissaoTotal: 0, leads: [],
+    };
+  }
+
   const { data, error } = await supabase
     .from("leads")
-    .upsert(rows, { onConflict: "fonte_id_externo", ignoreDuplicates: true })
+    .insert(novosRows)
     .select("nome,segmento,bairro,consumo_estimado_kwh,lead_score,whatsapp");
   if (error) return vazio(false, "Erro ao salvar os leads: " + error.message);
 
