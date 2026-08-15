@@ -51,23 +51,41 @@ export async function escanear(input: { cidade: string; raioKm: number; segmento
   const raioM = Math.max(1000, Math.min(50000, (Number(input.raioKm) || 25) * 1000));
   const query = construirQueryOverpass(centro[0], centro[1], raioM, 200);
 
-  let elements: OsmElement[] = [];
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 45000);
-  try {
-    const resp = await fetch("https://overpass-api.de/api/interpreter", {
-      method: "POST",
-      body: query,
-      headers: { "Content-Type": "text/plain" },
-      signal: ctrl.signal,
-    });
-    clearTimeout(timer);
-    if (!resp.ok) return vazio(false, `A fonte OpenStreetMap respondeu ${resp.status}. Tente novamente em alguns segundos.`);
-    const j = (await resp.json()) as { elements?: OsmElement[] };
-    elements = j.elements ?? [];
-  } catch {
-    clearTimeout(timer);
-    return vazio(false, "Não consegui acessar o OpenStreetMap agora (rede ou tempo esgotado). Tente de novo em instantes.");
+  // A Overpass é exigente: corpo como formulário (data=), com User-Agent e
+  // Accept. Tenta a instância principal e cai para um espelho se recusar.
+  const endpoints = [
+    "https://overpass-api.de/api/interpreter",
+    "https://overpass.kumi.systems/api/interpreter",
+  ];
+  const corpo = new URLSearchParams({ data: query }).toString();
+  let elements: OsmElement[] | null = null;
+  let ultimoErro = "";
+  for (const url of endpoints) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 25000);
+    try {
+      const resp = await fetch(url, {
+        method: "POST",
+        body: corpo,
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Accept: "application/json",
+          "User-Agent": "Lorenergia/1.0 (prospeccao; +https://lorenergia.vercel.app)",
+        },
+        signal: ctrl.signal,
+      });
+      clearTimeout(timer);
+      if (!resp.ok) { ultimoErro = `HTTP ${resp.status}`; continue; }
+      const j = (await resp.json()) as { elements?: OsmElement[] };
+      elements = j.elements ?? [];
+      break;
+    } catch {
+      clearTimeout(timer);
+      ultimoErro = "rede ou tempo esgotado";
+    }
+  }
+  if (elements === null) {
+    return vazio(false, `Não consegui acessar o OpenStreetMap agora (${ultimoErro}). Tente novamente em alguns segundos.`);
   }
 
   const soDig = (v: string) => v.replace(/\D/g, "");
