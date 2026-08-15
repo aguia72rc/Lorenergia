@@ -244,8 +244,8 @@ summary:focus-visible {
   50% { box-shadow: 0 0 0 14px rgba(255, 178, 26, 0); }
 }
 .lp-cta:hover { filter: brightness(1.07); color: #0B1017 !important; }
-.lp-enter { color: #FFF6E3; border: 1px solid rgba(255, 246, 227, 0.3); }
-.lp-enter:hover { color: #0B1017 !important; background: #FFF6E3; }
+.lp a.lp-enter { color: #FFF6E3; background: rgba(255, 246, 227, 0.12); border: 1px solid rgba(255, 246, 227, 0.5); }
+.lp a.lp-enter:hover { color: #0B1017; background: #FFF6E3; border-color: #FFF6E3; }
 .lp input[type="range"] { -webkit-appearance: none; appearance: none; background: transparent; }
 .lp input[type="range"]::-webkit-slider-runnable-track { height: 10px; border-radius: 99px; background: linear-gradient(90deg, #FFB21A, #FFD98A); }
 .lp input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 30px; height: 30px; margin-top: -10px; border-radius: 99px; background: #0B1017; border: 4px solid #FFB21A; cursor: pointer; }
