@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Sun, LayoutDashboard, Users, FileText, BarChart3, Settings, LogOut } from "lucide-react";
+import { Sun, LayoutDashboard, Users, FileText, BarChart3, Settings, LogOut, Target, KanbanSquare } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 
 const itens = [
   { href: "/admin", label: "Painel", icon: LayoutDashboard },
+  { href: "/admin/leads", label: "Leads", icon: Target },
+  { href: "/admin/leads/pipeline", label: "Pipeline", icon: KanbanSquare },
   { href: "/admin/clientes", label: "Moradores", icon: Users },
   { href: "/admin/faturas", label: "Faturas", icon: FileText },
   { href: "/admin/relatorios", label: "Relatórios", icon: BarChart3 },
