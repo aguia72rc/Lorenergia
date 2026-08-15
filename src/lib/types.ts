@@ -116,6 +116,7 @@ export interface Lead {
   proximo_contato_data: string | null;
   ultimo_contato_data: string | null;
   fonte_dados: string;
+  fonte_id_externo: string | null;
   observacoes: string | null;
   cliente_id: string | null;
   created_at: string;
