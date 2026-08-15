@@ -79,6 +79,57 @@ export interface FaturaComCliente extends Fatura {
   > | null;
 }
 
+export type SegmentoLead = "COMERCIAL" | "INDUSTRIAL" | "RESIDENCIAL";
+export type StatusLead =
+  | "NOVO" | "QUALIFICADO" | "PRIORIZADO" | "EM_CONTATO" | "AGUARDANDO_RESPOSTA"
+  | "RESPONDEU" | "INTERESSADO" | "DOCUMENTACAO" | "ENVIADO_FINDER"
+  | "VENDA_REALIZADA" | "SEM_INTERESSE" | "DESCARTADO";
+export type StatusContato =
+  | "NAO_CONTATADO" | "PRIMEIRO_CONTATO" | "AGUARDANDO_RESPOSTA"
+  | "RESPONDEU" | "SEGUNDO_CONTATO_NECESSARIO" | "SEM_RESPOSTA";
+
+export interface Lead {
+  id: string;
+  nome: string;
+  segmento: SegmentoLead;
+  subsegmento: string | null;
+  cidade: string;
+  estado: string;
+  bairro: string | null;
+  endereco: string | null;
+  numero: string | null;
+  cep: string | null;
+  telefone: string | null;
+  whatsapp: string | null;
+  email: string | null;
+  website: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  consumo_estimado_kwh: number;
+  consumo_confirmado_kwh: number | null;
+  lead_score: number;
+  prioridade_operacional: number;
+  status_lead: StatusLead;
+  status_contato: StatusContato;
+  tentativas_contato: number;
+  max_tentativas_contato: number;
+  proximo_contato_data: string | null;
+  ultimo_contato_data: string | null;
+  fonte_dados: string;
+  observacoes: string | null;
+  cliente_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LeadEvento {
+  id: string;
+  lead_id: string;
+  evento: string;
+  detalhes: unknown;
+  created_at: string;
+}
+
 export interface GeracaoMensal {
   referencia: string; // YYYY-MM-DD (1º dia do mês)
   kwh_injetado: number;
