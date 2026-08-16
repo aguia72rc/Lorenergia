@@ -55,17 +55,19 @@ export async function escanear(input: { cidade: string; raioKm: number; segmento
     : construirQueryOverpass(centro[0], centro[1], raioM, 200);
 
   // A Overpass é exigente: corpo como formulário (data=), com User-Agent e
-  // Accept. Tenta a instância principal e cai para um espelho se recusar.
+  // Accept. Tenta vários espelhos (os mais rápidos primeiro) e falha rápido
+  // em cada um para caber no limite de tempo do Vercel.
   const endpoints = [
-    "https://overpass-api.de/api/interpreter",
     "https://overpass.kumi.systems/api/interpreter",
+    "https://overpass-api.de/api/interpreter",
+    "https://overpass.private.coffee/api/interpreter",
   ];
   const corpo = new URLSearchParams({ data: query }).toString();
   let elements: OsmElement[] | null = null;
   let ultimoErro = "";
   for (const url of endpoints) {
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 25000);
+    const timer = setTimeout(() => ctrl.abort(), 16000);
     try {
       const resp = await fetch(url, {
         method: "POST",
@@ -88,7 +90,7 @@ export async function escanear(input: { cidade: string; raioKm: number; segmento
     }
   }
   if (elements === null) {
-    return vazio(false, `Não consegui acessar o OpenStreetMap agora (${ultimoErro}). Tente novamente em alguns segundos.`);
+    return vazio(false, `Não consegui acessar o OpenStreetMap agora (${ultimoErro}). Os servidores públicos ficam sobrecarregados — tente de novo em alguns segundos e, se persistir, reduza o raio (ex.: 10 km).`);
   }
 
   const soDig = (v: string) => v.replace(/\D/g, "");
