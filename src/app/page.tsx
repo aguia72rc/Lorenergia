@@ -31,12 +31,6 @@ const benefits: [string, string][] = [
   ["Serve pra qualquer imóvel", "Casa própria, apartamento, aluguel ou comércio — sem instalação física, funciona em qualquer situação."],
 ];
 
-const testimonials = [
-  { quote: "Minha conta caiu de R$XXX pra R$XXX logo no primeiro mês. Não mudei nada em casa.", name: "[Depoimento 1]", place: "Bairro, Recife" },
-  { quote: "Não precisei fazer nada, só me inscrever. Foi mais fácil que abrir conta em banco.", name: "[Depoimento 2]", place: "Bairro, Jaboatão" },
-  { quote: "Fiquei com medo no início, mas a conta continua vindo da Neoenergia mesmo, no meu nome, só mais barata.", name: "[Depoimento 3]", place: "Bairro, Recife" },
-];
-
 const stack = [
   "Créditos de energia solar aplicados direto na sua fatura Neoenergia PE",
   "Até 20% de desconto sobre o seu consumo em kWh",
@@ -195,30 +189,6 @@ const htmlMeio = `
           <div style="width:30px; height:4px; border-radius:99px; background:#FFB21A; margin-bottom:20px;"></div>
           <div style="font-family:${AR}; font-weight:700; font-size:19px; line-height:1.2; letter-spacing:-.02em; margin-bottom:10px;">${title}</div>
           <div style="font-size:15px; line-height:1.55; color:#4A5361;">${text}</div>
-        </div>`
-        )
-        .join("")}
-    </div>
-  </section>
-
-  <section class="lp-sec" style="max-width:1180px; margin:0 auto; padding:96px 28px 0;">
-    <div style="text-align:center; margin-bottom:40px;">
-      <div style="font-family:${AR}; font-size:13px; letter-spacing:.1em; color:#B8801A; margin-bottom:14px;">QUEM JÁ ECONOMIZA</div>
-      <h2 class="lp-h2" style="font-family:${AR}; font-weight:800; font-size:40px; letter-spacing:-.03em; margin:0; text-wrap:balance;">8 famílias em Pernambuco, 100% ativas.</h2>
-    </div>
-    <div class="lp-grid" style="display:grid; grid-template-columns:repeat(3,1fr); gap:20px;">
-      ${testimonials
-        .map(
-          (t) => `<div style="background:#FFFFFF; border:1px solid #EAE2D4; border-radius:18px; padding:30px 28px; display:flex; flex-direction:column; gap:20px;">
-          <div style="font-family:${AR}; font-size:36px; color:#FFB21A; line-height:.6;">&ldquo;</div>
-          <div style="font-size:17px; line-height:1.55; color:#2B323C; flex:1;">${t.quote}</div>
-          <div style="display:flex; align-items:center; gap:12px; padding-top:16px; border-top:1px solid #EFE8DB;">
-            <div style="width:38px; height:38px; border-radius:99px; background:#F1EADC;"></div>
-            <div>
-              <div style="font-family:${AR}; font-weight:700; font-size:15px;">${t.name}</div>
-              <div style="font-size:13px; color:#7A8493;">${t.place}</div>
-            </div>
-          </div>
         </div>`
         )
         .join("")}
