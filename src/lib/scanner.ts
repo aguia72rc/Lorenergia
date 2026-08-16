@@ -121,7 +121,7 @@ export function calcularScore(opts: { consumo: number; temContato: boolean; segm
 /** Monta a query Overpass QL para comércio/indústria num raio ao redor do centro. */
 export function construirQueryOverpass(lat: number, lng: number, raioM: number, limite = 200): string {
   const a = `(around:${Math.round(raioM)},${lat},${lng})`;
-  return `[out:json][timeout:20];
+  return `[out:json][timeout:15];
 (
   node["shop"]${a};
   node["office"]${a};
@@ -140,7 +140,7 @@ out center tags ${limite};`;
 /** Query Overpass para endereços RESIDENCIAIS (prédios/casas com número). */
 export function construirQueryResidencial(lat: number, lng: number, raioM: number, limite = 300): string {
   const a = `(around:${Math.round(raioM)},${lat},${lng})`;
-  return `[out:json][timeout:20];
+  return `[out:json][timeout:15];
 (
   way["building"~"^(apartments|residential|house|detached|semidetached_house|terrace|bungalow|dormitory)$"]["addr:housenumber"]${a};
   node["building"~"^(apartments|residential|house)$"]["addr:housenumber"]${a};
