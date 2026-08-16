@@ -42,10 +42,21 @@ export default function ScannerForm() {
           </div>
           <div>
             <label className="label" htmlFor="segmento">Segmento</label>
-            <select id="segmento" className="input" value={segmento} onChange={(e) => setSegmento(e.target.value)}>
+            <select
+              id="segmento"
+              className="input"
+              value={segmento}
+              onChange={(e) => {
+                const v = e.target.value;
+                setSegmento(v);
+                // Residencial tem consumo baixo — zera o mínimo para não filtrar tudo.
+                if (v === "RESIDENCIAL") setConsumoMin(0);
+              }}
+            >
               <option>Todos</option>
               <option value="COMERCIAL">Comercial</option>
               <option value="INDUSTRIAL">Industrial</option>
+              <option value="RESIDENCIAL">Residencial (endereços)</option>
             </select>
           </div>
           <div>
@@ -59,6 +70,11 @@ export default function ScannerForm() {
         <p className="mt-3 text-xs text-slate-500">
           Fonte real: <strong className="text-brand-300">OpenStreetMap</strong> (Overpass). Varre comércios e indústrias com nome, endereço e contato quando disponíveis; estima o consumo, pontua e salva no banco com dedupe automático. A varredura pode levar alguns segundos.
         </p>
+        {segmento === "RESIDENCIAL" && (
+          <p className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-2 text-xs text-amber-200">
+            ⚠️ Residencial traz <strong>endereços</strong> reais (rua, número, bairro) para <strong>visita/rota porta a porta</strong> — o OpenStreetMap não tem telefone/WhatsApp de casas, então esses leads ficam sem contato.
+          </p>
+        )}
       </div>
 
       {pendente && (

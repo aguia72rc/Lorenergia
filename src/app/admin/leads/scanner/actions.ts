@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getSessao } from "@/lib/auth";
 import {
-  CIDADES_PE, construirQueryOverpass, classificarSegmento, subsegmentoDe,
+  CIDADES_PE, construirQueryOverpass, construirQueryResidencial, classificarSegmento, subsegmentoDe,
   estimarConsumo, calcularScore, type OsmElement,
 } from "@/lib/scanner";
 import type { SegmentoLead } from "@/lib/types";
@@ -49,7 +49,10 @@ export async function escanear(input: { cidade: string; raioKm: number; segmento
 
   const centro = CIDADES_PE[input.cidade] ?? CIDADES_PE["Recife"];
   const raioM = Math.max(1000, Math.min(50000, (Number(input.raioKm) || 25) * 1000));
-  const query = construirQueryOverpass(centro[0], centro[1], raioM, 200);
+  const modoResidencial = input.segmento === "RESIDENCIAL";
+  const query = modoResidencial
+    ? construirQueryResidencial(centro[0], centro[1], raioM, 300)
+    : construirQueryOverpass(centro[0], centro[1], raioM, 200);
 
   // A Overpass é exigente: corpo como formulário (data=), com User-Agent e
   // Accept. Tenta a instância principal e cai para um espelho se recusar.
@@ -95,22 +98,27 @@ export async function escanear(input: { cidade: string; raioKm: number; segmento
 
   for (const el of elements) {
     const tags = el.tags ?? {};
-    const nome = (tags.name ?? "").trim();
-    if (!nome) continue;
     const lat = el.lat ?? el.center?.lat;
     const lng = el.lon ?? el.center?.lon;
     if (lat == null || lng == null) continue;
 
-    const segmento = classificarSegmento(tags);
-    if (segAlvo && segmento !== segAlvo) continue;
+    const segmento = modoResidencial ? "RESIDENCIAL" : classificarSegmento(tags);
+    if (!modoResidencial && segAlvo && segmento !== segAlvo) continue;
+
+    const bairro = tags["addr:suburb"] ?? tags["addr:neighbourhood"] ?? null;
+    const endereco = tags["addr:street"] ?? null;
+
+    // Comércio/indústria exigem nome; residência usa o próprio endereço como nome.
+    const enderecoTxt = [endereco, tags["addr:housenumber"]].filter(Boolean).join(", ");
+    const nome = (tags.name ?? "").trim() || (modoResidencial ? (enderecoTxt || (bairro ? `Residência — ${bairro}` : "")) : "");
+    if (!nome) continue;
+
     const consumo = estimarConsumo(tags, segmento);
     if (consumo < consumoMin) continue;
 
     const whatsapp = soDig(tags["contact:whatsapp"] ?? "") || null;
     const telefone = tags["contact:phone"] ?? tags["phone"] ?? null;
     const website = tags["contact:website"] ?? tags["website"] ?? null;
-    const bairro = tags["addr:suburb"] ?? tags["addr:neighbourhood"] ?? null;
-    const endereco = tags["addr:street"] ?? null;
     const temContato = !!(whatsapp || telefone);
     const score = calcularScore({ consumo, temContato, segmento, temSite: !!website, temEndereco: !!endereco });
 

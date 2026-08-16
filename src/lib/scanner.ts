@@ -51,6 +51,13 @@ const CONSUMO_CATEGORIA: Record<string, number> = {
   office: 1200, shop: 900,
 };
 
+/** Consumo residencial estimado (kWh/mês) por tipo de edificação. */
+const CONSUMO_RESIDENCIAL: Record<string, number> = {
+  apartments: 400, residential: 260, house: 220, detached: 240,
+  semidetached_house: 220, terrace: 200, bungalow: 200, dormitory: 500,
+};
+const TIPOS_RESIDENCIAIS = ["house", "residential", "apartments", "detached", "semidetached_house", "terrace", "bungalow", "dormitory"];
+
 /** Classifica o segmento a partir das tags do OSM. */
 export function classificarSegmento(tags: Record<string, string>): SegmentoLead {
   if (
@@ -61,10 +68,23 @@ export function classificarSegmento(tags: Record<string, string>): SegmentoLead 
     tags.industrial ||
     tags.craft
   ) return "INDUSTRIAL";
+  // Só é residencial quando NÃO há indício de negócio (shop/amenity/office).
+  if (!tags.shop && !tags.amenity && !tags.office && TIPOS_RESIDENCIAIS.includes(tags.building)) {
+    return "RESIDENCIAL";
+  }
   return "COMERCIAL";
 }
 
+const SUBSEG_RESIDENCIAL: Record<string, string> = {
+  apartments: "apartamentos", residential: "residencial", house: "casa",
+  detached: "casa", semidetached_house: "casa geminada", terrace: "sobrado",
+  bungalow: "casa", dormitory: "moradia",
+};
+
 export function subsegmentoDe(tags: Record<string, string>): string {
+  if (TIPOS_RESIDENCIAIS.includes(tags.building) && !tags.shop && !tags.amenity && !tags.office) {
+    return SUBSEG_RESIDENCIAL[tags.building] ?? "residencial";
+  }
   return (
     tags.shop || tags.amenity || tags.office || tags.craft ||
     (tags.landuse === "industrial" ? "industrial" : "") ||
@@ -76,6 +96,9 @@ export function subsegmentoDe(tags: Record<string, string>): string {
 
 /** Estima o consumo (kWh/mês) pela categoria da tag. */
 export function estimarConsumo(tags: Record<string, string>, segmento: SegmentoLead): number {
+  if (segmento === "RESIDENCIAL") {
+    return CONSUMO_RESIDENCIAL[tags.building] ?? 220;
+  }
   const chave =
     tags.shop || tags.amenity || tags.office || tags.craft ||
     (tags.landuse === "industrial" ? "industrial" : "") ||
@@ -110,6 +133,18 @@ export function construirQueryOverpass(lat: number, lng: number, raioM: number, 
   way["building"="industrial"]${a};
   way["building"="warehouse"]${a};
   way["landuse"="industrial"]${a};
+);
+out center tags ${limite};`;
+}
+
+/** Query Overpass para endereços RESIDENCIAIS (prédios/casas com número). */
+export function construirQueryResidencial(lat: number, lng: number, raioM: number, limite = 300): string {
+  const a = `(around:${Math.round(raioM)},${lat},${lng})`;
+  return `[out:json][timeout:20];
+(
+  way["building"~"^(apartments|residential|house|detached|semidetached_house|terrace|bungalow|dormitory)$"]["addr:housenumber"]${a};
+  node["building"~"^(apartments|residential|house)$"]["addr:housenumber"]${a};
+  node["addr:housenumber"]["addr:street"]${a};
 );
 out center tags ${limite};`;
 }
