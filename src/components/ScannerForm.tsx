@@ -9,7 +9,7 @@ import { escanear, type ResultadoScan } from "@/app/admin/leads/scanner/actions"
 export default function ScannerForm() {
   const [pendente, startTransition] = useTransition();
   const [cidade, setCidade] = useState("Recife");
-  const [raio, setRaio] = useState(25);
+  const [raio, setRaio] = useState(10);
   const [segmento, setSegmento] = useState("Todos");
   const [consumoMin, setConsumoMin] = useState(250);
   const [res, setRes] = useState<ResultadoScan | null>(null);
@@ -35,6 +35,7 @@ export default function ScannerForm() {
           <div>
             <label className="label" htmlFor="raio">Raio (km)</label>
             <select id="raio" className="input" value={raio} onChange={(e) => setRaio(Number(e.target.value))}>
+              <option value={5}>5</option>
               <option value={10}>10</option>
               <option value={25}>25</option>
               <option value={50}>50</option>

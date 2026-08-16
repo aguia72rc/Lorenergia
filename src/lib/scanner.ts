@@ -118,33 +118,29 @@ export function calcularScore(opts: { consumo: number; temContato: boolean; segm
   return Math.max(0, Math.min(100, s));
 }
 
-/** Monta a query Overpass QL para comércio/indústria num raio ao redor do centro. */
-export function construirQueryOverpass(lat: number, lng: number, raioM: number, limite = 200): string {
+/** Monta a query Overpass QL para comércio/indústria num raio ao redor do centro.
+ *  Usa `nwr` (node+way+relation numa linha) para reduzir o custo/tempo. */
+export function construirQueryOverpass(lat: number, lng: number, raioM: number, limite = 150): string {
   const a = `(around:${Math.round(raioM)},${lat},${lng})`;
-  return `[out:json][timeout:15];
+  return `[out:json][timeout:25];
 (
-  node["shop"]${a};
-  node["office"]${a};
-  node["craft"]${a};
-  node["amenity"~"^(restaurant|cafe|fast_food|food_court|bar|pub|ice_cream|bakery|pharmacy|bank|fuel|marketplace|clinic|hospital|hotel|motel|car_wash|car_repair|gym|fitness_centre)$"]${a};
-  node["man_made"="works"]${a};
-  way["shop"]${a};
-  way["man_made"="works"]${a};
-  way["building"="industrial"]${a};
-  way["building"="warehouse"]${a};
-  way["landuse"="industrial"]${a};
+  nwr["shop"]${a};
+  nwr["office"]${a};
+  nwr["craft"]${a};
+  nwr["amenity"~"^(restaurant|cafe|fast_food|food_court|bar|pub|ice_cream|bakery|pharmacy|bank|fuel|marketplace|clinic|hospital|hotel|motel|car_wash|car_repair|gym|fitness_centre)$"]${a};
+  nwr["man_made"="works"]${a};
+  nwr["building"="industrial"]${a};
 );
 out center tags ${limite};`;
 }
 
 /** Query Overpass para endereços RESIDENCIAIS (prédios/casas com número). */
-export function construirQueryResidencial(lat: number, lng: number, raioM: number, limite = 300): string {
+export function construirQueryResidencial(lat: number, lng: number, raioM: number, limite = 200): string {
   const a = `(around:${Math.round(raioM)},${lat},${lng})`;
-  return `[out:json][timeout:15];
+  return `[out:json][timeout:25];
 (
-  way["building"~"^(apartments|residential|house|detached|semidetached_house|terrace|bungalow|dormitory)$"]["addr:housenumber"]${a};
-  node["building"~"^(apartments|residential|house)$"]["addr:housenumber"]${a};
-  node["addr:housenumber"]["addr:street"]${a};
+  nwr["building"~"^(apartments|residential|house|detached|semidetached_house|terrace|bungalow|dormitory)$"]["addr:housenumber"]${a};
+  nwr["addr:housenumber"]["addr:street"]${a};
 );
 out center tags ${limite};`;
 }

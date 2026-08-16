@@ -60,14 +60,13 @@ export async function escanear(input: { cidade: string; raioKm: number; segmento
   const endpoints = [
     "https://overpass.kumi.systems/api/interpreter",
     "https://overpass-api.de/api/interpreter",
-    "https://overpass.private.coffee/api/interpreter",
   ];
   const corpo = new URLSearchParams({ data: query }).toString();
   let elements: OsmElement[] | null = null;
   let ultimoErro = "";
   for (const url of endpoints) {
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 16000);
+    const timer = setTimeout(() => ctrl.abort(), 27000);
     try {
       const resp = await fetch(url, {
         method: "POST",
