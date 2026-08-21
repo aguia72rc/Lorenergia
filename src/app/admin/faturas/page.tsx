@@ -66,6 +66,19 @@ export default async function FaturasPage({
   const lista = (faturas ?? []) as FaturaComCliente[];
   const cfg = config as Configuracoes;
 
+  // Agrupa as faturas por mês (referência), preservando a ordem desc da query.
+  const grupos: { referencia: string; faturas: FaturaComCliente[]; aPagar: number; economia: number }[] = [];
+  for (const f of lista) {
+    let g = grupos.find((x) => x.referencia === f.referencia);
+    if (!g) {
+      g = { referencia: f.referencia, faturas: [], aPagar: 0, economia: 0 };
+      grupos.push(g);
+    }
+    g.faturas.push(f);
+    g.aPagar += Number(f.valor_liquido) || 0;
+    g.economia += Number(f.economia) || 0;
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -112,57 +125,72 @@ export default async function FaturasPage({
           </Link>
         </div>
       ) : (
-        <div className="card overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-white/10 text-left text-slate-400">
-                <th className="pb-2 font-medium">Morador</th>
-                <th className="pb-2 font-medium">Referência</th>
-                <th className="pb-2 font-medium">Consumo</th>
-                <th className="pb-2 font-medium">A pagar</th>
-                <th className="pb-2 font-medium">Economia</th>
-                <th className="pb-2 font-medium">Vencimento</th>
-                <th className="pb-2 font-medium">Status</th>
-                <th className="pb-2 text-right font-medium">Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {lista.map((f) => {
-                const mensagem = montarMensagem(f, cfg, `${baseUrl}/fatura/${f.id}`);
-                const link = gerarLinkWhatsApp(f.clientes?.telefone, mensagem);
-                return (
-                  <tr key={f.id} className="border-b border-white/5 last:border-0">
-                    <td className="py-3">
-                      <span className="font-medium text-white">{f.clientes?.nome ?? "-"}</span>
-                      <span className="ml-1 text-xs text-slate-400">{f.clientes?.unidade}</span>
-                    </td>
-                    <td className="py-3 text-slate-300">{formatReferencia(f.referencia)}</td>
-                    <td className="py-3 text-slate-300">{f.consumo_kwh} kWh</td>
-                    <td className="py-3 font-medium text-white">{formatBRL(f.valor_liquido)}</td>
-                    <td className="py-3 text-eco-300">{formatBRL(f.economia)}</td>
-                    <td className={`py-3 ${faturaVencida(f.vencimento, f.status) ? "font-medium text-red-400" : "text-slate-300"}`}>
-                      {formatData(f.vencimento)}
-                    </td>
-                    <td className="py-3">
-                      {faturaVencida(f.vencimento, f.status) ? (
-                        <span className="badge bg-red-500/15 text-red-300 ring-1 ring-red-500/25">Vencida</span>
-                      ) : (
-                        <StatusBadge status={f.status} />
-                      )}
-                    </td>
-                    <td className="py-3">
-                      <FaturaRowActions
-                        id={f.id}
-                        status={f.status}
-                        whatsappLink={link}
-                        whatsappEnviadoEm={f.whatsapp_enviado_em}
-                      />
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+        <div className="space-y-6">
+          {grupos.map((g) => (
+            <section key={g.referencia} className="space-y-3">
+              <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                <h2 className="text-lg font-semibold capitalize text-white">
+                  {formatReferencia(g.referencia)}
+                  <span className="ml-2 text-sm font-normal text-slate-400">{g.faturas.length} fatura(s)</span>
+                </h2>
+                <p className="text-sm text-slate-400">
+                  A pagar <span className="font-semibold text-white">{formatBRL(g.aPagar)}</span>
+                  <span className="mx-2 text-slate-600">·</span>
+                  Economia <span className="font-semibold text-eco-300">{formatBRL(g.economia)}</span>
+                </p>
+              </div>
+              <div className="card overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-white/10 text-left text-slate-400">
+                      <th className="pb-2 font-medium">Morador</th>
+                      <th className="pb-2 font-medium">Consumo</th>
+                      <th className="pb-2 font-medium">A pagar</th>
+                      <th className="pb-2 font-medium">Economia</th>
+                      <th className="pb-2 font-medium">Vencimento</th>
+                      <th className="pb-2 font-medium">Status</th>
+                      <th className="pb-2 text-right font-medium">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {g.faturas.map((f) => {
+                      const mensagem = montarMensagem(f, cfg, `${baseUrl}/fatura/${f.id}`);
+                      const link = gerarLinkWhatsApp(f.clientes?.telefone, mensagem);
+                      return (
+                        <tr key={f.id} className="border-b border-white/5 last:border-0">
+                          <td className="py-3">
+                            <span className="font-medium text-white">{f.clientes?.nome ?? "-"}</span>
+                            <span className="ml-1 text-xs text-slate-400">{f.clientes?.unidade}</span>
+                          </td>
+                          <td className="py-3 text-slate-300">{f.consumo_kwh} kWh</td>
+                          <td className="py-3 font-medium text-white">{formatBRL(f.valor_liquido)}</td>
+                          <td className="py-3 text-eco-300">{formatBRL(f.economia)}</td>
+                          <td className={`py-3 ${faturaVencida(f.vencimento, f.status) ? "font-medium text-red-400" : "text-slate-300"}`}>
+                            {formatData(f.vencimento)}
+                          </td>
+                          <td className="py-3">
+                            {faturaVencida(f.vencimento, f.status) ? (
+                              <span className="badge bg-red-500/15 text-red-300 ring-1 ring-red-500/25">Vencida</span>
+                            ) : (
+                              <StatusBadge status={f.status} />
+                            )}
+                          </td>
+                          <td className="py-3">
+                            <FaturaRowActions
+                              id={f.id}
+                              status={f.status}
+                              whatsappLink={link}
+                              whatsappEnviadoEm={f.whatsapp_enviado_em}
+                            />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          ))}
         </div>
       )}
     </div>
