@@ -20,7 +20,7 @@ test("bate no centavo com o PDF de referência (R$ 146,29)", () => {
   assert.equal(r.economia, 36.57);
 });
 
-test("desconto incide sobre TUSD+TE+bandeira+taxa solar; iluminação e multa/juros ficam fora", () => {
+test("desconto incide sobre o valor bruto total (conta cheia), incluindo iluminação e multa/juros", () => {
   const r = calcularFaturaDetalhada({
     consumoKwh: 100,
     tarifaTusd: 1,
@@ -31,12 +31,12 @@ test("desconto incide sobre TUSD+TE+bandeira+taxa solar; iluminação e multa/ju
     multaJuros: 5,
     descontoPercentual: 10,
   });
-  // energia = 100; base = 100 + 10 + 20 = 130; desconto = 13
-  // bruto = 130 + 30 + 5 = 165; líquido = 165 - 13 = 152
-  assert.equal(r.baseDesconto, 130);
-  assert.equal(r.valorDesconto, 13);
+  // energia = 100; bruto = 100 + 10 + 20 + 30 + 5 = 165
+  // desconto = 165 × 10% = 16,5; líquido = 165 - 16,5 = 148,5
+  assert.equal(r.baseDesconto, 165);
+  assert.equal(r.valorDesconto, 16.5);
   assert.equal(r.valorBruto, 165);
-  assert.equal(r.valorLiquido, 152);
+  assert.equal(r.valorLiquido, 148.5);
 });
 
 test("consumoDeLeituras aplica o fator e nunca fica negativo", () => {
