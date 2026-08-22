@@ -67,11 +67,11 @@ export function calcularFatura(entrada: EntradaCalculo): ResultadoCalculo {
  *
  *   energia   = consumo × (TUSD + TE)
  *   bandeira  = consumo × adicional_bandeira (R$/kWh)
- *   desconto  = (energia + bandeira) × desconto%      → economia
- *   fio_b     = consumo × fio_b (R$/kWh)              (sem desconto)
- *   iluminação e multa/juros                          (sem desconto)
+ *   bruto     = energia + bandeira + taxa solar + iluminação + multa/juros
+ *   desconto  = bruto × desconto%                     → economia
+ *               (incide sobre o valor bruto TOTAL — conta cheia)
  *
- *   total = energia + bandeira − desconto + fio_b + iluminação + multa
+ *   total = bruto − desconto
  * ================================================================= */
 
 export interface EntradaCalculoDetalhada {
@@ -93,7 +93,7 @@ export interface ResultadoCalculoDetalhado {
   taxaSolar: number;
   iluminacao: number;
   multaJuros: number;
-  baseDesconto: number; // energia + bandeira + taxa solar
+  baseDesconto: number; // valor bruto total (conta cheia) — base do desconto
   valorDesconto: number;
   valorBruto: number; // tudo, antes do desconto
   valorLiquido: number; // total a pagar
@@ -116,12 +116,10 @@ export function calcularFaturaDetalhada(e: EntradaCalculoDetalhada): ResultadoCa
   const energiaTeRaw = consumo * te;
   const energiaRaw = energiaTusdRaw + energiaTeRaw;
 
-  // Desconto incide sobre energia + bandeira + taxa de energia solar.
-  const baseRaw = energiaRaw + bandeira + taxaSolar;
-  const descontoRaw = baseRaw * (desconto / 100);
-
-  // Iluminação e multa/juros somam por fora (sem desconto).
-  const brutoRaw = baseRaw + iluminacao + multaJuros;
+  // Desconto incide sobre o VALOR BRUTO TOTAL (conta cheia): energia +
+  // bandeira + taxa solar + iluminação + multa/juros.
+  const brutoRaw = energiaRaw + bandeira + taxaSolar + iluminacao + multaJuros;
+  const descontoRaw = brutoRaw * (desconto / 100);
   const liquidoRaw = brutoRaw - descontoRaw;
 
   return {
@@ -132,7 +130,7 @@ export function calcularFaturaDetalhada(e: EntradaCalculoDetalhada): ResultadoCa
     taxaSolar,
     iluminacao,
     multaJuros,
-    baseDesconto: arredondar(baseRaw),
+    baseDesconto: arredondar(brutoRaw),
     valorDesconto: arredondar(descontoRaw),
     valorBruto: arredondar(brutoRaw),
     valorLiquido: arredondar(liquidoRaw),
