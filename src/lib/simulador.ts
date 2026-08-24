@@ -12,8 +12,10 @@
  *   - A conta de hoje = consumo × tarifa + CIP.
  *   - Com a Lorenergia o cliente ainda paga à distribuidora: a taxa mínima
  *     da rede (disponibilidade), o consumo acima do plano, o Fio B sobre a
- *     energia compensada e a CIP — e paga a mensalidade do plano à usina.
- *   - Economia = conta de hoje − (conta que resta na distribuidora + plano).
+ *     energia compensada e a CIP.
+ *   - Economia = conta de hoje − conta que resta na distribuidora.
+ *   - A mensalidade do plano NÃO entra no cálculo da conta/economia; fica só
+ *     como informação de receita (uso interno do CRM).
  */
 
 // ----- Formatos das linhas do banco (só o que o cálculo usa) -----
@@ -73,7 +75,7 @@ export interface ResultadoSimulacao {
   taxaMinimaRede: number; // disponibilidade × tarifa
   consumoAcimaPlano: number; // sobra × tarifa
   usoRedeCompensado: number; // plano.kwh × fioB × percentual (Fio B)
-  mensalidade: number; // plano.mensalidade
+  mensalidade: number; // plano.mensalidade — receita interna, FORA do cálculo
 
   // Totais.
   contaAtual: number; // hoje
@@ -126,10 +128,10 @@ export function escolherPlano(planos: PlanoCota[], compensavelKwh: number, codig
   if (codigo && codigo !== "auto") {
     return ativos.find((p) => p.codigo === codigo) ?? null;
   }
-  const porKwh = [...ativos].sort((a, b) => a.kwh - b.kwh);
+  const porKwh = [...ativos].sort((a, b) => Number(a.kwh) - Number(b.kwh));
   let escolhido: PlanoCota | null = null;
   for (const p of porKwh) {
-    if (p.kwh <= compensavelKwh) escolhido = p;
+    if (Number(p.kwh) <= compensavelKwh) escolhido = p;
   }
   return escolhido;
 }
@@ -180,18 +182,21 @@ export function calcularEconomia(
     };
   }
 
+  const planoKwh = Number(plano.kwh) || 0;
+  const planoMensalidade = Number(plano.mensalidade) || 0;
   const contaAtual = consumo * tarifa + cip;
   const taxaMinimaRede = disp * tarifa;
-  const sobra = Math.max(0, compensavel - plano.kwh);
+  const sobra = Math.max(0, compensavel - planoKwh);
   const consumoAcimaPlano = sobra * tarifa;
-  const usoRedeCompensado = plano.kwh * fioB * pct;
+  const usoRedeCompensado = planoKwh * fioB * pct;
+  // A mensalidade do plano NÃO entra na conta (fica só como receita interna).
   const contaResta = taxaMinimaRede + consumoAcimaPlano + usoRedeCompensado + cip;
-  const contaLorenergia = contaResta + plano.mensalidade;
+  const contaLorenergia = contaResta;
   const economiaMensal = contaAtual - contaLorenergia;
   const economiaPercentual = contaAtual > 0 ? economiaMensal / contaAtual : 0;
 
   const neo = contaAtual > 0 ? Math.max(0, (contaResta / contaAtual) * 100) : 0;
-  const lore = contaAtual > 0 ? Math.max(0, (plano.mensalidade / contaAtual) * 100) : 0;
+  const lore = 0; // sem mensalidade no cálculo, não há fatia de "mensalidade" na barra
   const corte = Math.max(0, 100 - neo - lore);
 
   return {
@@ -203,7 +208,7 @@ export function calcularEconomia(
     taxaMinimaRede,
     consumoAcimaPlano,
     usoRedeCompensado,
-    mensalidade: plano.mensalidade,
+    mensalidade: planoMensalidade,
     contaAtual,
     contaLorenergia,
     economiaMensal,

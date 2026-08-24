@@ -43,13 +43,18 @@ test("caso base do protótipo: 230 kWh, monofásica, 2026", () => {
   assert.equal(r.ok, true);
   assert.equal(r.consumoKwh, 230);
   assert.equal(r.plano?.codigo, "C"); // sugerido automaticamente (200 <= 230-30)
-  // Conta de hoje e economia (conferidas contra o protótipo, ~R$ 43,45 / ~17,5%).
+  // Conta de hoje ~R$ 248,35. Mensalidade FORA do cálculo: economia ~R$ 165,45 (~66,6%).
   assert.ok(Math.abs(r.contaAtual - 248.35) < 0.05, `contaAtual=${r.contaAtual}`);
-  assert.ok(Math.abs(r.economiaMensal - 43.45) < 0.1, `economia=${r.economiaMensal}`);
-  assert.ok(Math.abs(r.economiaPercentual - 0.1749) < 0.002, `pct=${r.economiaPercentual}`);
+  assert.ok(Math.abs(r.economiaMensal - 165.45) < 0.1, `economia=${r.economiaMensal}`);
+  assert.ok(Math.abs(r.economiaPercentual - 0.6662) < 0.002, `pct=${r.economiaPercentual}`);
+  // A mensalidade fica só como informação (receita), fora da conta.
+  assert.equal(r.mensalidade, 122);
+  assert.ok(Math.abs(r.contaLorenergia - (r.taxaMinimaRede + r.consumoAcimaPlano + r.usoRedeCompensado + r.cip)) < 0.001,
+    "conta com a Lorenergia não deve incluir a mensalidade");
   // Consistência: conta com a Lorenergia + economia = conta de hoje.
   assert.ok(Math.abs(r.contaLorenergia + r.economiaMensal - r.contaAtual) < 0.001);
-  // Barra soma ~100%.
+  // Barra soma ~100% (sem fatia de mensalidade).
+  assert.equal(r.barra.lore, 0);
   assert.ok(Math.abs(r.barra.neo + r.barra.lore + r.barra.corte - 100) < 0.001);
 });
 
