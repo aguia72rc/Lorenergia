@@ -208,7 +208,7 @@ export default async function FaturaPage({ params }: { params: { id: string } })
               <div className="mt-5 rounded-xl border border-slate-200 p-4">
                 <p className="text-xs uppercase tracking-wide text-slate-400">Consumo — últimos 6 meses (kWh)</p>
                 <div className="mt-2">
-                  <EconomiaChart dados={pontosConsumo} destaqueRef={f.referencia} altura={170} cor="#ca8a04" ariaLabel="Consumo mensal" textoVazio="Sem histórico de consumo." />
+                  <EconomiaChart dados={pontosConsumo} destaqueRef={f.referencia} altura={170} cor="#ca8a04" formato="kwh" variante="claro" ariaLabel="Consumo mensal" textoVazio="Sem histórico de consumo." />
                 </div>
               </div>
             )}
@@ -219,7 +219,7 @@ export default async function FaturaPage({ params }: { params: { id: string } })
                 <p className="text-xs text-slate-400">Acumulada: <strong className="text-eco-700">{formatBRL(economiaAcumulada)}</strong></p>
               </div>
               {pontosEconomia.length >= 2 ? (
-                <div className="mt-2"><EconomiaChart dados={pontosEconomia} destaqueRef={f.referencia} altura={170} /></div>
+                <div className="mt-2"><EconomiaChart dados={pontosEconomia} destaqueRef={f.referencia} altura={170} variante="claro" /></div>
               ) : (
                 <div className="mt-2 flex items-center gap-2 rounded-lg bg-eco-50 px-4 py-3 text-sm text-eco-700">
                   🌱 Você economizou <strong>{formatBRL(f.economia)}</strong> usando energia solar este mês.
