@@ -137,28 +137,30 @@ export default async function FaturaPage({ params }: { params: { id: string } })
           {/* Composição da fatura */}
           <div className="p-6">
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Composição da fatura</p>
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 text-xs uppercase text-slate-400">
-                  <th className="pb-2 text-left font-medium">Descrição</th>
-                  <th className="pb-2 text-right font-medium">Qtd (kWh)</th>
-                  <th className="pb-2 text-right font-medium">Preço</th>
-                  <th className="pb-2 text-right font-medium">Valor</th>
-                </tr>
-              </thead>
-              <tbody>
-                <LinhaComp desc="Consumo — TUSD" qtd={numero(f.consumo_kwh, 1)} preco={numero(f.tarifa_tusd, 2)} valor={valorTusd} />
-                <LinhaComp desc="Consumo — TE" qtd={numero(f.consumo_kwh, 1)} preco={numero(f.tarifa_te, 2)} valor={valorTe} />
-                <LinhaComp desc="Contribuição de iluminação pública" valor={f.taxa_iluminacao} />
-                <LinhaComp desc="TUSD GD II" valor={f.taxa_energia_solar} />
-                <LinhaComp desc="Adicional bandeira" valor={f.adicional_bandeira} />
-                <LinhaComp desc="Multa / juros" valor={f.multa_juros} destaque={Number(f.multa_juros) > 0} />
-                <tr className="border-b border-slate-100">
-                  <td className="py-2.5 text-eco-700" colSpan={3}>Desconto aplicado ({numero(f.desconto_percentual, 0)}%)</td>
-                  <td className="py-2.5 text-right font-medium text-eco-700">- {formatBRL(f.valor_desconto)}</td>
-                </tr>
-              </tbody>
-            </table>
+            <div className="-mx-1 overflow-x-auto px-1">
+              <table className="w-full min-w-[440px] text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 text-xs uppercase text-slate-400">
+                    <th className="pb-2 pr-3 text-left font-medium">Descrição</th>
+                    <th className="whitespace-nowrap pb-2 pl-3 text-right font-medium">Qtd (kWh)</th>
+                    <th className="whitespace-nowrap pb-2 pl-3 text-right font-medium">Preço</th>
+                    <th className="whitespace-nowrap pb-2 pl-3 text-right font-medium">Valor</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <LinhaComp desc="Consumo — TUSD" qtd={numero(f.consumo_kwh, 1)} preco={numero(f.tarifa_tusd, 2)} valor={valorTusd} />
+                  <LinhaComp desc="Consumo — TE" qtd={numero(f.consumo_kwh, 1)} preco={numero(f.tarifa_te, 2)} valor={valorTe} />
+                  <LinhaComp desc="Contribuição de iluminação pública" valor={f.taxa_iluminacao} />
+                  <LinhaComp desc="TUSD GD II" valor={f.taxa_energia_solar} />
+                  <LinhaComp desc="Adicional bandeira" valor={f.adicional_bandeira} />
+                  <LinhaComp desc="Multa / juros" valor={f.multa_juros} destaque={Number(f.multa_juros) > 0} />
+                  <tr className="border-b border-slate-100">
+                    <td className="py-2.5 pr-3 text-eco-700" colSpan={3}>Desconto aplicado ({numero(f.desconto_percentual, 0)}%)</td>
+                    <td className="whitespace-nowrap py-2.5 pl-3 text-right font-medium tabular-nums text-eco-700">- {formatBRL(f.valor_desconto)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
 
             <div className="mt-4 rounded-xl bg-brand-50 px-5 py-4">
               {Number(f.valor_desconto) > 0 && (
@@ -256,18 +258,19 @@ function Info({ label, valor }: { label: string; valor: string }) {
   return (
     <div className="flex items-center justify-between gap-4 sm:justify-end">
       <dt className="text-slate-400">{label}</dt>
-      <dd className="font-medium text-slate-700">{valor}</dd>
+      <dd className="font-medium tabular-nums text-slate-700">{valor}</dd>
     </div>
   );
 }
 
 function LinhaComp({ desc, qtd, preco, valor, destaque }: { desc: string; qtd?: string; preco?: string; valor: number; destaque?: boolean }) {
+  const vazio = <span className="text-slate-300">—</span>;
   return (
     <tr className="border-b border-slate-100">
-      <td className={`py-2.5 ${destaque ? "text-red-600" : "text-slate-600"}`}>{desc}</td>
-      <td className="py-2.5 text-right text-slate-500">{qtd ?? "—"}</td>
-      <td className="py-2.5 text-right text-slate-500">{preco ?? "—"}</td>
-      <td className={`py-2.5 text-right ${destaque ? "text-red-600" : "text-slate-900"}`}>{formatBRL(valor)}</td>
+      <td className={`py-2.5 pr-3 ${destaque ? "text-red-600" : "text-slate-600"}`}>{desc}</td>
+      <td className="whitespace-nowrap py-2.5 pl-3 text-right tabular-nums text-slate-500">{qtd ?? vazio}</td>
+      <td className="whitespace-nowrap py-2.5 pl-3 text-right tabular-nums text-slate-500">{preco ?? vazio}</td>
+      <td className={`whitespace-nowrap py-2.5 pl-3 text-right tabular-nums ${destaque ? "text-red-600" : "text-slate-900"}`}>{formatBRL(valor)}</td>
     </tr>
   );
 }
