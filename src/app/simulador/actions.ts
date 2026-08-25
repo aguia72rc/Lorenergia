@@ -77,7 +77,6 @@ export async function simularPublico(input: EntradaPublica): Promise<ResultadoPu
       fio_b_percentual: r.fioBPercentual,
       plano_codigo: r.plano?.codigo ?? null,
       plano_kwh: r.energiaCompensadaKwh || null,
-      plano_mensalidade: r.mensalidade,
       conta_atual: r.contaAtual,
       conta_lorenergia: r.contaLorenergia,
       economia_mensal: r.economiaMensal,
