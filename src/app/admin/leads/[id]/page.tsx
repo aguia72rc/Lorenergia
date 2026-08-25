@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Calculator } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { formatBRL, formatKwh } from "@/lib/format";
 import {
@@ -38,9 +38,14 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
-      <Link href="/admin/leads" className="inline-flex items-center gap-1 text-sm text-slate-400 hover:text-white">
-        <ArrowLeft className="h-4 w-4" /> Central de Leads
-      </Link>
+      <div className="flex items-center justify-between gap-3">
+        <Link href="/admin/leads" className="inline-flex items-center gap-1 text-sm text-slate-400 hover:text-white">
+          <ArrowLeft className="h-4 w-4" /> Central de Leads
+        </Link>
+        <Link href={`/proposta/${l.id}`} className="btn-primary">
+          <Calculator className="h-4 w-4" /> Simular / Proposta
+        </Link>
+      </div>
 
       <div className="card">
         <div className="mb-1 flex flex-wrap items-center gap-2">

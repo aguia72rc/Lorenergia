@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Sun, LayoutDashboard, Users, FileText, BarChart3, Settings, LogOut, Target, KanbanSquare, Radar } from "lucide-react";
+import { Sun, LayoutDashboard, Users, FileText, BarChart3, Settings, LogOut, Target, KanbanSquare, Radar, SlidersHorizontal } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 
 const itens = [
@@ -13,6 +13,7 @@ const itens = [
   { href: "/admin/clientes", label: "Moradores", icon: Users },
   { href: "/admin/faturas", label: "Faturas", icon: FileText },
   { href: "/admin/relatorios", label: "Relatórios", icon: BarChart3 },
+  { href: "/admin/planos", label: "Planos", icon: SlidersHorizontal },
   { href: "/admin/configuracoes", label: "Configurações", icon: Settings },
 ];
 

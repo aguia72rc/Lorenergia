@@ -69,8 +69,18 @@ export default function CalculadoraEconomia() {
             </div>
           </div>
           <div style={{ fontSize: 13, color: "rgba(255,246,227,.45)", lineHeight: 1.5 }}>
-            Estimativa com desconto de 20% sobre o consumo em kWh. O valor exato depende do seu perfil de consumo.
+            Estimativa rápida. Para uma simulação detalhada — com tarifa vigente, tipo de ligação e ano — use o simulador completo.
           </div>
+          <a
+            href="/simulador"
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 8, justifySelf: "start",
+              background: "#FFB21A", color: "#231400", fontFamily: ARCHIVO, fontWeight: 800,
+              fontSize: 15, padding: "12px 20px", borderRadius: 12, textDecoration: "none",
+            }}
+          >
+            Fazer simulação completa →
+          </a>
         </div>
       </div>
     </section>
