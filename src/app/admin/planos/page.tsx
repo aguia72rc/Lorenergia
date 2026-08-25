@@ -6,18 +6,20 @@ export const dynamic = "force-dynamic";
 
 interface PlanoRow {
   codigo: string;
-  kwh: number;
+  kwh_min: number;
+  kwh_max: number;
   mensalidade: number;
   ativo: boolean;
 }
 
 export default async function PlanosPage() {
   const supabase = createClient();
-  const { data } = await supabase.from("planos_cota").select("codigo, kwh, mensalidade, ativo").order("kwh", { ascending: true });
+  const { data } = await supabase.from("planos_cota").select("codigo, kwh_min, kwh_max, mensalidade, ativo").order("kwh_min", { ascending: true });
 
   const iniciais: LinhaPlano[] = ((data ?? []) as PlanoRow[]).map((p) => ({
     codigo: p.codigo,
-    kwh: Number(p.kwh),
+    kwh_min: Number(p.kwh_min),
+    kwh_max: Number(p.kwh_max),
     mensalidade: Number(p.mensalidade),
     ativo: p.ativo,
   }));

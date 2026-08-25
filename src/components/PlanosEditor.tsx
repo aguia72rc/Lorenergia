@@ -20,7 +20,7 @@ export default function PlanosEditor({ iniciais }: { iniciais: LinhaPlano[] }) {
 
   // Validação AO VIVO (não linearidade), sobre as linhas ativas.
   const validacao = useMemo(
-    () => validarPlanos(linhas.map((l) => ({ codigo: l.codigo, kwh: l.kwh, mensalidade: l.mensalidade, ativo: l.ativo })) as PlanoCota[]),
+    () => validarPlanos(linhas.map((l) => ({ codigo: l.codigo, kwh_min: l.kwh_min, kwh_max: l.kwh_max, mensalidade: l.mensalidade, ativo: l.ativo })) as PlanoCota[]),
     [linhas]
   );
   const problemasPorCodigo = useMemo(() => {
@@ -36,7 +36,7 @@ export default function PlanosEditor({ iniciais }: { iniciais: LinhaPlano[] }) {
     setLinhas((ls) => ls.map((l) => (l._k === k ? { ...l, [campo]: valor } : l)));
   }
   function adicionar() {
-    setLinhas((ls) => [...ls, { _k: novaChave(), codigo: "", kwh: 0, mensalidade: 0, ativo: true }]);
+    setLinhas((ls) => [...ls, { _k: novaChave(), codigo: "", kwh_min: 0, kwh_max: 0, mensalidade: 0, ativo: true }]);
   }
   function remover(k: string) {
     setLinhas((ls) => ls.filter((l) => l._k !== k));
@@ -61,16 +61,16 @@ export default function PlanosEditor({ iniciais }: { iniciais: LinhaPlano[] }) {
           <thead>
             <tr className="border-b border-white/10 text-left text-slate-400">
               <th className="pb-2 font-medium">Código</th>
-              <th className="pb-2 font-medium">Cota (kWh)</th>
+              <th className="pb-2 font-medium">Faixa (kWh)</th>
               <th className="pb-2 font-medium">Mensalidade</th>
-              <th className="pb-2 text-right font-medium">R$/kWh</th>
+              <th className="pb-2 text-right font-medium">R$/kWh <span className="text-[10px]">(piso)</span></th>
               <th className="pb-2 text-center font-medium">Ativo</th>
               <th className="pb-2"></th>
             </tr>
           </thead>
           <tbody>
             {linhas.map((l) => {
-              const porKwh = l.kwh > 0 ? l.mensalidade / l.kwh : 0;
+              const porKwh = l.kwh_min > 0 ? l.mensalidade / l.kwh_min : 0;
               const nivel = problemasPorCodigo.get(l.codigo.trim().toUpperCase());
               return (
                 <tr key={l._k} className="border-b border-white/5 last:border-0">
@@ -79,8 +79,13 @@ export default function PlanosEditor({ iniciais }: { iniciais: LinhaPlano[] }) {
                       onChange={(e) => set(l._k, "codigo", e.target.value.toUpperCase())} />
                   </td>
                   <td className="py-2 pr-2">
-                    <input className="input w-24 tabular-nums" type="number" min={0} step={10} value={l.kwh}
-                      onChange={(e) => set(l._k, "kwh", Number(e.target.value))} />
+                    <div className="flex items-center gap-1">
+                      <input className="input w-20 tabular-nums" type="number" min={0} step={10} value={l.kwh_min} aria-label="Piso da faixa (kWh)"
+                        onChange={(e) => set(l._k, "kwh_min", Number(e.target.value))} />
+                      <span className="text-slate-500">–</span>
+                      <input className="input w-20 tabular-nums" type="number" min={0} step={10} value={l.kwh_max} aria-label="Teto da faixa (kWh)"
+                        onChange={(e) => set(l._k, "kwh_max", Number(e.target.value))} />
+                    </div>
                   </td>
                   <td className="py-2 pr-2">
                     <input className="input w-28 tabular-nums" type="number" min={0} step={1} value={l.mensalidade}
@@ -122,7 +127,7 @@ export default function PlanosEditor({ iniciais }: { iniciais: LinhaPlano[] }) {
           <h2 className="font-semibold text-white">Validação de não linearidade</h2>
         </div>
         {erros.length === 0 && avisos.length === 0 ? (
-          <p className="text-sm text-eco-300">Tudo certo: os planos maiores custam mais no total e menos por kWh (ganho de escala).</p>
+          <p className="text-sm text-eco-300">Tudo certo: faixas contíguas e crescentes, mensalidade subindo e preço por kWh caindo (ganho de escala).</p>
         ) : (
           <ul className="space-y-1.5 text-sm">
             {erros.map((p, i) => (
@@ -138,8 +143,8 @@ export default function PlanosEditor({ iniciais }: { iniciais: LinhaPlano[] }) {
           </ul>
         )}
         <p className="mt-3 text-xs text-slate-500">
-          <strong className="text-red-300">Erros</strong> impedem salvar (cota que não cresce, ou plano maior mais barato).
-          <strong className="text-amber-200"> Avisos</strong> não bloqueiam, mas indicam preço linear (sem desconto por volume).
+          <strong className="text-red-300">Erros</strong> impedem salvar (faixa inválida/sobreposta, ou faixa maior mais barata).
+          <strong className="text-amber-200"> Avisos</strong> não bloqueiam: preço linear (sem desconto por volume) ou buraco entre faixas.
         </p>
       </div>
     </div>

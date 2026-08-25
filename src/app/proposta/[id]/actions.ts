@@ -57,7 +57,7 @@ export async function salvarSimulacaoCrm(input: EntradaProposta): Promise<{ ok: 
     ano_referencia: input.ano,
     fio_b_percentual: r.fioBPercentual,
     plano_codigo: r.plano?.codigo ?? null,
-    plano_kwh: r.plano?.kwh ?? null,
+    plano_kwh: r.energiaCompensadaKwh || null,
     plano_mensalidade: r.mensalidade,
     conta_atual: r.contaAtual,
     conta_lorenergia: r.contaLorenergia,
