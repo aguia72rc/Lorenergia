@@ -32,7 +32,8 @@ export interface ParametrosEnergia {
 
 export interface PlanoCota {
   codigo: string;
-  kwh: number;
+  kwh_min: number; // piso da faixa de consumo (kWh) — é o que se compensa
+  kwh_max: number; // teto da faixa de consumo (kWh)
   mensalidade: number;
   ativo?: boolean;
 }
@@ -69,12 +70,13 @@ export interface ResultadoSimulacao {
 
   // Plano usado (ou null quando não há margem).
   plano: PlanoCota | null;
-  sobraKwh: number; // consumo compensável acima do plano
+  energiaCompensadaKwh: number; // energia efetivamente compensada (piso da faixa, limitado ao compensável)
+  sobraKwh: number; // consumo compensável acima do que foi compensado
 
   // Linhas do "com a Lorenergia".
   taxaMinimaRede: number; // disponibilidade × tarifa
   consumoAcimaPlano: number; // sobra × tarifa
-  usoRedeCompensado: number; // plano.kwh × fioB × percentual (Fio B)
+  usoRedeCompensado: number; // energia compensada × fioB × percentual (Fio B)
   mensalidade: number; // plano.mensalidade — receita interna, FORA do cálculo
 
   // Totais.
@@ -120,20 +122,24 @@ export function percentualFioB(cronograma: FioBItem[], ano: number): number {
 }
 
 /**
- * Escolhe o plano: se `codigo` for informado (≠ "auto"), usa-o; senão sugere
- * o maior plano ativo cuja cota caiba no consumo compensável.
+ * Escolhe o plano (faixa) pelo CONSUMO TOTAL: usa a faixa em que o consumo
+ * cai (kwh_min ≤ consumo ≤ kwh_max). Acima da maior faixa, usa a maior;
+ * abaixo da menor, não há plano (null). Se `codigo` for informado, usa-o.
  */
-export function escolherPlano(planos: PlanoCota[], compensavelKwh: number, codigo?: string): PlanoCota | null {
+export function escolherPlano(planos: PlanoCota[], consumoTotalKwh: number, codigo?: string): PlanoCota | null {
   const ativos = (planos ?? []).filter((p) => p.ativo !== false);
   if (codigo && codigo !== "auto") {
     return ativos.find((p) => p.codigo === codigo) ?? null;
   }
-  const porKwh = [...ativos].sort((a, b) => Number(a.kwh) - Number(b.kwh));
-  let escolhido: PlanoCota | null = null;
-  for (const p of porKwh) {
-    if (Number(p.kwh) <= compensavelKwh) escolhido = p;
-  }
-  return escolhido;
+  const porFaixa = [...ativos].sort((a, b) => Number(a.kwh_min) - Number(b.kwh_min));
+  if (porFaixa.length === 0) return null;
+  // Faixa que contém o consumo.
+  const contida = porFaixa.find((p) => consumoTotalKwh >= Number(p.kwh_min) && consumoTotalKwh <= Number(p.kwh_max));
+  if (contida) return contida;
+  // Acima da maior faixa → usa a maior; abaixo da menor → sem plano.
+  const maior = porFaixa[porFaixa.length - 1];
+  if (consumoTotalKwh > Number(maior.kwh_max)) return maior;
+  return null;
 }
 
 /**
@@ -155,7 +161,7 @@ export function calcularEconomia(
   const base: Omit<ResultadoSimulacao, "ok" | "motivo" | "mensagem"> = {
     tarifa, fioB, cip,
     consumoKwh: 0, disponibilidadeKwh: disp, fioBPercentual: pct,
-    plano: null, sobraKwh: 0,
+    plano: null, energiaCompensadaKwh: 0, sobraKwh: 0,
     taxaMinimaRede: 0, consumoAcimaPlano: 0, usoRedeCompensado: 0, mensalidade: 0,
     contaAtual: 0, contaLorenergia: 0, economiaMensal: 0, economiaPercentual: 0,
     barra: { neo: 0, lore: 0, corte: 0 },
@@ -170,25 +176,27 @@ export function calcularEconomia(
   }
 
   const compensavel = Math.max(0, consumo - disp);
-  const plano = escolherPlano(planos, compensavel, entrada.planoCodigo);
+  // Plano escolhido pela faixa do CONSUMO TOTAL.
+  const plano = escolherPlano(planos, consumo, entrada.planoCodigo);
 
   if (!plano) {
     return {
       ok: false,
       motivo: "sem_margem",
-      mensagem: `O consumo informado (${Math.round(consumo)} kWh) fica abaixo do menor plano depois do custo de disponibilidade.`,
+      mensagem: `O consumo informado (${Math.round(consumo)} kWh) fica abaixo da menor faixa de plano disponível.`,
       ...base,
       consumoKwh: consumo,
     };
   }
 
-  const planoKwh = Number(plano.kwh) || 0;
   const planoMensalidade = Number(plano.mensalidade) || 0;
   const contaAtual = consumo * tarifa + cip;
   const taxaMinimaRede = disp * tarifa;
-  const sobra = Math.max(0, compensavel - planoKwh);
+  // Compensa-se o PISO da faixa, nunca mais que a energia compensável disponível.
+  const energiaCompensada = Math.min(Number(plano.kwh_min) || 0, compensavel);
+  const sobra = Math.max(0, compensavel - energiaCompensada);
   const consumoAcimaPlano = sobra * tarifa;
-  const usoRedeCompensado = planoKwh * fioB * pct;
+  const usoRedeCompensado = energiaCompensada * fioB * pct;
   // A mensalidade do plano NÃO entra na conta (fica só como receita interna).
   const contaResta = taxaMinimaRede + consumoAcimaPlano + usoRedeCompensado + cip;
   const contaLorenergia = contaResta;
@@ -204,6 +212,7 @@ export function calcularEconomia(
     ...base,
     consumoKwh: consumo,
     plano,
+    energiaCompensadaKwh: energiaCompensada,
     sobraKwh: sobra,
     taxaMinimaRede,
     consumoAcimaPlano,
@@ -233,9 +242,10 @@ export function faixaEconomia(economiaMensal: number, passo = 20): { min: number
 // ---------------------------------------------------------------------
 export interface PrecoPlano {
   codigo: string;
-  kwh: number;
+  kwhMin: number;
+  kwhMax: number;
   mensalidade: number;
-  porKwh: number; // mensalidade ÷ kWh
+  porKwh: number; // mensalidade ÷ kwhMin (piso — o que se compensa)
 }
 export interface ProblemaPlano {
   codigo: string;
@@ -249,37 +259,42 @@ export interface ValidacaoPlanos {
 }
 
 /**
- * Verifica se a tabela de planos é coerente e NÃO LINEAR (com ganho de escala):
- *  - kWh deve crescer de um plano para o outro (erro se não crescer);
- *  - a mensalidade deve crescer junto (erro se um plano maior custar ≤ que um
- *    menor — plano dominado);
- *  - o preço por kWh deve DIMINUIR à medida que a cota aumenta (aviso quando
- *    não diminui: preço linear ou invertido, sem desconto por volume).
- * Considera apenas planos ativos, ordenados por kWh.
+ * Verifica se a tabela de planos (faixas) é coerente e NÃO LINEAR:
+ *  - cada faixa deve ter kwh_max > kwh_min (erro);
+ *  - as faixas devem crescer sem sobrepor (erro se o piso de uma faixa não for
+ *    maior que o teto da anterior);
+ *  - a mensalidade deve crescer junto (erro se uma faixa maior custar ≤ que a
+ *    anterior — plano dominado);
+ *  - o preço por kWh (mensalidade ÷ piso) deve DIMINUIR conforme a faixa sobe
+ *    (aviso quando não diminui: preço linear/invertido, sem ganho de escala);
+ *  - aviso também quando há BURACO entre uma faixa e a seguinte.
+ * Considera apenas planos ativos, ordenados pelo piso.
  */
 export function validarPlanos(planos: PlanoCota[]): ValidacaoPlanos {
   const ativos = (planos ?? [])
     .filter((p) => p.ativo !== false)
-    .map((p) => ({ codigo: p.codigo, kwh: Number(p.kwh) || 0, mensalidade: Number(p.mensalidade) || 0 }))
-    .sort((a, b) => a.kwh - b.kwh);
+    .map((p) => ({ codigo: p.codigo, kwhMin: Number(p.kwh_min) || 0, kwhMax: Number(p.kwh_max) || 0, mensalidade: Number(p.mensalidade) || 0 }))
+    .sort((a, b) => a.kwhMin - b.kwhMin);
 
   const precos: PrecoPlano[] = ativos.map((p) => ({
     ...p,
-    porKwh: p.kwh > 0 ? p.mensalidade / p.kwh : 0,
+    porKwh: p.kwhMin > 0 ? p.mensalidade / p.kwhMin : 0,
   }));
 
   const problemas: ProblemaPlano[] = [];
   for (const p of precos) {
-    if (p.kwh <= 0) problemas.push({ codigo: p.codigo, nivel: "erro", mensagem: `Plano ${p.codigo}: informe a cota em kWh (maior que zero).` });
+    if (p.kwhMin <= 0) problemas.push({ codigo: p.codigo, nivel: "erro", mensagem: `Plano ${p.codigo}: informe o piso da faixa (kWh, maior que zero).` });
+    if (p.kwhMax <= p.kwhMin) problemas.push({ codigo: p.codigo, nivel: "erro", mensagem: `Plano ${p.codigo}: o teto (${p.kwhMax}) deve ser maior que o piso (${p.kwhMin}).` });
     if (p.mensalidade < 0) problemas.push({ codigo: p.codigo, nivel: "erro", mensagem: `Plano ${p.codigo}: mensalidade não pode ser negativa.` });
   }
 
   for (let i = 1; i < precos.length; i++) {
     const ant = precos[i - 1];
     const cur = precos[i];
-    if (cur.kwh <= ant.kwh) {
-      problemas.push({ codigo: cur.codigo, nivel: "erro", mensagem: `Plano ${cur.codigo} tem cota (${cur.kwh} kWh) igual ou menor que o plano ${ant.codigo} (${ant.kwh} kWh).` });
-      continue;
+    if (cur.kwhMin <= ant.kwhMax - 1e-9) {
+      problemas.push({ codigo: cur.codigo, nivel: "erro", mensagem: `Faixa do plano ${cur.codigo} (a partir de ${cur.kwhMin}) sobrepõe a do ${ant.codigo} (até ${ant.kwhMax}).` });
+    } else if (cur.kwhMin > ant.kwhMax + 1e-9) {
+      problemas.push({ codigo: cur.codigo, nivel: "aviso", mensagem: `Há um buraco entre o plano ${ant.codigo} (até ${ant.kwhMax}) e o ${cur.codigo} (a partir de ${cur.kwhMin}) — consumos nesse intervalo ficam sem plano.` });
     }
     if (cur.mensalidade <= ant.mensalidade) {
       problemas.push({ codigo: cur.codigo, nivel: "erro", mensagem: `Plano ${cur.codigo} é maior mas custa igual/menos que o ${ant.codigo} — plano dominado.` });

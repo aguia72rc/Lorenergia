@@ -100,7 +100,7 @@ export default function PropostaInterna({
             <label className="label" htmlFor="plano">Plano</label>
             <select id="plano" className="input" value={planoCodigo} onChange={(e) => setPlanoCodigo(e.target.value)}>
               <option value="auto">Sugerir automaticamente</option>
-              {planos.map((p) => <option key={p.codigo} value={p.codigo}>Cota {p.codigo} — {p.kwh} kWh — {formatBRL(Number(p.mensalidade))}</option>)}
+              {planos.map((p) => <option key={p.codigo} value={p.codigo}>Plano {p.codigo} — {p.kwh_min}–{p.kwh_max} kWh — {formatBRL(Number(p.mensalidade))}</option>)}
             </select>
           </div>
           <div className="flex items-end gap-2 lg:col-span-2">
@@ -162,7 +162,7 @@ export default function PropostaInterna({
                 <span className="text-3xl font-extrabold text-eco-700">{formatBRL(r.economiaMensal)}<span className="text-base font-semibold text-slate-500"> /mês</span></span>
               </div>
               <p className="mt-1 text-sm text-slate-500">
-                Cerca de <strong className="text-slate-700">{formatBRL(r.economiaMensal * 12)} por ano</strong> — o equivalente a {pct1(r.economiaPercentual)}% da sua conta. Plano sugerido: cota {r.plano?.codigo} ({r.plano?.kwh} kWh/mês).
+                Cerca de <strong className="text-slate-700">{formatBRL(r.economiaMensal * 12)} por ano</strong> — o equivalente a {pct1(r.economiaPercentual)}% da sua conta. Plano sugerido: {r.plano?.codigo} (faixa {r.plano?.kwh_min}–{r.plano?.kwh_max} kWh/mês).
               </p>
             </div>
 
@@ -175,7 +175,7 @@ export default function PropostaInterna({
           <div className="no-print rounded-2xl border border-dashed border-brand-400/40 bg-brand-500/5 p-4">
             <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-brand-300">Uso interno — não sai na proposta</p>
             <p className="text-sm text-slate-300">
-              Economia de <strong className="text-white">{pct1(r.economiaPercentual)}%</strong> · receita de <strong className="text-white">{formatBRL(r.mensalidade)}</strong>/mês · {r.plano?.kwh} kWh de usina alocados.
+              Economia de <strong className="text-white">{pct1(r.economiaPercentual)}%</strong> · receita de <strong className="text-white">{formatBRL(r.mensalidade)}</strong>/mês · {Math.round(r.energiaCompensadaKwh)} kWh compensados (faixa {r.plano?.kwh_min}–{r.plano?.kwh_max}).
             </p>
             {r.economiaPercentual < 0.12 && (
               <p className="mt-1 text-sm text-amber-300"><strong>Margem fraca (&lt;12%).</strong> Tende a gerar questionamento — reavalie o plano.</p>

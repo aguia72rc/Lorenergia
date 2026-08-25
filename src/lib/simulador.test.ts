@@ -23,11 +23,11 @@ const PARAMS: ParametrosEnergia = {
   disp_trifasica: 100,
 };
 const PLANOS: PlanoCota[] = [
-  { codigo: "A", kwh: 100, mensalidade: 69 },
-  { codigo: "B", kwh: 150, mensalidade: 97 },
-  { codigo: "C", kwh: 200, mensalidade: 122 },
-  { codigo: "D", kwh: 300, mensalidade: 172 },
-  { codigo: "E", kwh: 400, mensalidade: 218 },
+  { codigo: "A", kwh_min: 100, kwh_max: 200, mensalidade: 69 },
+  { codigo: "B", kwh_min: 200, kwh_max: 300, mensalidade: 97 },
+  { codigo: "C", kwh_min: 300, kwh_max: 400, mensalidade: 122 },
+  { codigo: "D", kwh_min: 400, kwh_max: 500, mensalidade: 150 },
+  { codigo: "E", kwh_min: 500, kwh_max: 600, mensalidade: 180 },
 ];
 const CRONOGRAMA: FioBItem[] = [
   { ano: 2026, percentual: 0.6 },
@@ -43,13 +43,14 @@ test("caso base do protótipo: 230 kWh, monofásica, 2026", () => {
   );
   assert.equal(r.ok, true);
   assert.equal(r.consumoKwh, 230);
-  assert.equal(r.plano?.codigo, "C"); // sugerido automaticamente (200 <= 230-30)
+  assert.equal(r.plano?.codigo, "B"); // faixa do consumo total (200–300)
+  assert.equal(r.energiaCompensadaKwh, 200); // piso da faixa, limitado ao compensável (200)
   // Conta de hoje ~R$ 248,35. Mensalidade FORA do cálculo: economia ~R$ 165,45 (~66,6%).
   assert.ok(Math.abs(r.contaAtual - 248.35) < 0.05, `contaAtual=${r.contaAtual}`);
   assert.ok(Math.abs(r.economiaMensal - 165.45) < 0.1, `economia=${r.economiaMensal}`);
   assert.ok(Math.abs(r.economiaPercentual - 0.6662) < 0.002, `pct=${r.economiaPercentual}`);
   // A mensalidade fica só como informação (receita), fora da conta.
-  assert.equal(r.mensalidade, 122);
+  assert.equal(r.mensalidade, 97);
   assert.ok(Math.abs(r.contaLorenergia - (r.taxaMinimaRede + r.consumoAcimaPlano + r.usoRedeCompensado + r.cip)) < 0.001,
     "conta com a Lorenergia não deve incluir a mensalidade");
   // Consistência: conta com a Lorenergia + economia = conta de hoje.
@@ -69,9 +70,9 @@ test("entrada em R$ estima o consumo (gross-up e CIP)", () => {
   assert.ok(Math.abs(r.consumoKwh - 230) < 1, `consumo=${r.consumoKwh}`);
 });
 
-test("consumo baixo demais não tem margem para plano", () => {
+test("consumo abaixo da menor faixa não tem plano", () => {
   const r = calcularEconomia(
-    { modo: "kwh", entrada: 90, tipoLigacao: "monofasica", ano: 2026 }, // 90-30 = 60 < 100 (menor plano)
+    { modo: "kwh", entrada: 90, tipoLigacao: "monofasica", ano: 2026 }, // 90 < piso da menor faixa (100)
     PARAMS, PLANOS, CRONOGRAMA
   );
   assert.equal(r.ok, false);
@@ -96,8 +97,8 @@ test("Fio B: ano além do cadastrado usa o maior (2029 em diante)", () => {
 
 test("escolha manual de plano respeita o código e ignora inativos", () => {
   assert.equal(escolherPlano(PLANOS, 500, "B")?.codigo, "B");
-  const comInativo = [...PLANOS, { codigo: "Z", kwh: 999, mensalidade: 500, ativo: false }];
-  assert.equal(escolherPlano(comInativo, 5000)?.codigo, "E"); // Z inativo é ignorado
+  const comInativo = [...PLANOS, { codigo: "Z", kwh_min: 900, kwh_max: 1000, mensalidade: 500, ativo: false }];
+  assert.equal(escolherPlano(comInativo, 5000)?.codigo, "E"); // acima de tudo → maior faixa ativa (Z inativo ignorado)
 });
 
 test("faixa de economia arredonda para baixo (simulador público)", () => {
@@ -111,26 +112,35 @@ test("validação de planos: a semente é não-linear e sem erros", () => {
   assert.equal(v.ok, true);
   assert.equal(v.problemas.filter((p) => p.nivel === "erro").length, 0);
   assert.equal(v.problemas.filter((p) => p.nivel === "aviso").length, 0);
-  // preço por kWh cai do menor para o maior plano
+  // preço por kWh cai da menor para a maior faixa
   assert.ok(v.precos[0].porKwh > v.precos[v.precos.length - 1].porKwh);
 });
 
 test("validação de planos: preço linear gera AVISO de não linearidade", () => {
   const linear: PlanoCota[] = [
-    { codigo: "A", kwh: 100, mensalidade: 50 }, // 0,50/kWh
-    { codigo: "B", kwh: 200, mensalidade: 100 }, // 0,50/kWh — sem ganho de escala
+    { codigo: "A", kwh_min: 100, kwh_max: 200, mensalidade: 50 }, // 0,50/kWh (piso)
+    { codigo: "B", kwh_min: 200, kwh_max: 300, mensalidade: 100 }, // 0,50/kWh — sem ganho de escala
   ];
   const v = validarPlanos(linear);
   assert.equal(v.ok, true); // é aviso, não erro
   assert.equal(v.problemas.some((p) => p.nivel === "aviso"), true);
 });
 
-test("validação de planos: plano maior mais barato é ERRO (dominado)", () => {
+test("validação de planos: faixa maior mais barata é ERRO (dominado)", () => {
   const dominado: PlanoCota[] = [
-    { codigo: "A", kwh: 100, mensalidade: 90 },
-    { codigo: "B", kwh: 200, mensalidade: 80 }, // maior e mais barato
+    { codigo: "A", kwh_min: 100, kwh_max: 200, mensalidade: 90 },
+    { codigo: "B", kwh_min: 200, kwh_max: 300, mensalidade: 80 }, // faixa maior e mais barata
   ];
   const v = validarPlanos(dominado);
   assert.equal(v.ok, false);
   assert.equal(v.problemas.some((p) => p.nivel === "erro"), true);
+});
+
+test("validação de planos: buraco entre faixas gera AVISO", () => {
+  const comBuraco: PlanoCota[] = [
+    { codigo: "A", kwh_min: 100, kwh_max: 200, mensalidade: 90 },
+    { codigo: "B", kwh_min: 260, kwh_max: 360, mensalidade: 120 }, // buraco 200–260
+  ];
+  const v = validarPlanos(comBuraco);
+  assert.equal(v.problemas.some((p) => p.nivel === "aviso" && /buraco/i.test(p.mensagem)), true);
 });
