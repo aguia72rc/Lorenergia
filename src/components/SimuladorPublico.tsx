@@ -95,9 +95,9 @@ export default function SimuladorPublico() {
       {res && !res.ok && (
         <div className="card">
           <p className="text-sm text-amber-300">
-            {res.motivo === "sem_margem"
-              ? "Para o seu consumo atual, ainda não conseguimos garantir economia com o serviço. Fale com a gente para avaliarmos seu caso."
-              : res.mensagem || "Informe o consumo para simular."}
+            {res.motivo === "consumo_invalido"
+              ? "Informe o consumo para simular."
+              : "Simulador indisponível no momento. Tente novamente em instantes."}
           </p>
         </div>
       )}

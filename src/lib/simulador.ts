@@ -134,10 +134,11 @@ export function escolherPlano(planos: PlanoCota[], consumoTotalKwh: number, codi
   // Faixa que contém o consumo.
   const contida = porFaixa.find((p) => consumoTotalKwh >= Number(p.kwh_min) && consumoTotalKwh <= Number(p.kwh_max));
   if (contida) return contida;
-  // Acima da maior faixa → usa a maior; abaixo da menor → sem plano.
-  const maior = porFaixa[porFaixa.length - 1];
-  if (consumoTotalKwh > Number(maior.kwh_max)) return maior;
-  return null;
+  // Fora de qualquer faixa: NÃO há mínimo — usa a faixa mais próxima.
+  // Abaixo da menor → menor faixa; acima da maior → maior faixa.
+  const menor = porFaixa[0];
+  if (consumoTotalKwh < Number(menor.kwh_min)) return menor;
+  return porFaixa[porFaixa.length - 1];
 }
 
 /**
@@ -181,7 +182,7 @@ export function calcularEconomia(
     return {
       ok: false,
       motivo: "sem_margem",
-      mensagem: `O consumo informado (${Math.round(consumo)} kWh) fica abaixo da menor faixa de plano disponível.`,
+      mensagem: `Nenhum plano cadastrado para simular. Cadastre ao menos uma faixa em Planos.`,
       ...base,
       consumoKwh: consumo,
     };

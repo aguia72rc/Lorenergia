@@ -69,10 +69,21 @@ test("entrada em R$ estima o consumo (gross-up e CIP)", () => {
   assert.ok(Math.abs(r.consumoKwh - 230) < 1, `consumo=${r.consumoKwh}`);
 });
 
-test("consumo abaixo da menor faixa não tem plano", () => {
+test("sem mínimo: consumo abaixo da menor faixa cai na menor faixa (livre)", () => {
   const r = calcularEconomia(
     { modo: "kwh", entrada: 90, tipoLigacao: "monofasica", ano: 2026 }, // 90 < piso da menor faixa (100)
     PARAMS, PLANOS, CRONOGRAMA
+  );
+  assert.equal(r.ok, true);
+  assert.equal(r.plano?.codigo, "A"); // menor faixa, sem bloqueio
+  // compensa o que houver (90 − 30 = 60), limitado ao piso.
+  assert.equal(r.energiaCompensadaKwh, 60);
+});
+
+test("sem plano cadastrado → sem_margem", () => {
+  const r = calcularEconomia(
+    { modo: "kwh", entrada: 230, tipoLigacao: "monofasica", ano: 2026 },
+    PARAMS, [], CRONOGRAMA
   );
   assert.equal(r.ok, false);
   assert.equal(r.motivo, "sem_margem");

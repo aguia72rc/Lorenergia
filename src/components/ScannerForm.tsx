@@ -11,7 +11,7 @@ export default function ScannerForm() {
   const [cidade, setCidade] = useState("Recife");
   const [raio, setRaio] = useState(10);
   const [segmento, setSegmento] = useState("Todos");
-  const [consumoMin, setConsumoMin] = useState(250);
+  const [consumoMin, setConsumoMin] = useState(0);
   const [res, setRes] = useState<ResultadoScan | null>(null);
 
   function rodar() {
