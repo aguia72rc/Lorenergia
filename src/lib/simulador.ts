@@ -227,3 +227,67 @@ export function faixaEconomia(economiaMensal: number, passo = 20): { min: number
   const min = Math.floor(v / passo) * passo;
   return { min, max: min + passo };
 }
+
+// ---------------------------------------------------------------------
+// Validação de NÃO LINEARIDADE dos planos (tela de planos do admin)
+// ---------------------------------------------------------------------
+export interface PrecoPlano {
+  codigo: string;
+  kwh: number;
+  mensalidade: number;
+  porKwh: number; // mensalidade ÷ kWh
+}
+export interface ProblemaPlano {
+  codigo: string;
+  nivel: "erro" | "aviso";
+  mensagem: string;
+}
+export interface ValidacaoPlanos {
+  ok: boolean; // sem ERROS (avisos não bloqueiam)
+  precos: PrecoPlano[];
+  problemas: ProblemaPlano[];
+}
+
+/**
+ * Verifica se a tabela de planos é coerente e NÃO LINEAR (com ganho de escala):
+ *  - kWh deve crescer de um plano para o outro (erro se não crescer);
+ *  - a mensalidade deve crescer junto (erro se um plano maior custar ≤ que um
+ *    menor — plano dominado);
+ *  - o preço por kWh deve DIMINUIR à medida que a cota aumenta (aviso quando
+ *    não diminui: preço linear ou invertido, sem desconto por volume).
+ * Considera apenas planos ativos, ordenados por kWh.
+ */
+export function validarPlanos(planos: PlanoCota[]): ValidacaoPlanos {
+  const ativos = (planos ?? [])
+    .filter((p) => p.ativo !== false)
+    .map((p) => ({ codigo: p.codigo, kwh: Number(p.kwh) || 0, mensalidade: Number(p.mensalidade) || 0 }))
+    .sort((a, b) => a.kwh - b.kwh);
+
+  const precos: PrecoPlano[] = ativos.map((p) => ({
+    ...p,
+    porKwh: p.kwh > 0 ? p.mensalidade / p.kwh : 0,
+  }));
+
+  const problemas: ProblemaPlano[] = [];
+  for (const p of precos) {
+    if (p.kwh <= 0) problemas.push({ codigo: p.codigo, nivel: "erro", mensagem: `Plano ${p.codigo}: informe a cota em kWh (maior que zero).` });
+    if (p.mensalidade < 0) problemas.push({ codigo: p.codigo, nivel: "erro", mensagem: `Plano ${p.codigo}: mensalidade não pode ser negativa.` });
+  }
+
+  for (let i = 1; i < precos.length; i++) {
+    const ant = precos[i - 1];
+    const cur = precos[i];
+    if (cur.kwh <= ant.kwh) {
+      problemas.push({ codigo: cur.codigo, nivel: "erro", mensagem: `Plano ${cur.codigo} tem cota (${cur.kwh} kWh) igual ou menor que o plano ${ant.codigo} (${ant.kwh} kWh).` });
+      continue;
+    }
+    if (cur.mensalidade <= ant.mensalidade) {
+      problemas.push({ codigo: cur.codigo, nivel: "erro", mensagem: `Plano ${cur.codigo} é maior mas custa igual/menos que o ${ant.codigo} — plano dominado.` });
+    }
+    if (cur.porKwh >= ant.porKwh - 1e-9) {
+      problemas.push({ codigo: cur.codigo, nivel: "aviso", mensagem: `Plano ${cur.codigo} não fica mais barato por kWh que o ${ant.codigo} (sem ganho de escala): o preço está linear ou invertido.` });
+    }
+  }
+
+  return { ok: !problemas.some((p) => p.nivel === "erro"), precos, problemas };
+}

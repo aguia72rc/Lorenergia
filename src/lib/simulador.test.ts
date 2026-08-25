@@ -5,6 +5,7 @@ import {
   percentualFioB,
   escolherPlano,
   faixaEconomia,
+  validarPlanos,
   type ParametrosEnergia,
   type PlanoCota,
   type FioBItem,
@@ -103,4 +104,33 @@ test("faixa de economia arredonda para baixo (simulador público)", () => {
   assert.deepEqual(faixaEconomia(143.8, 20), { min: 140, max: 160 });
   assert.deepEqual(faixaEconomia(43.45, 20), { min: 40, max: 60 });
   assert.deepEqual(faixaEconomia(0, 20), { min: 0, max: 20 });
+});
+
+test("validação de planos: a semente é não-linear e sem erros", () => {
+  const v = validarPlanos(PLANOS);
+  assert.equal(v.ok, true);
+  assert.equal(v.problemas.filter((p) => p.nivel === "erro").length, 0);
+  assert.equal(v.problemas.filter((p) => p.nivel === "aviso").length, 0);
+  // preço por kWh cai do menor para o maior plano
+  assert.ok(v.precos[0].porKwh > v.precos[v.precos.length - 1].porKwh);
+});
+
+test("validação de planos: preço linear gera AVISO de não linearidade", () => {
+  const linear: PlanoCota[] = [
+    { codigo: "A", kwh: 100, mensalidade: 50 }, // 0,50/kWh
+    { codigo: "B", kwh: 200, mensalidade: 100 }, // 0,50/kWh — sem ganho de escala
+  ];
+  const v = validarPlanos(linear);
+  assert.equal(v.ok, true); // é aviso, não erro
+  assert.equal(v.problemas.some((p) => p.nivel === "aviso"), true);
+});
+
+test("validação de planos: plano maior mais barato é ERRO (dominado)", () => {
+  const dominado: PlanoCota[] = [
+    { codigo: "A", kwh: 100, mensalidade: 90 },
+    { codigo: "B", kwh: 200, mensalidade: 80 }, // maior e mais barato
+  ];
+  const v = validarPlanos(dominado);
+  assert.equal(v.ok, false);
+  assert.equal(v.problemas.some((p) => p.nivel === "erro"), true);
 });
