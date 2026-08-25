@@ -9,7 +9,6 @@ export interface LinhaPlano {
   codigo: string;
   kwh_min: number;
   kwh_max: number;
-  mensalidade: number;
   ativo: boolean;
 }
 
@@ -24,7 +23,7 @@ export async function salvarPlanos(linhas: LinhaPlano[]): Promise<{ ok: boolean;
 
   // Normaliza e valida os códigos.
   const rows = linhas
-    .map((l) => ({ codigo: (l.codigo ?? "").trim().toUpperCase(), kwh_min: Number(l.kwh_min) || 0, kwh_max: Number(l.kwh_max) || 0, mensalidade: Number(l.mensalidade) || 0, ativo: l.ativo !== false }))
+    .map((l) => ({ codigo: (l.codigo ?? "").trim().toUpperCase(), kwh_min: Number(l.kwh_min) || 0, kwh_max: Number(l.kwh_max) || 0, ativo: l.ativo !== false }))
     .filter((l) => l.codigo !== "");
 
   if (rows.length === 0) return { ok: false, mensagem: "Cadastre ao menos um plano." };

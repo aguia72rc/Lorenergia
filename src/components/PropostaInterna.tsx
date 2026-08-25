@@ -100,7 +100,7 @@ export default function PropostaInterna({
             <label className="label" htmlFor="plano">Plano</label>
             <select id="plano" className="input" value={planoCodigo} onChange={(e) => setPlanoCodigo(e.target.value)}>
               <option value="auto">Sugerir automaticamente</option>
-              {planos.map((p) => <option key={p.codigo} value={p.codigo}>Plano {p.codigo} — {p.kwh_min}–{p.kwh_max} kWh — {formatBRL(Number(p.mensalidade))}</option>)}
+              {planos.map((p) => <option key={p.codigo} value={p.codigo}>Plano {p.codigo} — {p.kwh_min}–{p.kwh_max} kWh</option>)}
             </select>
           </div>
           <div className="flex items-end gap-2 lg:col-span-2">
@@ -175,13 +175,13 @@ export default function PropostaInterna({
           <div className="no-print rounded-2xl border border-dashed border-brand-400/40 bg-brand-500/5 p-4">
             <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-brand-300">Uso interno — não sai na proposta</p>
             <p className="text-sm text-slate-300">
-              Economia de <strong className="text-white">{pct1(r.economiaPercentual)}%</strong> · receita de <strong className="text-white">{formatBRL(r.mensalidade)}</strong>/mês · {Math.round(r.energiaCompensadaKwh)} kWh compensados (faixa {r.plano?.kwh_min}–{r.plano?.kwh_max}).
+              Economia de <strong className="text-white">{pct1(r.economiaPercentual)}%</strong> · {Math.round(r.energiaCompensadaKwh)} kWh compensados (faixa {r.plano?.kwh_min}–{r.plano?.kwh_max}).
             </p>
             {r.economiaPercentual < 0.12 && (
               <p className="mt-1 text-sm text-amber-300"><strong>Margem fraca (&lt;12%).</strong> Tende a gerar questionamento — reavalie o plano.</p>
             )}
             {r.sobraKwh > 0 && (
-              <p className="mt-1 text-sm text-slate-300"><strong>Sobram {kwh0(r.sobraKwh)}</strong> sem compensação — um plano maior aumenta a economia e a receita.</p>
+              <p className="mt-1 text-sm text-slate-300"><strong>Sobram {kwh0(r.sobraKwh)}</strong> sem compensação — uma faixa maior aumenta a economia do cliente.</p>
             )}
             {ano >= 2028 && (
               <p className="mt-1 text-sm text-slate-300"><strong>Cenário 2028+.</strong> Use para checar a durabilidade da venda.</p>
