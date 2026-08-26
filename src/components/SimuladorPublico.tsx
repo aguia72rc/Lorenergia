@@ -3,26 +3,19 @@
 import { useState, useTransition } from "react";
 import { simularPublico, type ResultadoPublico } from "@/app/simulador/actions";
 
-const LIGACOES = [
-  { v: "monofasica", t: "Monofásica" },
-  { v: "bifasica", t: "Bifásica" },
-  { v: "trifasica", t: "Trifásica" },
-] as const;
-
 const brl = (n: number) => "R$ " + Math.round(n).toLocaleString("pt-BR");
 
-export default function SimuladorPublico() {
+export default function SimuladorPublico({ planos }: { planos: { codigo: string; nome: string; desconto: number }[] }) {
   const [pendente, startTransition] = useTransition();
   const [modo, setModo] = useState<"kwh" | "reais">("kwh");
-  const [entrada, setEntrada] = useState(230);
-  const [tipoLigacao, setTipoLigacao] = useState<"monofasica" | "bifasica" | "trifasica">("monofasica");
-  const [ano, setAno] = useState(2026);
+  const [entrada, setEntrada] = useState(300);
+  const [planoCodigo, setPlanoCodigo] = useState("auto");
   const [res, setRes] = useState<ResultadoPublico | null>(null);
 
   function simular() {
     setRes(null);
     startTransition(async () => {
-      const r = await simularPublico({ modo, entrada, tipoLigacao, ano });
+      const r = await simularPublico({ modo, entrada, planoCodigo });
       setRes(r);
     });
   }
@@ -51,10 +44,7 @@ export default function SimuladorPublico() {
                   <button
                     key={m}
                     type="button"
-                    onClick={() => {
-                      setModo(m);
-                      setEntrada(m === "kwh" ? 230 : 240);
-                    }}
+                    onClick={() => { setModo(m); setEntrada(m === "kwh" ? 300 : 350); }}
                     className={`px-3 text-sm font-medium ${modo === m ? "bg-brand-500 text-brand-950" : "text-slate-300 hover:bg-white/5"}`}
                   >
                     {m === "kwh" ? "kWh" : "R$"}
@@ -65,30 +55,21 @@ export default function SimuladorPublico() {
           </div>
 
           <div>
-            <label className="label" htmlFor="ligacao">Tipo de ligação</label>
-            <select id="ligacao" className="input" value={tipoLigacao} onChange={(e) => setTipoLigacao(e.target.value as typeof tipoLigacao)}>
-              {LIGACOES.map((l) => <option key={l.v} value={l.v}>{l.t}</option>)}
+            <label className="label" htmlFor="plano">Plano</label>
+            <select id="plano" className="input" value={planoCodigo} onChange={(e) => setPlanoCodigo(e.target.value)}>
+              <option value="auto">Melhor desconto</option>
+              {planos.map((p) => <option key={p.codigo} value={p.codigo}>{p.nome} — {p.desconto}%</option>)}
             </select>
           </div>
 
-          <div>
-            <label className="label" htmlFor="ano">Ano de referência</label>
-            <select id="ano" className="input" value={ano} onChange={(e) => setAno(Number(e.target.value))}>
-              <option value={2026}>2026</option>
-              <option value={2027}>2027</option>
-              <option value={2028}>2028</option>
-              <option value={2029}>2029 em diante</option>
-            </select>
-          </div>
-
-          <div className="flex items-end">
+          <div className="sm:col-span-2">
             <button onClick={simular} className="btn-primary w-full" disabled={pendente}>
               {pendente ? "Calculando…" : "Ver minha economia"}
             </button>
           </div>
         </div>
         <p className="mt-3 text-xs text-slate-500">
-          Estimativa gratuita e sem compromisso, com base na tarifa vigente. A economia real varia com o clima e com os reajustes da distribuidora.
+          Rateio de créditos de energia solar: você ganha desconto sobre a energia que consome, sem obra e sem instalar nada. Estimativa gratuita, com base na tarifa vigente.
         </p>
       </div>
 

@@ -1,16 +1,25 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { ArrowLeft, Sun } from "lucide-react";
+import { createAdminClient } from "@/lib/supabase/admin";
 import SimuladorPublico from "@/components/SimuladorPublico";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Simulador de economia",
-  description: "Descubra em segundos quanto você pode economizar na conta de luz com a energia solar compartilhada da Lorenergia.",
+  description: "Descubra em segundos quanto você pode economizar na conta de luz com o rateio de créditos de energia solar da Lorenergia.",
 };
 
-export default function SimuladorPage() {
+interface PlanoRow { codigo: string; nome: string; desconto_percentual: number }
+
+export default async function SimuladorPage() {
+  // Planos são RLS admin-only; o simulador público lê via service role.
+  const { data } = await createAdminClient()
+    .from("planos_cota").select("codigo, nome, desconto_percentual").eq("ativo", true)
+    .order("desconto_percentual", { ascending: false });
+  const planos = ((data ?? []) as PlanoRow[]).map((p) => ({ codigo: p.codigo, nome: p.nome, desconto: Number(p.desconto_percentual) }));
+
   return (
     <main className="mx-auto max-w-2xl px-4 py-10">
       <div className="mb-6 flex items-center justify-between">
@@ -31,7 +40,7 @@ export default function SimuladorPage() {
         </p>
       </div>
 
-      <SimuladorPublico />
+      <SimuladorPublico planos={planos} />
 
       <p className="mt-8 text-center text-xs text-slate-500">
         Geração compartilhada nos termos da Lei 14.300/2022 · A economia estimada é uma projeção, não uma garantia de desconto.

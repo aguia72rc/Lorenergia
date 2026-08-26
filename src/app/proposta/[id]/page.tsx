@@ -6,7 +6,7 @@ import { getSessao } from "@/lib/auth";
 import { consumoLead } from "@/lib/leads";
 import PropostaInterna, { type LeadResumido } from "@/components/PropostaInterna";
 import type { Lead, Configuracoes } from "@/lib/types";
-import type { ParametrosEnergia, PlanoCota, FioBItem } from "@/lib/simulador";
+import type { ParametrosEnergia, PlanoDesconto } from "@/lib/simulador";
 
 export const dynamic = "force-dynamic";
 
@@ -16,11 +16,10 @@ export default async function PropostaPage({ params }: { params: { id: string } 
   if (sessao.profile?.role !== "admin") redirect("/portal");
 
   const db = createClient();
-  const [{ data: lead }, { data: parametros }, { data: planos }, { data: cronograma }, { data: cfg }] = await Promise.all([
+  const [{ data: lead }, { data: parametros }, { data: planos }, { data: cfg }] = await Promise.all([
     db.from("leads").select("*").eq("id", params.id).single(),
     db.from("parametros_energia").select("*").order("vigente_desde", { ascending: false }).limit(1).maybeSingle(),
-    db.from("planos_cota").select("*").eq("ativo", true).order("kwh_min", { ascending: true }),
-    db.from("fio_b_cronograma").select("*"),
+    db.from("planos_cota").select("*").eq("ativo", true).order("desconto_percentual", { ascending: false }),
     db.from("configuracoes").select("nome_usina").eq("id", 1).single(),
   ]);
 
@@ -53,8 +52,7 @@ export default async function PropostaPage({ params }: { params: { id: string } 
         <PropostaInterna
           lead={leadResumido}
           parametros={parametros as ParametrosEnergia}
-          planos={(planos ?? []) as PlanoCota[]}
-          cronograma={(cronograma ?? []) as FioBItem[]}
+          planos={(planos ?? []) as PlanoDesconto[]}
           nomeUsina={(cfg as Configuracoes | null)?.nome_usina ?? "Lorenergia"}
         />
       )}
