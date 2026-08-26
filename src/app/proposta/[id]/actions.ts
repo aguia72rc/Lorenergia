@@ -32,7 +32,7 @@ export async function salvarSimulacaoCrm(input: EntradaProposta): Promise<{ ok: 
   const db = createClient();
   const [{ data: parametros }, { data: planos }, { data: cronograma }] = await Promise.all([
     db.from("parametros_energia").select("*").order("vigente_desde", { ascending: false }).limit(1).maybeSingle(),
-    db.from("planos_cota").select("*").eq("ativo", true).order("kwh", { ascending: true }),
+    db.from("planos_cota").select("*").eq("ativo", true).order("kwh_min", { ascending: true }),
     db.from("fio_b_cronograma").select("*"),
   ]);
   if (!parametros) return { ok: false, mensagem: "Parâmetros de energia não configurados." };
