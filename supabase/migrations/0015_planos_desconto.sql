@@ -39,12 +39,23 @@ alter table public.simulacoes add column if not exists desconto_percentual numer
 alter table public.simulacoes alter column ano_referencia drop not null;
 alter table public.simulacoes alter column tipo_ligacao drop not null;
 
+-- Guarda TUSD e TE separados (editáveis no admin). tarifa_tusd_te = tusd + te.
+alter table public.parametros_energia add column if not exists tusd numeric(12,5);
+alter table public.parametros_energia add column if not exists te   numeric(12,5);
+
 -- Tarifa 2026 (Neoenergia PE, B1 residencial), retirada de fatura real:
 --   TUSD 0,70 + TE 0,34 = 1,04 R$/kWh (sem tributos).
 update public.parametros_energia
-set tarifa_tusd_te = 1.04,
+set tusd = 0.70,
+    te   = 0.34,
+    tarifa_tusd_te = 1.04,
     vigente_desde  = current_date
 where id = (
   select id from public.parametros_energia
   order by vigente_desde desc, created_at desc limit 1
 );
+
+-- Para linhas antigas sem TUSD/TE, usa a tarifa combinada como TUSD.
+update public.parametros_energia
+set tusd = coalesce(tusd, tarifa_tusd_te), te = coalesce(te, 0)
+where tusd is null or te is null;
