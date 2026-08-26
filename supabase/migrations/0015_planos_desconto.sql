@@ -38,3 +38,13 @@ alter table public.planos_cota alter column desconto_percentual set not null;
 alter table public.simulacoes add column if not exists desconto_percentual numeric(5,2);
 alter table public.simulacoes alter column ano_referencia drop not null;
 alter table public.simulacoes alter column tipo_ligacao drop not null;
+
+-- Tarifa 2026 (Neoenergia PE, B1 residencial), retirada de fatura real:
+--   TUSD 0,70 + TE 0,34 = 1,04 R$/kWh (sem tributos).
+update public.parametros_energia
+set tarifa_tusd_te = 1.04,
+    vigente_desde  = current_date
+where id = (
+  select id from public.parametros_energia
+  order by vigente_desde desc, created_at desc limit 1
+);
