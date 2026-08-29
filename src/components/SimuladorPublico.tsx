@@ -101,6 +101,16 @@ export default function SimuladorPublico({ planos }: { planos: { codigo: string;
             </a>
             <span className="self-center text-xs text-slate-400">Um consultor confirma os números com você.</span>
           </div>
+
+          <div className="relative mt-4 flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3">
+            <span aria-hidden className="text-amber-300">⚠️</span>
+            <p className="text-xs leading-relaxed text-amber-100">
+              <strong>Importante:</strong> os valores acima são apenas uma <strong>estimativa</strong>. O valor real
+              pode variar conforme a <strong>modalidade de cobrança da Neoenergia</strong> (tarifa vigente, bandeiras
+              tarifárias, tributos e o seu perfil de consumo), que estão sujeitos a alteração. Esta simulação não é
+              uma garantia de desconto.
+            </p>
+          </div>
         </div>
       )}
     </div>
