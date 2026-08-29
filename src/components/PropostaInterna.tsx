@@ -142,7 +142,7 @@ export default function PropostaInterna({
             </div>
 
             <div className="px-6 pb-6 text-[11px] leading-relaxed text-slate-500">
-              Você não faz obra, não instala equipamento e não muda a titularidade — a conta continua chegando da distribuidora no seu nome, com valor menor. Você recebe créditos de energia da nossa usina solar por rateio, com desconto sobre a energia consumida. A iluminação pública (municipal) não entra no desconto. A energia gerada varia com o clima, então a economia pode oscilar de mês para mês. Esta proposta é uma estimativa e não constitui garantia de desconto.
+              Você não faz obra, não instala equipamento e não muda a titularidade — a conta continua chegando da distribuidora no seu nome, com valor menor. Você recebe créditos de energia da nossa usina solar por rateio, com desconto sobre a energia consumida. A iluminação pública (municipal) não entra no desconto. Os valores são uma estimativa: o valor real pode variar conforme a modalidade de cobrança da Neoenergia (tarifa vigente, bandeiras tarifárias, tributos e perfil de consumo), que estão sujeitos a alteração. A energia gerada varia com o clima, então a economia pode oscilar de mês para mês. Esta proposta não constitui garantia de desconto.
             </div>
           </div>
 
