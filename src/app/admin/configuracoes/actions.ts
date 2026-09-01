@@ -8,7 +8,7 @@ export async function salvarConfiguracoes(formData: FormData) {
   const sessao = await getSessao();
   if (sessao?.profile?.role !== "admin") throw new Error("Acesso negado.");
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const tarifa_tusd = Number(formData.get("tarifa_tusd") ?? 0);
   const tarifa_te = Number(formData.get("tarifa_te") ?? 0);
   const dados = {

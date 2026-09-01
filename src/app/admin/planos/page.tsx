@@ -13,7 +13,7 @@ interface PlanoRow {
 }
 
 export default async function PlanosPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data } = await supabase
     .from("planos_cota")
     .select("codigo, nome, desconto_percentual, fidelidade, ativo")

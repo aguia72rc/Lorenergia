@@ -29,18 +29,19 @@ function normalizarMes(mes?: string): string | null {
 export default async function FaturasPage({
   searchParams,
 }: {
-  searchParams: { status?: string; mes?: string };
+  searchParams: Promise<{ status?: string; mes?: string }>;
 }) {
-  const supabase = createClient();
-  const statusFiltro = searchParams.status ?? "todas";
-  const mesFiltro = normalizarMes(searchParams.mes);
-  const baseUrl = getBaseUrl();
+  const supabase = await createClient();
+  const sp = await searchParams;
+  const statusFiltro = sp.status ?? "todas";
+  const mesFiltro = normalizarMes(sp.mes);
+  const baseUrl = await getBaseUrl();
 
   // Preserva os parâmetros ao trocar de aba de status.
   const hrefStatus = (chave: string) => {
     const p = new URLSearchParams();
     if (chave !== "todas") p.set("status", chave);
-    if (searchParams.mes) p.set("mes", searchParams.mes);
+    if (sp.mes) p.set("mes", sp.mes);
     const qs = p.toString();
     return qs ? `/admin/faturas?${qs}` : "/admin/faturas";
   };

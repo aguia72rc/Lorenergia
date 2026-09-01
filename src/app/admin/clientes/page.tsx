@@ -7,7 +7,7 @@ import type { Cliente } from "@/lib/types";
 export const dynamic = "force-dynamic";
 
 export default async function ClientesPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: clientes } = await supabase
     .from("clientes")
     .select("*")

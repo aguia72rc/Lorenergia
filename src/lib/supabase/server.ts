@@ -5,8 +5,8 @@ import { cookies } from "next/headers";
  * Cliente Supabase para uso no servidor (Server Components, Server Actions,
  * Route Handlers). Respeita a sessão do usuário e as políticas de RLS.
  */
-export function createClient() {
-  const cookieStore = cookies();
+export async function createClient() {
+  const cookieStore = await cookies();
 
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

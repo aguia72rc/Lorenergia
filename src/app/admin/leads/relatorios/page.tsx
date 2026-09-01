@@ -11,7 +11,7 @@ const QUALIF = ["QUALIFICADO", "PRIORIZADO", "EM_CONTATO", "AGUARDANDO_RESPOSTA"
 const INTERESSADOS = ["INTERESSADO", "DOCUMENTACAO", "ENVIADO_FINDER", "VENDA_REALIZADA"];
 
 export default async function RelatoriosLeadsPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data } = await supabase.from("leads").select("*");
   const leads = (data ?? []) as Lead[];
 

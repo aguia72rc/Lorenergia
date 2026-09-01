@@ -37,7 +37,7 @@ export async function salvarPlanos(linhas: LinhaPlano[]): Promise<{ ok: boolean;
   const erros = v.problemas.filter((p) => p.nivel === "erro");
   if (erros.length > 0) return { ok: false, mensagem: "Corrija antes de salvar: " + erros[0].mensagem };
 
-  const db = createClient();
+  const db = await createClient();
   const codigos = rows.map((r) => r.codigo);
 
   const { data: existentes } = await db.from("planos_cota").select("codigo");

@@ -36,7 +36,7 @@ function dadosDoForm(formData: FormData) {
 
 export async function criarCliente(formData: FormData) {
   await exigirAdmin();
-  const supabase = createClient();
+  const supabase = await createClient();
   const dados = dadosDoForm(formData);
 
   if (!dados.nome) throw new Error("O nome é obrigatório.");
@@ -50,7 +50,7 @@ export async function criarCliente(formData: FormData) {
 
 export async function atualizarCliente(id: string, formData: FormData) {
   await exigirAdmin();
-  const supabase = createClient();
+  const supabase = await createClient();
   const dados = dadosDoForm(formData);
 
   if (!dados.nome) throw new Error("O nome é obrigatório.");
@@ -64,7 +64,7 @@ export async function atualizarCliente(id: string, formData: FormData) {
 
 export async function excluirCliente(id: string) {
   await exigirAdmin();
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("clientes").delete().eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath("/admin/clientes");
@@ -78,7 +78,7 @@ export async function excluirCliente(id: string) {
  */
 export async function convidarMorador(clienteId: string): Promise<{ ok: boolean; mensagem: string }> {
   await exigirAdmin();
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data: cliente } = await supabase
     .from("clientes")
@@ -97,7 +97,7 @@ export async function convidarMorador(clienteId: string): Promise<{ ok: boolean;
   const admin = createAdminClient();
   const { error } = await admin.auth.admin.inviteUserByEmail(cliente.email, {
     // Garante que o link do convite volte para a página de callback correta.
-    redirectTo: `${getBaseUrl()}/auth/callback`,
+    redirectTo: `${await getBaseUrl()}/auth/callback`,
   });
   if (error) {
     return { ok: false, mensagem: `Não foi possível convidar: ${error.message}` };
@@ -122,7 +122,7 @@ export async function gerarAcessoMorador(
   clienteId: string
 ): Promise<{ ok: boolean; senha?: string; mensagem: string }> {
   await exigirAdmin();
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data: cliente } = await supabase
     .from("clientes")

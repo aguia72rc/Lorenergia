@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 const QUALIFICADO = ["QUALIFICADO", "PRIORIZADO", "EM_CONTATO", "AGUARDANDO_RESPOSTA", "RESPONDEU", "INTERESSADO", "DOCUMENTACAO", "ENVIADO_FINDER"];
 
 export default async function LeadsPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data } = await supabase.from("leads").select("*").order("lead_score", { ascending: false });
   const leads = (data ?? []) as Lead[];
 

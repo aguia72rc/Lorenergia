@@ -14,13 +14,14 @@ export const dynamic = "force-dynamic";
 export default async function EnviarWhatsappPage({
   searchParams,
 }: {
-  searchParams: { mes?: string };
+  searchParams: Promise<{ mes?: string }>;
 }) {
-  const supabase = createClient();
-  const baseUrl = getBaseUrl();
+  const supabase = await createClient();
+  const baseUrl = await getBaseUrl();
+  const sp = await searchParams;
 
   // Por padrão, o mês atual.
-  const mesParam = searchParams.mes ?? primeiroDiaMesAtual().slice(0, 7);
+  const mesParam = sp.mes ?? primeiroDiaMesAtual().slice(0, 7);
   const [ano, m] = mesParam.split("-");
   const referencia = `${ano}-${(m ?? "01").padStart(2, "0")}-01`;
 

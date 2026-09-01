@@ -15,14 +15,14 @@ async function exigirAdmin() {
 const soDigitos = (v: string) => v.replace(/\D/g, "");
 
 async function logEvento(lead_id: string, evento: string, detalhes?: Record<string, unknown>) {
-  const supabase = createClient();
+  const supabase = await createClient();
   await supabase.from("lead_eventos").insert({ lead_id, evento, detalhes: detalhes ?? null });
 }
 
 /** Cria um lead manualmente. */
 export async function criarLead(formData: FormData) {
   await exigirAdmin();
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const nome = String(formData.get("nome") ?? "").trim();
   if (!nome) throw new Error("Informe o nome do lead.");
@@ -60,7 +60,7 @@ export async function criarLead(formData: FormData) {
 /** Avança/muda o status do lead, validando a transição pela máquina de estados. */
 export async function avancarStatus(id: string, novo: StatusLead) {
   await exigirAdmin();
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data: lead, error: e0 } = await supabase.from("leads").select("status_lead").eq("id", id).single();
   if (e0 || !lead) throw new Error("Lead não encontrado.");
@@ -80,7 +80,7 @@ export async function avancarStatus(id: string, novo: StatusLead) {
 /** Registra uma tentativa de contato. */
 export async function registrarContato(id: string) {
   await exigirAdmin();
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data: lead, error: e0 } = await supabase
     .from("leads")
@@ -115,7 +115,7 @@ export async function registrarContato(id: string) {
 
 export async function salvarObservacaoLead(id: string, formData: FormData) {
   await exigirAdmin();
-  const supabase = createClient();
+  const supabase = await createClient();
   const observacoes = String(formData.get("observacoes") ?? "").trim() || null;
   const { error } = await supabase.from("leads").update({ observacoes }).eq("id", id);
   if (error) throw new Error(error.message);
@@ -128,7 +128,7 @@ export async function salvarObservacaoLead(id: string, formData: FormData) {
  */
 export async function converterEmCliente(id: string) {
   await exigirAdmin();
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data, error: e0 } = await supabase.from("leads").select("*").eq("id", id).single();
   if (e0 || !data) throw new Error("Lead não encontrado.");
@@ -164,7 +164,7 @@ export async function converterEmCliente(id: string) {
 
 export async function excluirLead(id: string) {
   await exigirAdmin();
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("leads").delete().eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath("/admin/leads");

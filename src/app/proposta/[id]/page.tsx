@@ -10,14 +10,15 @@ import type { ParametrosEnergia, PlanoDesconto } from "@/lib/simulador";
 
 export const dynamic = "force-dynamic";
 
-export default async function PropostaPage({ params }: { params: { id: string } }) {
+export default async function PropostaPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const sessao = await getSessao();
-  if (!sessao) redirect(`/login?redirect=/proposta/${params.id}`);
+  if (!sessao) redirect(`/login?redirect=/proposta/${id}`);
   if (sessao.profile?.role !== "admin") redirect("/portal");
 
-  const db = createClient();
+  const db = await createClient();
   const [{ data: lead }, { data: parametros }, { data: planos }, { data: cfg }] = await Promise.all([
-    db.from("leads").select("*").eq("id", params.id).single(),
+    db.from("leads").select("*").eq("id", id).single(),
     db.from("parametros_energia").select("*").order("vigente_desde", { ascending: false }).limit(1).maybeSingle(),
     db.from("planos_cota").select("*").eq("ativo", true).order("desconto_percentual", { ascending: false }),
     db.from("configuracoes").select("nome_usina").eq("id", 1).single(),

@@ -139,7 +139,7 @@ export async function escanear(input: { cidade: string; raioKm: number; segmento
     return vazio(true, `Varredura concluída: ${elements.length} elementos no mapa, mas nenhum lead qualificado (sem nome, abaixo do consumo mínimo ou fora do segmento).`);
   }
 
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // Dedupe em código: consulta os que já existem (por fonte_id_externo) e
   // insere só os novos. Evita depender do ON CONFLICT (o índice é parcial).

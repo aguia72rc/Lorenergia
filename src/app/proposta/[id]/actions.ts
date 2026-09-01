@@ -24,7 +24,7 @@ export async function salvarSimulacaoCrm(input: EntradaProposta): Promise<{ ok: 
   const sessao = await getSessao();
   if (sessao?.profile?.role !== "admin") return { ok: false, mensagem: "Acesso negado." };
 
-  const db = createClient();
+  const db = await createClient();
   const [{ data: parametros }, { data: planos }] = await Promise.all([
     db.from("parametros_energia").select("*").order("vigente_desde", { ascending: false }).limit(1).maybeSingle(),
     db.from("planos_cota").select("*").eq("ativo", true).order("desconto_percentual", { ascending: false }),
