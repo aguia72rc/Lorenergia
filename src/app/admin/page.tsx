@@ -9,7 +9,7 @@ import type { FaturaComCliente } from "@/lib/types";
 export const dynamic = "force-dynamic";
 
 export default async function AdminDashboard() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const refMes = primeiroDiaMesAtual();
 
   const [{ count: totalMoradores }, { data: faturasMes }, { data: pendentes }, { data: vencidas }, { data: ultimas }] =

@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
   const nextParam = searchParams.get("next") ?? "/";
   const next = /^\/(?![/\\])/.test(nextParam) ? nextParam : "/";
 
-  const supabase = createClient();
+  const supabase = await createClient();
   let ok = false;
 
   if (code) {

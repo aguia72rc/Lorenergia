@@ -8,9 +8,10 @@ import type { Cliente } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-export default async function EditarClientePage({ params }: { params: { id: string } }) {
-  const supabase = createClient();
-  const { data } = await supabase.from("clientes").select("*").eq("id", params.id).single();
+export default async function EditarClientePage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const supabase = await createClient();
+  const { data } = await supabase.from("clientes").select("*").eq("id", id).single();
 
   if (!data) notFound();
   const cliente = data as Cliente;

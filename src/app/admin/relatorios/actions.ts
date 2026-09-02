@@ -20,7 +20,7 @@ function normalizarReferencia(valor: string): string {
 /** Salva (ou atualiza) a energia injetada na rede no mês de referência. */
 export async function salvarGeracaoMensal(formData: FormData) {
   await exigirAdmin();
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const referenciaRaw = String(formData.get("referencia") ?? "");
   if (!referenciaRaw) throw new Error("Informe o mês de referência.");

@@ -36,7 +36,7 @@ export async function salvarParametros(input: EntradaParametros): Promise<{ ok: 
     vigente_desde: new Date().toISOString().slice(0, 10),
   };
 
-  const db = createClient();
+  const db = await createClient();
   const { data: atual } = await db
     .from("parametros_energia")
     .select("id")

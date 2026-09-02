@@ -8,7 +8,7 @@ import FaturasLoteForm from "@/components/FaturasLoteForm";
 export const dynamic = "force-dynamic";
 
 export default async function FaturasLotePage() {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const [{ data: clientes }, { data: config }, ultimaLeitura] = await Promise.all([
     supabase.from("clientes").select("id, nome, unidade, desconto_percentual").eq("ativo", true).order("nome"),

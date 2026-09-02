@@ -5,7 +5,7 @@ import type { Configuracoes } from "@/lib/types";
 export const dynamic = "force-dynamic";
 
 export default async function ConfiguracoesPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data } = await supabase.from("configuracoes").select("*").eq("id", 1).single();
   const cfg = data as Configuracoes;
 

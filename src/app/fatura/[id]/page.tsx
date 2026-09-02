@@ -17,16 +17,17 @@ function numero(v: number | null | undefined, casas = 2): string {
   return (Number(v) || 0).toLocaleString("pt-BR", { minimumFractionDigits: casas, maximumFractionDigits: casas });
 }
 
-export default async function FaturaPage({ params }: { params: { id: string } }) {
+export default async function FaturaPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const sessao = await getSessao();
-  if (!sessao) redirect(`/login?redirect=/fatura/${params.id}`);
+  if (!sessao) redirect(`/login?redirect=/fatura/${id}`);
 
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data: fatura } = await supabase
     .from("faturas")
     .select("*, clientes(id, nome, unidade, telefone, email, cpf, endereco, cep, cidade_uf, numero_medidor, tipo_ligacao)")
-    .eq("id", params.id)
+    .eq("id", id)
     .single();
 
   if (!fatura) notFound();

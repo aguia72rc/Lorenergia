@@ -24,11 +24,12 @@ function Info({ label, children }: { label: string; children: React.ReactNode })
   );
 }
 
-export default async function LeadDetailPage({ params }: { params: { id: string } }) {
-  const supabase = createClient();
+export default async function LeadDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const supabase = await createClient();
   const [{ data }, { data: evs }] = await Promise.all([
-    supabase.from("leads").select("*").eq("id", params.id).single(),
-    supabase.from("lead_eventos").select("*").eq("lead_id", params.id).order("created_at", { ascending: false }).limit(12),
+    supabase.from("leads").select("*").eq("id", id).single(),
+    supabase.from("lead_eventos").select("*").eq("lead_id", id).order("created_at", { ascending: false }).limit(12),
   ]);
   if (!data) notFound();
   const l = data as Lead;

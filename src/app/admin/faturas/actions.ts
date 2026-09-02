@@ -41,7 +41,7 @@ function semDataEmissao<T extends { data_emissao?: unknown }>(registro: T): Omit
 
 export async function gerarFatura(formData: FormData) {
   await exigirAdmin();
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const cliente_id = String(formData.get("cliente_id") ?? "");
   const referenciaRaw = String(formData.get("referencia") ?? "");
@@ -139,7 +139,7 @@ export async function gerarFatura(formData: FormData) {
 
 export async function atualizarStatusFatura(id: string, status: StatusFatura) {
   await exigirAdmin();
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("faturas").update({ status }).eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath("/admin/faturas");
@@ -148,7 +148,7 @@ export async function atualizarStatusFatura(id: string, status: StatusFatura) {
 
 export async function marcarWhatsappEnviado(id: string) {
   await exigirAdmin();
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("faturas")
     .update({ whatsapp_enviado_em: new Date().toISOString() })
@@ -160,7 +160,7 @@ export async function marcarWhatsappEnviado(id: string) {
 
 export async function excluirFatura(id: string) {
   await exigirAdmin();
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("faturas").delete().eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath("/admin/faturas");
@@ -196,7 +196,7 @@ export async function gerarFaturasLote(
   params: ParametrosLote
 ): Promise<{ ok: boolean; geradas: number; mensagem: string }> {
   await exigirAdmin();
-  const supabase = createClient();
+  const supabase = await createClient();
 
   if (!params.referencia) return { ok: false, geradas: 0, mensagem: "Informe o mês de referência." };
 

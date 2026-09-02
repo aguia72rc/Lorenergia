@@ -14,7 +14,7 @@ interface Row {
 }
 
 export default async function ParametrosPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data } = await supabase
     .from("parametros_energia")
     .select("tusd, te, tarifa_tusd_te, icms, pis_cofins, cip")

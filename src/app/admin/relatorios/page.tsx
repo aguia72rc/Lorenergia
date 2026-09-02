@@ -21,12 +21,13 @@ export const dynamic = "force-dynamic";
 export default async function RelatoriosPage({
   searchParams,
 }: {
-  searchParams: { mes?: string };
+  searchParams: Promise<{ mes?: string }>;
 }) {
-  const supabase = createClient();
+  const supabase = await createClient();
 
+  const sp = await searchParams;
   const mesPadrao = primeiroDiaMesAtual().slice(0, 7);
-  const mesParam = searchParams.mes ?? mesPadrao;
+  const mesParam = sp.mes ?? mesPadrao;
   const [ano, m] = mesParam.split("-");
   const referencia = `${ano}-${(m ?? "01").padStart(2, "0")}-01`;
 
