@@ -51,11 +51,13 @@ export default function PropostaInterna({
 
   const setC = (campo: keyof ParamsIniciais, v: number) => setComp((s) => ({ ...s, [campo]: v }));
 
-  // Monta os parâmetros do cálculo a partir dos campos editáveis.
+  // A tarifa digitada JÁ VEM COM OS IMPOSTOS (retirada da fatura), então a
+  // usamos como valor final por kWh — sem reaplicar tributos (sem gross-up).
+  // Os campos de PIS/COFINS/ICMS ficam apenas como informação da composição.
   const parametros: ParametrosEnergia = useMemo(() => ({
     tarifa_tusd_te: comp.tusd + comp.te + comp.bandeira,
-    icms: comp.icmsPct / 100,
-    pis_cofins: (comp.pisPct + comp.cofinsPct) / 100,
+    icms: 0,
+    pis_cofins: 0,
     cip: comp.iluminacao,
   }), [comp]);
 
@@ -117,12 +119,12 @@ export default function PropostaInterna({
           <CampoNum label="Consumo TE (R$/kWh)" step={0.00001} value={comp.te} onChange={(v) => setC("te", v)} />
           <CampoNum label="Acréscimo de bandeira (R$/kWh)" step={0.00001} value={comp.bandeira} onChange={(v) => setC("bandeira", v)} />
           <CampoNum label="Iluminação pública (R$/mês)" step={0.01} value={comp.iluminacao} onChange={(v) => setC("iluminacao", v)} />
-          <CampoNum label="PIS (%)" step={0.01} value={comp.pisPct} onChange={(v) => setC("pisPct", v)} />
-          <CampoNum label="COFINS (%)" step={0.01} value={comp.cofinsPct} onChange={(v) => setC("cofinsPct", v)} />
-          <CampoNum label="ICMS (%)" step={0.01} value={comp.icmsPct} onChange={(v) => setC("icmsPct", v)} />
+          <CampoNum label="PIS (%) — informativo" step={0.01} value={comp.pisPct} onChange={(v) => setC("pisPct", v)} />
+          <CampoNum label="COFINS (%) — informativo" step={0.01} value={comp.cofinsPct} onChange={(v) => setC("cofinsPct", v)} />
+          <CampoNum label="ICMS (%) — informativo" step={0.01} value={comp.icmsPct} onChange={(v) => setC("icmsPct", v)} />
         </div>
         <p className="mt-2 text-xs text-slate-500">
-          Vem dos parâmetros do banco, mas você pode ajustar para esta proposta. Tarifa da energia = TUSD + TE + bandeira; o desconto incide sobre a energia; iluminação pública fica fora.
+          A <strong>TUSD e a TE já vêm com os impostos</strong> da fatura, então a tarifa da energia = TUSD + TE + bandeira (valor final por kWh). O desconto incide sobre a energia; iluminação pública fica fora. PIS/COFINS/ICMS são só <strong>informativos</strong> (já embutidos na tarifa — não somam de novo).
         </p>
       </div>
 
