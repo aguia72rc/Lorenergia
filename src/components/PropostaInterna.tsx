@@ -20,22 +20,44 @@ export interface LeadResumido {
   consumo: number;
 }
 
+export interface ParamsIniciais {
+  tusd: number; // R$/kWh (sem tributos)
+  te: number; // R$/kWh (sem tributos)
+  bandeira: number; // R$/kWh acréscimo de bandeira
+  iluminacao: number; // R$/mês (CIP)
+  icmsPct: number; // %
+  pisPct: number; // %
+  cofinsPct: number; // %
+}
+
 const pct1 = (v: number) => (v * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 });
 const kwh0 = (v: number) => `${Math.round(v).toLocaleString("pt-BR")} kWh`;
 
 export default function PropostaInterna({
-  lead, parametros, planos, nomeUsina,
+  lead, paramsIniciais, planos, nomeUsina,
 }: {
   lead: LeadResumido;
-  parametros: ParametrosEnergia;
+  paramsIniciais: ParamsIniciais;
   planos: PlanoDesconto[];
   nomeUsina: string;
 }) {
   const [modo, setModo] = useState<"kwh" | "reais">("kwh");
   const [entrada, setEntrada] = useState(Math.max(0, Math.round(lead.consumo)) || 300);
   const [planoCodigo, setPlanoCodigo] = useState("auto");
+  // Composição da conta — editável por proposta.
+  const [comp, setComp] = useState<ParamsIniciais>(paramsIniciais);
   const [salvando, startSalvar] = useTransition();
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
+
+  const setC = (campo: keyof ParamsIniciais, v: number) => setComp((s) => ({ ...s, [campo]: v }));
+
+  // Monta os parâmetros do cálculo a partir dos campos editáveis.
+  const parametros: ParametrosEnergia = useMemo(() => ({
+    tarifa_tusd_te: comp.tusd + comp.te + comp.bandeira,
+    icms: comp.icmsPct / 100,
+    pis_cofins: (comp.pisPct + comp.cofinsPct) / 100,
+    cip: comp.iluminacao,
+  }), [comp]);
 
   const r = useMemo(
     () => calcularEconomia({ modo, entrada, planoCodigo }, parametros, planos),
@@ -48,7 +70,7 @@ export default function PropostaInterna({
   function salvar() {
     setMsg(null);
     startSalvar(async () => {
-      const res = await salvarSimulacaoCrm({ leadId: lead.id, nomeCliente: lead.nome, modo, entrada, planoCodigo });
+      const res = await salvarSimulacaoCrm({ leadId: lead.id, nomeCliente: lead.nome, modo, entrada, planoCodigo, parametros });
       setMsg({ ok: res.ok, texto: res.mensagem });
     });
   }
@@ -85,6 +107,23 @@ export default function PropostaInterna({
           </div>
         </div>
         {msg && <p className={`mt-3 text-sm ${msg.ok ? "text-eco-300" : "text-red-400"}`}>{msg.texto}</p>}
+      </div>
+
+      {/* ---- Composição da conta (editável, não imprime) ---- */}
+      <div className="card no-print">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Composição da conta (editável)</p>
+        <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          <CampoNum label="Consumo TUSD (R$/kWh)" step={0.00001} value={comp.tusd} onChange={(v) => setC("tusd", v)} />
+          <CampoNum label="Consumo TE (R$/kWh)" step={0.00001} value={comp.te} onChange={(v) => setC("te", v)} />
+          <CampoNum label="Acréscimo de bandeira (R$/kWh)" step={0.00001} value={comp.bandeira} onChange={(v) => setC("bandeira", v)} />
+          <CampoNum label="Iluminação pública (R$/mês)" step={0.01} value={comp.iluminacao} onChange={(v) => setC("iluminacao", v)} />
+          <CampoNum label="PIS (%)" step={0.01} value={comp.pisPct} onChange={(v) => setC("pisPct", v)} />
+          <CampoNum label="COFINS (%)" step={0.01} value={comp.cofinsPct} onChange={(v) => setC("cofinsPct", v)} />
+          <CampoNum label="ICMS (%)" step={0.01} value={comp.icmsPct} onChange={(v) => setC("icmsPct", v)} />
+        </div>
+        <p className="mt-2 text-xs text-slate-500">
+          Vem dos parâmetros do banco, mas você pode ajustar para esta proposta. Tarifa da energia = TUSD + TE + bandeira; o desconto incide sobre a energia; iluminação pública fica fora.
+        </p>
       </div>
 
       {!r.ok ? (
@@ -155,6 +194,15 @@ export default function PropostaInterna({
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+function CampoNum({ label, value, onChange, step }: { label: string; value: number; onChange: (n: number) => void; step: number }) {
+  return (
+    <div>
+      <label className="label text-[11px]">{label}</label>
+      <input className="input tabular-nums" type="number" min={0} step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} />
     </div>
   );
 }

@@ -4,11 +4,24 @@ import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getSessao } from "@/lib/auth";
 import { consumoLead } from "@/lib/leads";
-import PropostaInterna, { type LeadResumido } from "@/components/PropostaInterna";
+import PropostaInterna, { type LeadResumido, type ParamsIniciais } from "@/components/PropostaInterna";
 import type { Lead, Configuracoes } from "@/lib/types";
-import type { ParametrosEnergia, PlanoDesconto } from "@/lib/simulador";
+import type { PlanoDesconto } from "@/lib/simulador";
 
 export const dynamic = "force-dynamic";
+
+/** Mapeia a linha do banco para os campos editáveis da proposta. */
+function paramsIniciais(p: Record<string, number | null>): ParamsIniciais {
+  return {
+    tusd: Number(p.tusd ?? p.tarifa_tusd_te ?? 0),
+    te: Number(p.te ?? 0),
+    bandeira: 0,
+    iluminacao: Number(p.cip ?? 0),
+    icmsPct: Number(p.icms ?? 0) * 100,
+    pisPct: 0,
+    cofinsPct: Number(p.pis_cofins ?? 0) * 100,
+  };
+}
 
 export default async function PropostaPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -52,7 +65,7 @@ export default async function PropostaPage({ params }: { params: Promise<{ id: s
       ) : (
         <PropostaInterna
           lead={leadResumido}
-          parametros={parametros as ParametrosEnergia}
+          paramsIniciais={paramsIniciais(parametros as Record<string, number | null>)}
           planos={(planos ?? []) as PlanoDesconto[]}
           nomeUsina={(cfg as Configuracoes | null)?.nome_usina ?? "Lorenergia"}
         />
