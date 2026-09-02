@@ -14,6 +14,8 @@ export interface EntradaProposta {
   modo: "kwh" | "reais";
   entrada: number;
   planoCodigo?: string;
+  /** Composição da conta editada na proposta (sobrepõe os parâmetros do banco). */
+  parametros: ParametrosEnergia;
 }
 
 /**
@@ -25,15 +27,13 @@ export async function salvarSimulacaoCrm(input: EntradaProposta): Promise<{ ok: 
   if (sessao?.profile?.role !== "admin") return { ok: false, mensagem: "Acesso negado." };
 
   const db = await createClient();
-  const [{ data: parametros }, { data: planos }] = await Promise.all([
-    db.from("parametros_energia").select("*").order("vigente_desde", { ascending: false }).limit(1).maybeSingle(),
-    db.from("planos_cota").select("*").eq("ativo", true).order("desconto_percentual", { ascending: false }),
-  ]);
-  if (!parametros) return { ok: false, mensagem: "Parâmetros de energia não configurados." };
+  const { data: planos } = await db.from("planos_cota").select("*").eq("ativo", true).order("desconto_percentual", { ascending: false });
 
+  // Usa os parâmetros editados na proposta (não os do banco) — é uma simulação
+  // pontual para aquele lead.
   const r = calcularEconomia(
     { modo: input.modo, entrada: input.entrada, planoCodigo: input.planoCodigo },
-    parametros as ParametrosEnergia,
+    input.parametros,
     (planos ?? []) as PlanoDesconto[]
   );
   if (!r.ok) return { ok: false, mensagem: r.mensagem || "Não foi possível simular com esses dados." };
