@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { calcularFaturaDetalhada, consumoDeLeituras } from "./calc";
 
-test("bate no centavo com o PDF de referência (R$ 146,29)", () => {
+test("TUSD GD II fica FORA do desconto; o cliente a paga cheia", () => {
   const r = calcularFaturaDetalhada({
     consumoKwh: 167.8,
     tarifaTusd: 0.75,
@@ -13,14 +13,19 @@ test("bate no centavo com o PDF de referência (R$ 146,29)", () => {
     multaJuros: 0,
     descontoPercentual: 20,
   });
+  // energia = 177,868; base do desconto = 177,868 (sem a TUSD GD II de 5)
+  // desconto = 177,868 × 20% = 35,5736 → 35,57
+  // bruto = 177,868 + 5 = 182,87; líquido = 182,868 − 35,5736 = 147,29
   assert.equal(r.energiaTusd, 125.85);
   assert.equal(r.energiaTe, 52.02);
-  assert.equal(r.valorDesconto, 36.57);
-  assert.equal(r.valorLiquido, 146.29);
-  assert.equal(r.economia, 36.57);
+  assert.equal(r.baseDesconto, 177.87);
+  assert.equal(r.valorDesconto, 35.57);
+  assert.equal(r.valorBruto, 182.87);
+  assert.equal(r.valorLiquido, 147.29);
+  assert.equal(r.economia, 35.57);
 });
 
-test("desconto incide sobre o valor bruto total (conta cheia), incluindo iluminação e multa/juros", () => {
+test("desconto incide sobre energia + bandeira + iluminação + multa/juros (sem TUSD GD II)", () => {
   const r = calcularFaturaDetalhada({
     consumoKwh: 100,
     tarifaTusd: 1,
@@ -31,12 +36,13 @@ test("desconto incide sobre o valor bruto total (conta cheia), incluindo ilumina
     multaJuros: 5,
     descontoPercentual: 10,
   });
-  // energia = 100; bruto = 100 + 10 + 20 + 30 + 5 = 165
-  // desconto = 165 × 10% = 16,5; líquido = 165 - 16,5 = 148,5
-  assert.equal(r.baseDesconto, 165);
-  assert.equal(r.valorDesconto, 16.5);
+  // energia = 100; base = 100 + 10 + 30 + 5 = 145 (TUSD GD II de 20 fora)
+  // desconto = 145 × 10% = 14,5; bruto = 145 + 20 = 165
+  // líquido = 165 − 14,5 = 150,5
+  assert.equal(r.baseDesconto, 145);
+  assert.equal(r.valorDesconto, 14.5);
   assert.equal(r.valorBruto, 165);
-  assert.equal(r.valorLiquido, 148.5);
+  assert.equal(r.valorLiquido, 150.5);
 });
 
 test("consumoDeLeituras aplica o fator e nunca fica negativo", () => {

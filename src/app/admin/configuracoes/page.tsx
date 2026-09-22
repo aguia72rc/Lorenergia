@@ -52,7 +52,7 @@ export default async function ConfiguracoesPage() {
               <input id="taxa_iluminacao_publica" name="taxa_iluminacao_publica" type="number" min={0} step={0.01} className="input" defaultValue={cfg?.taxa_iluminacao_publica ?? 0} />
             </div>
           </div>
-          <p className="mt-1 text-xs text-slate-400">O desconto incide sobre o valor bruto total (conta cheia): TUSD + TE + bandeira + TUSD GD II + iluminação + multa/juros.</p>
+          <p className="mt-1 text-xs text-slate-400">O desconto incide sobre TUSD + TE + bandeira + iluminação + multa/juros. A TUSD GD II (Fio B) fica FORA do desconto — o cliente a paga cheia.</p>
         </div>
 
         <div>
