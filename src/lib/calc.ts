@@ -65,14 +65,13 @@ export function calcularFatura(entrada: EntradaCalculo): ResultadoCalculo {
 /* =====================================================================
  * Cálculo detalhado (padrão conta de luz).
  *
- *   energia    = consumo × (TUSD + TE)
- *   bandeira   = consumo × adicional_bandeira (R$/kWh)
- *   base       = energia + bandeira + iluminação + multa/juros
- *   desconto   = base × desconto%                     → economia
- *                (a TUSD GD II / Fio B NÃO entra no desconto)
+ *   energia   = consumo × (TUSD + TE)
+ *   bandeira  = consumo × adicional_bandeira (R$/kWh)
+ *   bruto     = energia + bandeira + taxa solar + iluminação + multa/juros
+ *   desconto  = bruto × desconto%                     → economia
+ *               (incide sobre o valor bruto TOTAL — conta cheia)
  *
- *   bruto = base + taxa solar (TUSD GD II)   ← tudo, antes do desconto
- *   total = bruto − desconto                 ← a TUSD GD II é paga cheia
+ *   total = bruto − desconto
  * ================================================================= */
 
 export interface EntradaCalculoDetalhada {
@@ -80,7 +79,7 @@ export interface EntradaCalculoDetalhada {
   tarifaTusd: number; // R$/kWh
   tarifaTe: number; // R$/kWh
   adicionalBandeira: number; // R$ fixo
-  taxaEnergiaSolar: number; // R$ fixo — TUSD GD II (FORA do desconto)
+  taxaEnergiaSolar: number; // R$ fixo (entra no desconto)
   taxaIluminacao: number; // R$ fixo (sem desconto)
   multaJuros: number; // R$ fixo (sem desconto)
   descontoPercentual: number;
@@ -94,7 +93,7 @@ export interface ResultadoCalculoDetalhado {
   taxaSolar: number;
   iluminacao: number;
   multaJuros: number;
-  baseDesconto: number; // base do desconto (SEM a TUSD GD II)
+  baseDesconto: number; // valor bruto total (conta cheia) — base do desconto
   valorDesconto: number;
   valorBruto: number; // tudo, antes do desconto
   valorLiquido: number; // total a pagar
@@ -117,12 +116,10 @@ export function calcularFaturaDetalhada(e: EntradaCalculoDetalhada): ResultadoCa
   const energiaTeRaw = consumo * te;
   const energiaRaw = energiaTusdRaw + energiaTeRaw;
 
-  // O desconto incide sobre energia + bandeira + iluminação + multa/juros.
-  // A TUSD GD II (Fio B / taxa solar) fica FORA do desconto: o cliente a paga
-  // cheia. Ela entra só no valor bruto e no total a pagar.
-  const baseRaw = energiaRaw + bandeira + iluminacao + multaJuros;
-  const descontoRaw = baseRaw * (desconto / 100);
-  const brutoRaw = baseRaw + taxaSolar;
+  // Desconto incide sobre o VALOR BRUTO TOTAL (conta cheia): energia +
+  // bandeira + taxa solar + iluminação + multa/juros.
+  const brutoRaw = energiaRaw + bandeira + taxaSolar + iluminacao + multaJuros;
+  const descontoRaw = brutoRaw * (desconto / 100);
   const liquidoRaw = brutoRaw - descontoRaw;
 
   return {
@@ -133,7 +130,7 @@ export function calcularFaturaDetalhada(e: EntradaCalculoDetalhada): ResultadoCa
     taxaSolar,
     iluminacao,
     multaJuros,
-    baseDesconto: arredondar(baseRaw),
+    baseDesconto: arredondar(brutoRaw),
     valorDesconto: arredondar(descontoRaw),
     valorBruto: arredondar(brutoRaw),
     valorLiquido: arredondar(liquidoRaw),
