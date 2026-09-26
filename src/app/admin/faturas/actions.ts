@@ -5,7 +5,46 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getSessao } from "@/lib/auth";
 import { calcularFaturaDetalhada, consumoDeLeituras } from "@/lib/calc";
-import type { StatusFatura } from "@/lib/types";
+import type { ResultadoCalculoDetalhado } from "@/lib/calc";
+import type { StatusFatura, ModalidadeBeneficio } from "@/lib/types";
+
+/**
+ * Ajusta os valores monetários conforme a modalidade do morador.
+ *   - desconto: o benefício é abatido na fatura (comportamento padrão).
+ *   - cashback: a fatura sai cheia e o mesmo valor vira saldo de cashback.
+ */
+interface ValoresModalidade {
+  valor_bruto: number;
+  valor_desconto: number;
+  valor_liquido: number;
+  economia: number;
+  modalidade_beneficio: ModalidadeBeneficio;
+  cashback_valor: number;
+  cashback_pago: boolean;
+}
+
+function aplicarModalidade(r: ResultadoCalculoDetalhado, modalidade: ModalidadeBeneficio): ValoresModalidade {
+  if (modalidade === "cashback") {
+    return {
+      valor_bruto: r.valorBruto,
+      valor_desconto: 0,
+      valor_liquido: r.valorBruto, // paga cheia
+      economia: 0, // não há economia imediata na fatura
+      modalidade_beneficio: "cashback",
+      cashback_valor: r.valorDesconto, // o que seria o desconto vira cashback
+      cashback_pago: false,
+    };
+  }
+  return {
+    valor_bruto: r.valorBruto,
+    valor_desconto: r.valorDesconto,
+    valor_liquido: r.valorLiquido,
+    economia: r.economia,
+    modalidade_beneficio: "desconto",
+    cashback_valor: 0,
+    cashback_pago: false,
+  };
+}
 
 async function exigirAdmin() {
   const sessao = await getSessao();
@@ -37,6 +76,30 @@ function semDataEmissao<T extends { data_emissao?: unknown }>(registro: T): Omit
   const { data_emissao: _omitido, ...resto } = registro;
   void _omitido;
   return resto;
+}
+
+/** Detecta erro de coluna de cashback ausente (migração 0018 não aplicada). */
+function erroCashbackAusente(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  return /modalidade_beneficio|cashback_valor|cashback_pago/.test(error.message ?? "");
+}
+
+/** Remove os campos de cashback (para gravar antes da migração 0018). */
+function semCashback<T extends Record<string, unknown>>(registro: T) {
+  const { modalidade_beneficio: _m, cashback_valor: _v, cashback_pago: _p, ...resto } = registro;
+  void _m;
+  void _v;
+  void _p;
+  return resto;
+}
+
+/** Lê a modalidade de benefício de um morador (default: desconto). */
+async function modalidadeDoCliente(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  clienteId: string
+): Promise<ModalidadeBeneficio> {
+  const { data } = await supabase.from("clientes").select("modalidade_beneficio").eq("id", clienteId).single();
+  return (data?.modalidade_beneficio as ModalidadeBeneficio) === "cashback" ? "cashback" : "desconto";
 }
 
 export async function gerarFatura(formData: FormData) {
@@ -86,6 +149,9 @@ export async function gerarFatura(formData: FormData) {
     descontoPercentual: desconto_percentual,
   });
 
+  const modalidade = await modalidadeDoCliente(supabase, cliente_id);
+  const valores = aplicarModalidade(r, modalidade);
+
   const registro = {
     cliente_id,
     referencia,
@@ -104,10 +170,7 @@ export async function gerarFatura(formData: FormData) {
     pis,
     cofins,
     desconto_percentual,
-    valor_bruto: r.valorBruto,
-    valor_desconto: r.valorDesconto,
-    valor_liquido: r.valorLiquido,
-    economia: r.economia,
+    ...valores,
     data_emissao,
     vencimento,
     status,
@@ -121,11 +184,20 @@ export async function gerarFatura(formData: FormData) {
     .select("id")
     .single();
 
+  // Migração 0018 ainda não aplicada: grava sem os campos de cashback.
+  if (erroCashbackAusente(error)) {
+    ({ data, error } = await supabase
+      .from("faturas")
+      .upsert(semCashback(registro), { onConflict: "cliente_id,referencia" })
+      .select("id")
+      .single());
+  }
+
   // Migração 0007 ainda não aplicada: grava sem a data de emissão.
   if (erroColunaEmissaoAusente(error)) {
     ({ data, error } = await supabase
       .from("faturas")
-      .upsert(semDataEmissao(registro), { onConflict: "cliente_id,referencia" })
+      .upsert(semDataEmissao(semCashback(registro)), { onConflict: "cliente_id,referencia" })
       .select("id")
       .single());
   }
@@ -203,44 +275,54 @@ export async function gerarFaturasLote(
   const referencia = normalizarReferencia(params.referencia);
   const data_emissao = params.data_emissao || new Date().toISOString().slice(0, 10);
 
-  const registros = params.itens
-    .filter((it) => it.cliente_id && it.leitura_atual !== null && !Number.isNaN(it.leitura_atual))
-    .map((it) => {
-      const consumo_kwh = consumoDeLeituras(it.leitura_anterior, it.leitura_atual, params.fator_multiplicador);
-      const r = calcularFaturaDetalhada({
-        consumoKwh: consumo_kwh,
-        tarifaTusd: params.tarifa_tusd,
-        tarifaTe: params.tarifa_te,
-        adicionalBandeira: params.adicional_bandeira,
-        taxaEnergiaSolar: params.taxa_energia_solar,
-        taxaIluminacao: params.taxa_iluminacao,
-        multaJuros: 0,
-        descontoPercentual: it.desconto_percentual,
-      });
-      return {
-        cliente_id: it.cliente_id,
-        referencia,
-        leitura_anterior: it.leitura_anterior,
-        leitura_atual: it.leitura_atual,
-        fator_multiplicador: params.fator_multiplicador,
-        consumo_kwh,
-        tarifa_kwh: params.tarifa_tusd + params.tarifa_te,
-        tarifa_tusd: params.tarifa_tusd,
-        tarifa_te: params.tarifa_te,
-        adicional_bandeira: params.adicional_bandeira,
-        taxa_energia_solar: params.taxa_energia_solar,
-        taxa_iluminacao: params.taxa_iluminacao,
-        multa_juros: 0,
-        desconto_percentual: it.desconto_percentual,
-        valor_bruto: r.valorBruto,
-        valor_desconto: r.valorDesconto,
-        valor_liquido: r.valorLiquido,
-        economia: r.economia,
-        data_emissao,
-        vencimento: params.vencimento,
-        status: params.status,
-      };
+  const itensValidos = params.itens.filter(
+    (it) => it.cliente_id && it.leitura_atual !== null && !Number.isNaN(it.leitura_atual)
+  );
+
+  // Modalidade (desconto/cashback) de cada morador envolvido no lote.
+  const { data: clientesMod } = await supabase
+    .from("clientes")
+    .select("id, modalidade_beneficio")
+    .in("id", itensValidos.map((it) => it.cliente_id));
+  const modalidadePorCliente = new Map<string, ModalidadeBeneficio>();
+  for (const c of (clientesMod ?? []) as { id: string; modalidade_beneficio: string }[]) {
+    modalidadePorCliente.set(c.id, c.modalidade_beneficio === "cashback" ? "cashback" : "desconto");
+  }
+
+  const registros = itensValidos.map((it) => {
+    const consumo_kwh = consumoDeLeituras(it.leitura_anterior, it.leitura_atual, params.fator_multiplicador);
+    const r = calcularFaturaDetalhada({
+      consumoKwh: consumo_kwh,
+      tarifaTusd: params.tarifa_tusd,
+      tarifaTe: params.tarifa_te,
+      adicionalBandeira: params.adicional_bandeira,
+      taxaEnergiaSolar: params.taxa_energia_solar,
+      taxaIluminacao: params.taxa_iluminacao,
+      multaJuros: 0,
+      descontoPercentual: it.desconto_percentual,
     });
+    const valores = aplicarModalidade(r, modalidadePorCliente.get(it.cliente_id) ?? "desconto");
+    return {
+      cliente_id: it.cliente_id,
+      referencia,
+      leitura_anterior: it.leitura_anterior,
+      leitura_atual: it.leitura_atual,
+      fator_multiplicador: params.fator_multiplicador,
+      consumo_kwh,
+      tarifa_kwh: params.tarifa_tusd + params.tarifa_te,
+      tarifa_tusd: params.tarifa_tusd,
+      tarifa_te: params.tarifa_te,
+      adicional_bandeira: params.adicional_bandeira,
+      taxa_energia_solar: params.taxa_energia_solar,
+      taxa_iluminacao: params.taxa_iluminacao,
+      multa_juros: 0,
+      desconto_percentual: it.desconto_percentual,
+      ...valores,
+      data_emissao,
+      vencimento: params.vencimento,
+      status: params.status,
+    };
+  });
 
   if (registros.length === 0) {
     return { ok: false, geradas: 0, mensagem: "Nenhuma leitura atual informada." };
@@ -250,11 +332,18 @@ export async function gerarFaturasLote(
     .from("faturas")
     .upsert(registros, { onConflict: "cliente_id,referencia" });
 
+  // Migração 0018 ainda não aplicada: grava sem os campos de cashback.
+  if (erroCashbackAusente(error)) {
+    ({ error } = await supabase
+      .from("faturas")
+      .upsert(registros.map(semCashback), { onConflict: "cliente_id,referencia" }));
+  }
+
   // Migração 0007 ainda não aplicada: grava sem a data de emissão.
   if (erroColunaEmissaoAusente(error)) {
     ({ error } = await supabase
       .from("faturas")
-      .upsert(registros.map(semDataEmissao), { onConflict: "cliente_id,referencia" }));
+      .upsert(registros.map((reg) => semDataEmissao(semCashback(reg))), { onConflict: "cliente_id,referencia" }));
   }
 
   if (error) return { ok: false, geradas: 0, mensagem: error.message };

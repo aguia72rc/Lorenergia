@@ -1,5 +1,7 @@
 export type Role = "admin" | "cliente";
 export type StatusFatura = "pendente" | "paga" | "cancelada";
+export type ModalidadeBeneficio = "desconto" | "cashback";
+export type CashbackPeriodicidade = "semestral" | "dezembro";
 
 export interface Cliente {
   id: string;
@@ -14,6 +16,8 @@ export interface Cliente {
   numero_medidor: string | null;
   tipo_ligacao: string | null;
   desconto_percentual: number;
+  modalidade_beneficio: ModalidadeBeneficio;
+  cashback_periodicidade: CashbackPeriodicidade | null;
   ativo: boolean;
   observacoes: string | null;
   created_at: string;
@@ -62,6 +66,10 @@ export interface Fatura {
   valor_desconto: number;
   valor_liquido: number;
   economia: number;
+  modalidade_beneficio: ModalidadeBeneficio;
+  cashback_valor: number;
+  cashback_pago: boolean;
+  cashback_pago_em: string | null;
   data_emissao: string | null;
   vencimento: string | null;
   status: StatusFatura;

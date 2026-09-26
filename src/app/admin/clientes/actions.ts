@@ -17,6 +17,8 @@ async function exigirAdmin() {
 
 function dadosDoForm(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const modalidade = String(formData.get("modalidade_beneficio") ?? "desconto");
+  const periodicidade = String(formData.get("cashback_periodicidade") ?? "semestral");
   return {
     nome: String(formData.get("nome") ?? "").trim(),
     unidade: String(formData.get("unidade") ?? "").trim() || null,
@@ -29,9 +31,27 @@ function dadosDoForm(formData: FormData) {
     numero_medidor: String(formData.get("numero_medidor") ?? "").trim() || null,
     tipo_ligacao: String(formData.get("tipo_ligacao") ?? "").trim() || null,
     desconto_percentual: Number(formData.get("desconto_percentual") ?? 20),
+    modalidade_beneficio: modalidade === "cashback" ? "cashback" : "desconto",
+    cashback_periodicidade: periodicidade === "dezembro" ? "dezembro" : "semestral",
     ativo: formData.get("ativo") === "on",
     observacoes: String(formData.get("observacoes") ?? "").trim() || null,
   };
+}
+
+/** Detecta erro de coluna ausente (migração 0018 ainda não aplicada). */
+function erroCashbackAusente(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  return /modalidade_beneficio|cashback_periodicidade/.test(error.message ?? "");
+}
+
+/** Remove os campos de cashback (para funcionar antes da migração 0018). */
+function semCashback<T extends { modalidade_beneficio?: unknown; cashback_periodicidade?: unknown }>(
+  dados: T
+): Omit<T, "modalidade_beneficio" | "cashback_periodicidade"> {
+  const { modalidade_beneficio: _m, cashback_periodicidade: _p, ...resto } = dados;
+  void _m;
+  void _p;
+  return resto;
 }
 
 export async function criarCliente(formData: FormData) {
@@ -41,7 +61,10 @@ export async function criarCliente(formData: FormData) {
 
   if (!dados.nome) throw new Error("O nome é obrigatório.");
 
-  const { error } = await supabase.from("clientes").insert(dados);
+  let { error } = await supabase.from("clientes").insert(dados);
+  if (erroCashbackAusente(error)) {
+    ({ error } = await supabase.from("clientes").insert(semCashback(dados)));
+  }
   if (error) throw new Error(error.message);
 
   revalidatePath("/admin/clientes");
@@ -55,7 +78,10 @@ export async function atualizarCliente(id: string, formData: FormData) {
 
   if (!dados.nome) throw new Error("O nome é obrigatório.");
 
-  const { error } = await supabase.from("clientes").update(dados).eq("id", id);
+  let { error } = await supabase.from("clientes").update(dados).eq("id", id);
+  if (erroCashbackAusente(error)) {
+    ({ error } = await supabase.from("clientes").update(semCashback(dados)).eq("id", id));
+  }
   if (error) throw new Error(error.message);
 
   revalidatePath("/admin/clientes");

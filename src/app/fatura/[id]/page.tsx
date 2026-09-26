@@ -26,7 +26,7 @@ export default async function FaturaPage({ params }: { params: Promise<{ id: str
 
   const { data: fatura } = await supabase
     .from("faturas")
-    .select("*, clientes(id, nome, unidade, telefone, email, cpf, endereco, cep, cidade_uf, numero_medidor, tipo_ligacao)")
+    .select("*, clientes(id, nome, unidade, telefone, email, cpf, endereco, cep, cidade_uf, numero_medidor, tipo_ligacao, cashback_periodicidade)")
     .eq("id", id)
     .single();
 
@@ -39,15 +39,34 @@ export default async function FaturaPage({ params }: { params: Promise<{ id: str
 
   const { data: historico } = await supabase
     .from("faturas")
-    .select("consumo_kwh, economia, referencia, status")
+    .select("consumo_kwh, economia, cashback_valor, modalidade_beneficio, referencia, status")
     .eq("cliente_id", f.cliente_id)
     .neq("status", "cancelada")
     .order("referencia", { ascending: true });
 
-  const hist = (historico ?? []) as Pick<Fatura, "consumo_kwh" | "economia" | "referencia">[];
+  type HistItem = Pick<Fatura, "consumo_kwh" | "economia" | "referencia"> &
+    Partial<Pick<Fatura, "cashback_valor" | "modalidade_beneficio">>;
+  const hist = (historico ?? []) as HistItem[];
+
+  // O benefício do morador pode ser desconto (economia na fatura) ou cashback.
+  const beneficioDe = (h: { economia: number; cashback_valor?: number; modalidade_beneficio?: string }) =>
+    h.modalidade_beneficio === "cashback" ? Number(h.cashback_valor ?? 0) : Number(h.economia);
+
+  const isCashback = f.modalidade_beneficio === "cashback";
+  const beneficioFatura = isCashback ? Number(f.cashback_valor ?? 0) : Number(f.economia);
+
   const pontosConsumo = hist.slice(-6).map((h) => ({ label: formatReferenciaCurta(h.referencia), valor: Number(h.consumo_kwh), referencia: h.referencia }));
-  const pontosEconomia = hist.slice(-6).map((h) => ({ label: formatReferenciaCurta(h.referencia), valor: Number(h.economia), referencia: h.referencia }));
-  const economiaAcumulada = hist.reduce((s, h) => s + Number(h.economia), 0);
+  const pontosEconomia = hist.slice(-6).map((h) => ({ label: formatReferenciaCurta(h.referencia), valor: beneficioDe(h), referencia: h.referencia }));
+  const economiaAcumulada = hist.reduce((s, h) => s + beneficioDe(h), 0);
+
+  // Cashback ainda não pago (acumulado) deste morador.
+  const cashbackPendente = hist.reduce(
+    (s, h) => s + (h.modalidade_beneficio === "cashback" ? Number(h.cashback_valor ?? 0) : 0),
+    0
+  );
+  const periodicidadeTexto = c && "cashback_periodicidade" in c && (c as { cashback_periodicidade?: string }).cashback_periodicidade === "dezembro"
+    ? "sempre em dezembro"
+    : "a cada 6 meses";
 
   // PIX / QR Code
   let qrSvg: string | null = null;
@@ -155,16 +174,23 @@ export default async function FaturaPage({ params }: { params: Promise<{ id: str
                   <LinhaComp desc="TUSD GD II" valor={f.taxa_energia_solar} />
                   <LinhaComp desc="Adicional bandeira" valor={f.adicional_bandeira} />
                   <LinhaComp desc="Multa / juros" valor={f.multa_juros} destaque={Number(f.multa_juros) > 0} />
-                  <tr className="border-b border-slate-100">
-                    <td className="py-2.5 pr-3 text-eco-700" colSpan={3}>Desconto aplicado ({numero(f.desconto_percentual, 0)}%)</td>
-                    <td className="whitespace-nowrap py-2.5 pl-3 text-right font-medium tabular-nums text-eco-700">- {formatBRL(f.valor_desconto)}</td>
-                  </tr>
+                  {isCashback ? (
+                    <tr className="border-b border-slate-100">
+                      <td className="py-2.5 pr-3 text-brand-700" colSpan={3}>Cashback a receber ({numero(f.desconto_percentual, 0)}%) — não abatido nesta fatura</td>
+                      <td className="whitespace-nowrap py-2.5 pl-3 text-right font-medium tabular-nums text-brand-700">+ {formatBRL(beneficioFatura)}</td>
+                    </tr>
+                  ) : (
+                    <tr className="border-b border-slate-100">
+                      <td className="py-2.5 pr-3 text-eco-700" colSpan={3}>Desconto aplicado ({numero(f.desconto_percentual, 0)}%)</td>
+                      <td className="whitespace-nowrap py-2.5 pl-3 text-right font-medium tabular-nums text-eco-700">- {formatBRL(f.valor_desconto)}</td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
 
             <div className="mt-4 rounded-xl bg-brand-50 px-5 py-4">
-              {Number(f.valor_desconto) > 0 && (
+              {!isCashback && Number(f.valor_desconto) > 0 && (
                 <div className="mb-3 flex items-center justify-between border-b border-brand-200 pb-3">
                   <span className="text-sm text-slate-500">Sem o desconto solar seria</span>
                   <span className="text-2xl font-bold text-red-600">{formatBRL(f.valor_bruto)}</span>
@@ -174,13 +200,25 @@ export default async function FaturaPage({ params }: { params: Promise<{ id: str
                 <span className="font-semibold text-slate-700">Total a pagar</span>
                 <span className="text-3xl font-extrabold text-slate-900">{formatBRL(f.valor_liquido)}</span>
               </div>
-              <div className="mt-3 flex items-center justify-between rounded-lg bg-red-50 px-3 py-2 text-sm font-bold uppercase text-red-600">
-                <span>🌱 Você economizou com energia solar</span>
-                <span>
-                  {formatBRL(f.economia)}
-                  {Number(f.desconto_percentual) > 0 ? ` (${numero(f.desconto_percentual, 0)}%)` : ""}
-                </span>
-              </div>
+              {isCashback ? (
+                <div className="mt-3 rounded-lg bg-brand-100 px-3 py-2 text-sm text-brand-800">
+                  <div className="flex items-center justify-between font-bold uppercase">
+                    <span>💰 Cashback gerado neste mês</span>
+                    <span>{formatBRL(beneficioFatura)}</span>
+                  </div>
+                  <p className="mt-1 text-xs text-brand-700">
+                    Você acumula <strong>{formatBRL(cashbackPendente)}</strong> de cashback, pago {periodicidadeTexto}.
+                  </p>
+                </div>
+              ) : (
+                <div className="mt-3 flex items-center justify-between rounded-lg bg-red-50 px-3 py-2 text-sm font-bold uppercase text-red-600">
+                  <span>🌱 Você economizou com energia solar</span>
+                  <span>
+                    {formatBRL(f.economia)}
+                    {Number(f.desconto_percentual) > 0 ? ` (${numero(f.desconto_percentual, 0)}%)` : ""}
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Medição + tributos */}
@@ -216,14 +254,20 @@ export default async function FaturaPage({ params }: { params: Promise<{ id: str
 
             <div className="mt-4 rounded-xl border border-slate-200 p-4">
               <div className="flex items-center justify-between">
-                <p className="text-xs uppercase tracking-wide text-slate-400">Economia — últimos 6 meses</p>
-                <p className="text-xs text-slate-400">Acumulada: <strong className="text-eco-700">{formatBRL(economiaAcumulada)}</strong></p>
+                <p className="text-xs uppercase tracking-wide text-slate-400">
+                  {isCashback ? "Cashback" : "Economia"} — últimos 6 meses
+                </p>
+                <p className="text-xs text-slate-400">
+                  Acumulado{isCashback ? " (a receber)" : "a"}: <strong className={isCashback ? "text-brand-700" : "text-eco-700"}>{formatBRL(economiaAcumulada)}</strong>
+                </p>
               </div>
               {pontosEconomia.length >= 2 ? (
-                <div className="mt-2"><EconomiaChart dados={pontosEconomia} destaqueRef={f.referencia} altura={170} variante="claro" /></div>
+                <div className="mt-2"><EconomiaChart dados={pontosEconomia} destaqueRef={f.referencia} altura={170} variante="claro" cor={isCashback ? "#d97706" : undefined} /></div>
               ) : (
-                <div className="mt-2 flex items-center gap-2 rounded-lg bg-eco-50 px-4 py-3 text-sm text-eco-700">
-                  🌱 Você economizou <strong>{formatBRL(f.economia)}</strong> usando energia solar este mês.
+                <div className={`mt-2 flex items-center gap-2 rounded-lg px-4 py-3 text-sm ${isCashback ? "bg-brand-50 text-brand-800" : "bg-eco-50 text-eco-700"}`}>
+                  {isCashback
+                    ? <>💰 Você acumulou <strong>{formatBRL(beneficioFatura)}</strong> de cashback este mês.</>
+                    : <>🌱 Você economizou <strong>{formatBRL(f.economia)}</strong> usando energia solar este mês.</>}
                 </div>
               )}
             </div>
