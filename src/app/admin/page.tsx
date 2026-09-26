@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { Users, FileText, Wallet, Leaf, Plus, AlertTriangle, Send } from "lucide-react";
+import { Users, FileText, Wallet, Leaf, Plus, AlertTriangle, Send, TrendingUp, CheckCircle2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { formatBRL, formatReferencia, primeiroDiaMesAtual, hojeISO } from "@/lib/format";
+import { formatBRL, formatReferencia, formatReferenciaCurta, primeiroDiaMesAtual, hojeISO } from "@/lib/format";
 import StatusBadge from "@/components/StatusBadge";
+import FaturamentoChart from "@/components/FaturamentoChart";
 import { AnimatedNumber } from "@/components/motion";
-import type { FaturaComCliente } from "@/lib/types";
+import type { FaturaComCliente, Fatura } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +13,7 @@ export default async function AdminDashboard() {
   const supabase = await createClient();
   const refMes = primeiroDiaMesAtual();
 
-  const [{ count: totalMoradores }, { data: faturasMes }, { data: pendentes }, { data: vencidas }, { data: ultimas }] =
+  const [{ count: totalMoradores }, { data: faturasMes }, { data: pendentes }, { data: vencidas }, { data: ultimas }, { data: todasFaturas }] =
     await Promise.all([
       supabase.from("clientes").select("*", { count: "exact", head: true }).eq("ativo", true),
       supabase.from("faturas").select("valor_liquido, economia").eq("referencia", refMes),
@@ -23,6 +24,7 @@ export default async function AdminDashboard() {
         .select("*, clientes(id, nome, unidade, telefone, email)")
         .order("created_at", { ascending: false })
         .limit(5),
+      supabase.from("faturas").select("referencia, valor_liquido, status"),
     ]);
 
   const receitaMes = (faturasMes ?? []).reduce((s, f) => s + Number(f.valor_liquido), 0);
@@ -30,6 +32,30 @@ export default async function AdminDashboard() {
   const totalPendente = (pendentes ?? []).reduce((s, f) => s + Number(f.valor_liquido), 0);
   const totalVencido = (vencidas ?? []).reduce((s, f) => s + Number(f.valor_liquido), 0);
   const qtdVencidas = (vencidas ?? []).length;
+
+  // ---- Faturamento da Lorenergia, mês a mês (acumulado) ----
+  // Faturado = todas as faturas emitidas (exceto canceladas).
+  // Recebido = faturas efetivamente pagas.
+  type FaturaFat = Pick<Fatura, "referencia" | "valor_liquido" | "status">;
+  const faturadoPorMes = new Map<string, number>();
+  const recebidoPorMes = new Map<string, number>();
+  for (const f of (todasFaturas ?? []) as FaturaFat[]) {
+    if (f.status === "cancelada") continue;
+    faturadoPorMes.set(f.referencia, (faturadoPorMes.get(f.referencia) ?? 0) + Number(f.valor_liquido));
+    if (f.status === "paga") {
+      recebidoPorMes.set(f.referencia, (recebidoPorMes.get(f.referencia) ?? 0) + Number(f.valor_liquido));
+    }
+  }
+  const faturamentoAcumulado = Array.from(faturadoPorMes.values()).reduce((s, v) => s + v, 0);
+  const recebidoAcumulado = Array.from(recebidoPorMes.values()).reduce((s, v) => s + v, 0);
+  const pontosFaturamento = Array.from(faturadoPorMes.keys())
+    .sort((a, b) => a.localeCompare(b))
+    .slice(-12)
+    .map((ref) => ({
+      label: formatReferenciaCurta(ref),
+      faturado: faturadoPorMes.get(ref) ?? 0,
+      recebido: recebidoPorMes.get(ref) ?? 0,
+    }));
 
   return (
     <div className="space-y-6">
@@ -48,6 +74,20 @@ export default async function AdminDashboard() {
         <Kpi icon={<Wallet />} titulo="A receber (pendente)" valor={totalPendente} fmt="brl" cor="bg-amber-500/15 text-amber-300" />
         <Kpi icon={<FileText />} titulo="Faturado no mês" valor={receitaMes} fmt="brl" cor="bg-brand-500/15 text-brand-300" />
         <Kpi icon={<Leaf />} titulo="Economia gerada no mês" valor={economiaMes} fmt="brl" cor="bg-eco-500/15 text-eco-300" />
+      </div>
+
+      <div className="card">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 className="font-semibold text-white">Faturamento da Lorenergia</h2>
+            <p className="text-sm text-slate-400">Somado mês a mês (últimos 12 meses).</p>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <MiniKpi icon={<TrendingUp />} titulo="Faturado (acumulado)" valor={faturamentoAcumulado} cor="bg-brand-500/15 text-brand-300" />
+            <MiniKpi icon={<CheckCircle2 />} titulo="Recebido (acumulado)" valor={recebidoAcumulado} cor="bg-eco-500/15 text-eco-300" />
+          </div>
+        </div>
+        <FaturamentoChart dados={pontosFaturamento} />
       </div>
 
       {qtdVencidas > 0 && (
@@ -117,6 +157,18 @@ function Kpi({ icon, titulo, valor, fmt = "int", cor }: { icon: React.ReactNode;
       <p className="text-sm text-slate-400">{titulo}</p>
       <p className="mt-1 text-xl font-bold text-white">
         <AnimatedNumber value={valor} format={fmt} />
+      </p>
+    </div>
+  );
+}
+
+function MiniKpi({ icon, titulo, valor, cor }: { icon: React.ReactNode; titulo: string; valor: number; cor: string }) {
+  return (
+    <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+      <div className={`mb-2 inline-flex h-7 w-7 items-center justify-center rounded-lg ${cor}`}>{icon}</div>
+      <p className="text-xs text-slate-400">{titulo}</p>
+      <p className="mt-0.5 text-lg font-bold text-white">
+        <AnimatedNumber value={valor} format="brl" />
       </p>
     </div>
   );
