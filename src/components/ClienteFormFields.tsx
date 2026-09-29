@@ -93,6 +93,16 @@ export default function ClienteFormFields({ cliente }: { cliente?: Cliente }) {
         </div>
       </div>
 
+      <div>
+        <label className="label" htmlFor="predio_papel">Papel no rateio</label>
+        <select id="predio_papel" name="predio_papel" className="input" defaultValue={cliente?.predio_papel ?? ""}>
+          <option value="">Participa do rateio (normal)</option>
+          <option value="membro">Membro do Consumo do Prédio</option>
+          <option value="grupo">É a UC “Consumo do Prédio”</option>
+        </select>
+        <p className="mt-1 text-xs text-slate-400">Membros do prédio saem dos sliders individuais e entram na linha única “Consumo do Prédio”.</p>
+      </div>
+
       <div className="flex items-end">
         <label className="flex items-center gap-2 text-sm font-medium text-slate-200">
           <input type="checkbox" name="ativo" defaultChecked={cliente?.ativo ?? true} className="h-4 w-4 rounded border-slate-300" />

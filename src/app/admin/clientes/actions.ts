@@ -19,6 +19,8 @@ function dadosDoForm(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const modalidade = String(formData.get("modalidade_beneficio") ?? "desconto");
   const periodicidade = String(formData.get("cashback_periodicidade") ?? "semestral");
+  const papelRaw = String(formData.get("predio_papel") ?? "");
+  const predio_papel = papelRaw === "membro" || papelRaw === "grupo" ? papelRaw : null;
   return {
     nome: String(formData.get("nome") ?? "").trim(),
     unidade: String(formData.get("unidade") ?? "").trim() || null,
@@ -33,24 +35,26 @@ function dadosDoForm(formData: FormData) {
     desconto_percentual: Number(formData.get("desconto_percentual") ?? 20),
     modalidade_beneficio: modalidade === "cashback" ? "cashback" : "desconto",
     cashback_periodicidade: periodicidade === "dezembro" ? "dezembro" : "semestral",
+    predio_papel,
     ativo: formData.get("ativo") === "on",
     observacoes: String(formData.get("observacoes") ?? "").trim() || null,
   };
 }
 
-/** Detecta erro de coluna ausente (migração 0018 ainda não aplicada). */
+/** Detecta erro de coluna ausente (migração 0018/0020 ainda não aplicada). */
 function erroCashbackAusente(error: { code?: string; message?: string } | null): boolean {
   if (!error) return false;
-  return /modalidade_beneficio|cashback_periodicidade/.test(error.message ?? "");
+  return /modalidade_beneficio|cashback_periodicidade|predio_papel/.test(error.message ?? "");
 }
 
-/** Remove os campos de cashback (para funcionar antes da migração 0018). */
-function semCashback<T extends { modalidade_beneficio?: unknown; cashback_periodicidade?: unknown }>(
+/** Remove campos novos (para funcionar antes das migrações 0018/0020). */
+function semCashback<T extends { modalidade_beneficio?: unknown; cashback_periodicidade?: unknown; predio_papel?: unknown }>(
   dados: T
-): Omit<T, "modalidade_beneficio" | "cashback_periodicidade"> {
-  const { modalidade_beneficio: _m, cashback_periodicidade: _p, ...resto } = dados;
+): Omit<T, "modalidade_beneficio" | "cashback_periodicidade" | "predio_papel"> {
+  const { modalidade_beneficio: _m, cashback_periodicidade: _p, predio_papel: _pp, ...resto } = dados;
   void _m;
   void _p;
+  void _pp;
   return resto;
 }
 

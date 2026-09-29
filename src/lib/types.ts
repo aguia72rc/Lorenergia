@@ -18,6 +18,7 @@ export interface Cliente {
   desconto_percentual: number;
   modalidade_beneficio: ModalidadeBeneficio;
   cashback_periodicidade: CashbackPeriodicidade | null;
+  predio_papel: "grupo" | "membro" | null;
   ativo: boolean;
   observacoes: string | null;
   created_at: string;

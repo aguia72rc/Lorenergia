@@ -1,4 +1,4 @@
-import { Sun, Zap, BatteryCharging, Layers, AlertTriangle } from "lucide-react";
+import { Sun, Zap, BatteryCharging, Layers, AlertTriangle, Building2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { formatKwh, formatReferencia, formatReferenciaCurta, primeiroDiaMesAtual } from "@/lib/format";
 import MonthFilter from "@/components/MonthFilter";
@@ -7,7 +7,7 @@ import SaldoHistoricoCliente from "@/components/SaldoHistoricoCliente";
 
 export const dynamic = "force-dynamic";
 
-interface ClienteMin { id: string; nome: string; unidade: string | null }
+interface ClienteMin { id: string; nome: string; unidade: string | null; predio_papel?: "grupo" | "membro" | null }
 
 export default async function UsinaPage({
   searchParams,
@@ -22,16 +22,33 @@ export default async function UsinaPage({
   const [ano, m] = mesParam.split("-");
   const referencia = `${ano}-${(m ?? "01").padStart(2, "0")}-01`;
 
-  const [{ data: clientesData }, { data: geracoes }, { data: rateiosData, error: rateioErr }, { data: faturas }] =
-    await Promise.all([
-      supabase.from("clientes").select("id, nome, unidade").eq("ativo", true).order("nome"),
-      supabase.from("geracao_mensal").select("referencia, kwh_injetado"),
-      supabase.from("rateio_mensal").select("referencia, cliente_id, percentual"),
-      supabase.from("faturas").select("referencia, cliente_id, consumo_kwh, status"),
-    ]);
+  // Clientes (com fallback se a coluna predio_papel ainda não existir).
+  const clientesComPapel = await supabase
+    .from("clientes")
+    .select("id, nome, unidade, predio_papel")
+    .eq("ativo", true)
+    .order("nome");
+  let todosRaw = (clientesComPapel.data ?? []) as ClienteMin[];
+  if (clientesComPapel.error && /predio_papel/.test(clientesComPapel.error.message ?? "")) {
+    const fb = await supabase.from("clientes").select("id, nome, unidade").eq("ativo", true).order("nome");
+    todosRaw = (fb.data ?? []) as ClienteMin[];
+  }
+
+  const [{ data: geracoes }, { data: rateiosData, error: rateioErr }, { data: faturas }] = await Promise.all([
+    supabase.from("geracao_mensal").select("referencia, kwh_injetado"),
+    supabase.from("rateio_mensal").select("referencia, cliente_id, percentual"),
+    supabase.from("faturas").select("referencia, cliente_id, consumo_kwh, status"),
+  ]);
 
   const migracaoPendente = !!rateioErr && /rateio_mensal|does not exist|schema cache/.test(rateioErr.message);
-  const clientes = (clientesData ?? []) as ClienteMin[];
+  const todos = todosRaw;
+
+  // Grupo "Consumo do Prédio" e seus membros.
+  const membros = todos.filter((c) => c.predio_papel === "membro");
+  const membroIds = new Set(membros.map((c) => c.id));
+  const grupo = todos.find((c) => c.predio_papel === "grupo") ?? null;
+  // Participantes do rateio: normais + a UC do grupo (membros ficam de fora).
+  const clientes = todos.filter((c) => c.predio_papel !== "membro");
 
   // Mapas de apoio
   const geracaoPorMes = new Map<string, number>();
@@ -43,30 +60,33 @@ export default async function UsinaPage({
     pctPorClienteMes.set(`${r.referencia}|${r.cliente_id}`, Number(r.percentual));
   }
   const consumoPorClienteMes = new Map<string, number>();
+  const consumoMembrosMes = new Map<string, number>(); // soma dos membros por mês
   for (const f of (faturas ?? []) as { referencia: string; cliente_id: string; consumo_kwh: number; status: string }[]) {
     if (f.status === "cancelada") continue;
     const k = `${f.referencia}|${f.cliente_id}`;
     consumoPorClienteMes.set(k, (consumoPorClienteMes.get(k) ?? 0) + Number(f.consumo_kwh));
+    if (membroIds.has(f.cliente_id)) {
+      consumoMembrosMes.set(f.referencia, (consumoMembrosMes.get(f.referencia) ?? 0) + Number(f.consumo_kwh));
+    }
+  }
+  // O consumo da UC "Consumo do Prédio" é a SOMA dos membros.
+  if (grupo) {
+    for (const [ref, soma] of consumoMembrosMes) consumoPorClienteMes.set(`${ref}|${grupo.id}`, soma);
   }
 
-  // Todos os meses com dados, até o mês selecionado (para o rollover), + o próprio mês.
+  // Meses até o selecionado (rollover).
   const mesesSet = new Set<string>([referencia]);
   for (const ref of geracaoPorMes.keys()) mesesSet.add(ref);
   for (const k of pctPorClienteMes.keys()) mesesSet.add(k.split("|")[0]);
   for (const k of consumoPorClienteMes.keys()) mesesSet.add(k.split("|")[0]);
   const meses = Array.from(mesesSet).filter((ref) => ref <= referencia).sort((a, b) => a.localeCompare(b));
 
-  // Contabiliza o rollover por cliente até (e incluindo) o mês selecionado.
   interface Linha {
-    clienteId: string;
-    nome: string;
-    unidade: string | null;
-    percentual: number; // do mês selecionado
-    consumo: number; // do mês selecionado
-    saldoAnterior: number; // saldo entrando no mês selecionado
+    clienteId: string; nome: string; unidade: string | null;
+    percentual: number; consumo: number; saldoAnterior: number;
   }
   const linhas: Linha[] = [];
-  let totalCreditos = 0, totalConsumo = 0, totalCompensado = 0, totalSaldo = 0, somaPct = 0;
+  let totalCreditos = 0, totalConsumo = 0, totalCompensado = 0, totalSaldo = 0;
 
   for (const c of clientes) {
     let saldo = 0;
@@ -79,19 +99,17 @@ export default async function UsinaPage({
       const disponivel = saldo + creditos;
       const compensado = Math.min(consumo, disponivel);
       const novoSaldo = disponivel - compensado;
-      if (ref === referencia) {
-        entrando = saldo; credSel = creditos; consSel = consumo; compSel = compensado; saldoFinalSel = novoSaldo; pctSel = pct;
-      }
+      if (ref === referencia) { entrando = saldo; credSel = creditos; consSel = consumo; compSel = compensado; saldoFinalSel = novoSaldo; pctSel = pct; }
       saldo = novoSaldo;
     }
-    linhas.push({ clienteId: c.id, nome: c.nome, unidade: c.unidade, percentual: pctSel, consumo: consSel, saldoAnterior: entrando });
-    totalCreditos += credSel; totalConsumo += consSel; totalCompensado += compSel; totalSaldo += saldoFinalSel; somaPct += pctSel;
+    const nome = grupo && c.id === grupo.id ? "Consumo do Prédio" : c.nome;
+    linhas.push({ clienteId: c.id, nome, unidade: c.unidade, percentual: pctSel, consumo: consSel, saldoAnterior: entrando });
+    totalCreditos += credSel; totalConsumo += consSel; totalCompensado += compSel; totalSaldo += saldoFinalSel;
   }
 
   const geracaoMes = geracaoPorMes.get(referencia) ?? 0;
 
-  // Histórico completo de saldo por cliente (todos os meses com dados),
-  // para o gráfico de evolução do saldo de créditos (somente no admin).
+  // Histórico de saldo por participante (inclui a UC do prédio, exclui membros).
   const mesesComDados = Array.from(
     new Set<string>([
       ...geracaoPorMes.keys(),
@@ -111,8 +129,15 @@ export default async function UsinaPage({
       saldo = disponivel - Math.min(consumo, disponivel);
       return { label: formatReferenciaCurta(ref), valor: Math.round(saldo * 100) / 100, referencia: ref };
     });
-    return { clienteId: c.id, nome: c.nome, unidade: c.unidade, pontos };
+    const nome = grupo && c.id === grupo.id ? "Consumo do Prédio" : c.nome;
+    return { clienteId: c.id, nome, unidade: c.unidade, pontos };
   });
+
+  // Dados da seção "Consumo do Prédio" (membros do mês selecionado).
+  const membrosMes = membros
+    .map((c) => ({ id: c.id, nome: c.nome, unidade: c.unidade, consumo: consumoPorClienteMes.get(`${referencia}|${c.id}`) ?? 0 }))
+    .sort((a, b) => b.consumo - a.consumo);
+  const consumoPredio = membrosMes.reduce((s, x) => s + x.consumo, 0);
 
   return (
     <div className="space-y-6">
@@ -142,20 +167,63 @@ export default async function UsinaPage({
         referencia={referencia}
         geracaoInicial={geracaoMes}
         linhas={linhas}
-        totais={{ consumo: totalConsumo, compensado: totalCompensado, saldo: totalSaldo, somaPct }}
         desabilitado={migracaoPendente}
       />
 
+      {(membrosMes.length > 0 || grupo) && (
+        <div className="card">
+          <div className="mb-1 flex items-center gap-2">
+            <Building2 className="h-5 w-5 text-brand-300" />
+            <h2 className="font-semibold text-white">Consumo do Prédio</h2>
+          </div>
+          <p className="mb-4 text-sm text-slate-400">
+            Moradores agrupados na UC “Consumo do Prédio”. Eles não entram no rateio individualmente — o consumo somado
+            ({formatKwh(consumoPredio)} em {formatReferencia(referencia)}) é o que entra como uma única linha do rateio.
+          </p>
+          {membrosMes.length === 0 ? (
+            <p className="py-4 text-center text-sm text-slate-400">
+              Nenhum morador marcado como membro ainda. Marque em <span className="text-brand-300">Moradores → Papel no rateio</span> ou rode o SQL <code>consumo-predio-membros.sql</code>.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[420px] text-sm">
+                <thead>
+                  <tr className="border-b border-white/10 text-left text-slate-400">
+                    <th className="pb-2 font-medium">Morador</th>
+                    <th className="pb-2 font-medium">Unidade</th>
+                    <th className="pb-2 text-right font-medium">Consumo do mês</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {membrosMes.map((mem) => (
+                    <tr key={mem.id} className="border-b border-white/5 last:border-0">
+                      <td className="py-2.5 font-medium text-white">{mem.nome}</td>
+                      <td className="py-2.5 text-slate-400">{mem.unidade ?? "—"}</td>
+                      <td className="py-2.5 text-right tabular-nums text-slate-200">{formatKwh(mem.consumo)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t border-white/10 font-semibold text-white">
+                    <td className="pt-3" colSpan={2}>Total do prédio ({membrosMes.length} moradores)</td>
+                    <td className="pt-3 text-right tabular-nums text-brand-300">{formatKwh(consumoPredio)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
       <p className="text-xs text-slate-500">
-        Créditos = geração × %. Compensado = quanto do consumo do cliente foi coberto por créditos (saldo anterior + créditos do mês).
-        O que sobra vira saldo e acumula para os próximos meses (rollover). A soma dos percentuais do mês idealmente é 100%.
-        O consumo vem das faturas do mês de cada cliente.
+        Créditos = geração × %. Compensado = quanto do consumo foi coberto por créditos (saldo anterior + créditos do mês).
+        O que sobra vira saldo e acumula (rollover). A soma dos percentuais idealmente é 100%. O consumo vem das faturas do mês.
       </p>
 
       {historico.length > 0 && mesesComDados.length >= 1 && (
         <div className="card">
           <h2 className="mb-1 font-semibold text-white">Histórico de saldo por cliente</h2>
-          <p className="mb-4 text-sm text-slate-400">Evolução do saldo de créditos (kWh) mês a mês, por morador.</p>
+          <p className="mb-4 text-sm text-slate-400">Evolução do saldo de créditos (kWh) mês a mês, por participante do rateio.</p>
           <SaldoHistoricoCliente clientes={historico} destaqueRef={referencia} />
         </div>
       )}
