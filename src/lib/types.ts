@@ -148,6 +148,16 @@ export interface GeracaoMensal {
   updated_at: string;
 }
 
+export interface RateioMensal {
+  id: string;
+  referencia: string; // YYYY-MM-DD (1º dia do mês)
+  cliente_id: string;
+  percentual: number;
+  observacoes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Profile {
   id: string;
   email: string | null;
