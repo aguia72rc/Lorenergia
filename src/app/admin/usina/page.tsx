@@ -1,8 +1,9 @@
 import { Sun, Zap, BatteryCharging, Layers, AlertTriangle } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { formatKwh, formatReferencia, primeiroDiaMesAtual } from "@/lib/format";
+import { formatKwh, formatReferencia, formatReferenciaCurta, primeiroDiaMesAtual } from "@/lib/format";
 import MonthFilter from "@/components/MonthFilter";
 import RateioEditor from "@/components/RateioEditor";
+import SaldoHistoricoCliente from "@/components/SaldoHistoricoCliente";
 
 export const dynamic = "force-dynamic";
 
@@ -89,6 +90,30 @@ export default async function UsinaPage({
 
   const geracaoMes = geracaoPorMes.get(referencia) ?? 0;
 
+  // Histórico completo de saldo por cliente (todos os meses com dados),
+  // para o gráfico de evolução do saldo de créditos (somente no admin).
+  const mesesComDados = Array.from(
+    new Set<string>([
+      ...geracaoPorMes.keys(),
+      ...Array.from(pctPorClienteMes.keys()).map((k) => k.split("|")[0]),
+      ...Array.from(consumoPorClienteMes.keys()).map((k) => k.split("|")[0]),
+    ])
+  ).sort((a, b) => a.localeCompare(b));
+
+  const historico = clientes.map((c) => {
+    let saldo = 0;
+    const pontos = mesesComDados.map((ref) => {
+      const g = geracaoPorMes.get(ref) ?? 0;
+      const pct = pctPorClienteMes.get(`${ref}|${c.id}`) ?? 0;
+      const creditos = (g * pct) / 100;
+      const consumo = consumoPorClienteMes.get(`${ref}|${c.id}`) ?? 0;
+      const disponivel = saldo + creditos;
+      saldo = disponivel - Math.min(consumo, disponivel);
+      return { label: formatReferenciaCurta(ref), valor: Math.round(saldo * 100) / 100, referencia: ref };
+    });
+    return { clienteId: c.id, nome: c.nome, unidade: c.unidade, pontos };
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -126,6 +151,14 @@ export default async function UsinaPage({
         O que sobra vira saldo e acumula para os próximos meses (rollover). A soma dos percentuais do mês idealmente é 100%.
         O consumo vem das faturas do mês de cada cliente.
       </p>
+
+      {historico.length > 0 && mesesComDados.length >= 1 && (
+        <div className="card">
+          <h2 className="mb-1 font-semibold text-white">Histórico de saldo por cliente</h2>
+          <p className="mb-4 text-sm text-slate-400">Evolução do saldo de créditos (kWh) mês a mês, por morador.</p>
+          <SaldoHistoricoCliente clientes={historico} destaqueRef={referencia} />
+        </div>
+      )}
     </div>
   );
 }
