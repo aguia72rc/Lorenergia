@@ -61,7 +61,7 @@ export default function ClienteFormFields({ cliente }: { cliente?: Cliente }) {
       </div>
 
       <div>
-        <label className="label" htmlFor="desconto_percentual">Desconto (%)</label>
+        <label className="label" htmlFor="desconto_percentual">Percentual do benefício (%)</label>
         <input
           id="desconto_percentual"
           name="desconto_percentual"
@@ -72,6 +72,25 @@ export default function ClienteFormFields({ cliente }: { cliente?: Cliente }) {
           className="input"
           defaultValue={cliente?.desconto_percentual ?? 20}
         />
+        <p className="mt-1 text-xs text-slate-400">Usado tanto no desconto quanto no cashback (ex.: 20% com fidelidade, 15% sem).</p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 sm:col-span-2">
+        <div>
+          <label className="label" htmlFor="modalidade_beneficio">Modalidade do benefício</label>
+          <select id="modalidade_beneficio" name="modalidade_beneficio" className="input" defaultValue={cliente?.modalidade_beneficio ?? "desconto"}>
+            <option value="desconto">Desconto na fatura (mensal)</option>
+            <option value="cashback">Cashback (pago periodicamente)</option>
+          </select>
+        </div>
+        <div>
+          <label className="label" htmlFor="cashback_periodicidade">Quando pagar o cashback</label>
+          <select id="cashback_periodicidade" name="cashback_periodicidade" className="input" defaultValue={cliente?.cashback_periodicidade ?? "semestral"}>
+            <option value="semestral">A cada 6 meses</option>
+            <option value="dezembro">Sempre em dezembro</option>
+          </select>
+          <p className="mt-1 text-xs text-slate-400">Só se aplica quando a modalidade for cashback.</p>
+        </div>
       </div>
 
       <div className="flex items-end">
