@@ -1,4 +1,4 @@
-import { Sun, Zap, BatteryCharging, Layers, AlertTriangle } from "lucide-react";
+import { Sun, Building2, Zap, BatteryCharging, AlertTriangle } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { formatKwh, formatReferencia, formatReferenciaCurta, primeiroDiaMesAtual } from "@/lib/format";
 import MonthFilter from "@/components/MonthFilter";
@@ -7,7 +7,7 @@ import SaldoHistoricoCliente from "@/components/SaldoHistoricoCliente";
 
 export const dynamic = "force-dynamic";
 
-interface ClienteMin { id: string; nome: string; unidade: string | null }
+interface ClienteMin { id: string; nome: string; unidade: string | null; predio_papel?: "grupo" | "membro" | null }
 
 export default async function UsinaPage({
   searchParams,
@@ -22,16 +22,30 @@ export default async function UsinaPage({
   const [ano, m] = mesParam.split("-");
   const referencia = `${ano}-${(m ?? "01").padStart(2, "0")}-01`;
 
-  const [{ data: clientesData }, { data: geracoes }, { data: rateiosData, error: rateioErr }, { data: faturas }] =
-    await Promise.all([
-      supabase.from("clientes").select("id, nome, unidade").eq("ativo", true).order("nome"),
-      supabase.from("geracao_mensal").select("referencia, kwh_injetado"),
-      supabase.from("rateio_mensal").select("referencia, cliente_id, percentual"),
-      supabase.from("faturas").select("referencia, cliente_id, consumo_kwh, status"),
-    ]);
+  // Clientes (com fallback se a coluna predio_papel ainda não existir).
+  const clientesComPapel = await supabase
+    .from("clientes")
+    .select("id, nome, unidade, predio_papel")
+    .eq("ativo", true)
+    .order("nome");
+  let todos = (clientesComPapel.data ?? []) as ClienteMin[];
+  if (clientesComPapel.error && /predio_papel/.test(clientesComPapel.error.message ?? "")) {
+    const fb = await supabase.from("clientes").select("id, nome, unidade").eq("ativo", true).order("nome");
+    todos = (fb.data ?? []) as ClienteMin[];
+  }
+
+  const [{ data: geracoes }, { data: rateiosData, error: rateioErr }, { data: faturas }] = await Promise.all([
+    supabase.from("geracao_mensal").select("referencia, kwh_injetado"),
+    supabase.from("rateio_mensal").select("referencia, cliente_id, percentual"),
+    supabase.from("faturas").select("referencia, cliente_id, consumo_kwh, status"),
+  ]);
 
   const migracaoPendente = !!rateioErr && /rateio_mensal|does not exist|schema cache/.test(rateioErr.message);
-  const clientes = (clientesData ?? []) as ClienteMin[];
+
+  // Membros compõem o "Consumo do Prédio" (soma do consumo). Não são
+  // participantes do rateio. A UC 'grupo' foi descontinuada (migração 0021).
+  const membroIds = new Set(todos.filter((c) => c.predio_papel === "membro").map((c) => c.id));
+  const clientes = todos.filter((c) => c.predio_papel !== "membro" && c.predio_papel !== "grupo");
 
   // Mapas de apoio
   const geracaoPorMes = new Map<string, number>();
@@ -43,55 +57,57 @@ export default async function UsinaPage({
     pctPorClienteMes.set(`${r.referencia}|${r.cliente_id}`, Number(r.percentual));
   }
   const consumoPorClienteMes = new Map<string, number>();
+  const consumoPredioMes = new Map<string, number>(); // soma dos membros por mês
   for (const f of (faturas ?? []) as { referencia: string; cliente_id: string; consumo_kwh: number; status: string }[]) {
     if (f.status === "cancelada") continue;
-    const k = `${f.referencia}|${f.cliente_id}`;
-    consumoPorClienteMes.set(k, (consumoPorClienteMes.get(k) ?? 0) + Number(f.consumo_kwh));
+    if (membroIds.has(f.cliente_id)) {
+      consumoPredioMes.set(f.referencia, (consumoPredioMes.get(f.referencia) ?? 0) + Number(f.consumo_kwh));
+    } else {
+      const k = `${f.referencia}|${f.cliente_id}`;
+      consumoPorClienteMes.set(k, (consumoPorClienteMes.get(k) ?? 0) + Number(f.consumo_kwh));
+    }
   }
 
-  // Todos os meses com dados, até o mês selecionado (para o rollover), + o próprio mês.
+  // Base do rateio no mês = geração − consumo do prédio (excedente, nunca < 0).
+  const baseMes = (ref: string) => Math.max(0, (geracaoPorMes.get(ref) ?? 0) - (consumoPredioMes.get(ref) ?? 0));
+
+  // Meses até o selecionado (rollover).
   const mesesSet = new Set<string>([referencia]);
   for (const ref of geracaoPorMes.keys()) mesesSet.add(ref);
   for (const k of pctPorClienteMes.keys()) mesesSet.add(k.split("|")[0]);
   for (const k of consumoPorClienteMes.keys()) mesesSet.add(k.split("|")[0]);
+  for (const ref of consumoPredioMes.keys()) mesesSet.add(ref);
   const meses = Array.from(mesesSet).filter((ref) => ref <= referencia).sort((a, b) => a.localeCompare(b));
 
-  // Contabiliza o rollover por cliente até (e incluindo) o mês selecionado.
-  interface Linha {
-    clienteId: string;
-    nome: string;
-    unidade: string | null;
-    percentual: number; // do mês selecionado
-    consumo: number; // do mês selecionado
-    saldoAnterior: number; // saldo entrando no mês selecionado
-  }
+  interface Linha { clienteId: string; nome: string; unidade: string | null; percentual: number; consumo: number; saldoAnterior: number }
   const linhas: Linha[] = [];
-  let totalCreditos = 0, totalConsumo = 0, totalCompensado = 0, totalSaldo = 0, somaPct = 0;
+  let totalCreditos = 0;
 
   for (const c of clientes) {
     let saldo = 0;
-    let entrando = 0, credSel = 0, consSel = 0, compSel = 0, saldoFinalSel = 0, pctSel = 0;
+    let entrando = 0, credSel = 0, consSel = 0, saldoFinalSel = 0, pctSel = 0;
     for (const ref of meses) {
-      const g = geracaoPorMes.get(ref) ?? 0;
+      const base = baseMes(ref);
       const pct = pctPorClienteMes.get(`${ref}|${c.id}`) ?? 0;
-      const creditos = (g * pct) / 100;
+      const creditos = (base * pct) / 100;
       const consumo = consumoPorClienteMes.get(`${ref}|${c.id}`) ?? 0;
       const disponivel = saldo + creditos;
       const compensado = Math.min(consumo, disponivel);
       const novoSaldo = disponivel - compensado;
-      if (ref === referencia) {
-        entrando = saldo; credSel = creditos; consSel = consumo; compSel = compensado; saldoFinalSel = novoSaldo; pctSel = pct;
-      }
+      if (ref === referencia) { entrando = saldo; credSel = creditos; consSel = consumo; saldoFinalSel = novoSaldo; pctSel = pct; }
       saldo = novoSaldo;
     }
+    void saldoFinalSel;
     linhas.push({ clienteId: c.id, nome: c.nome, unidade: c.unidade, percentual: pctSel, consumo: consSel, saldoAnterior: entrando });
-    totalCreditos += credSel; totalConsumo += consSel; totalCompensado += compSel; totalSaldo += saldoFinalSel; somaPct += pctSel;
+    totalCreditos += credSel;
   }
 
   const geracaoMes = geracaoPorMes.get(referencia) ?? 0;
+  const consumoPredio = consumoPredioMes.get(referencia) ?? 0;
+  const compensacaoPredio = Math.min(consumoPredio, geracaoMes);
+  const excedente = Math.max(0, geracaoMes - consumoPredio);
 
-  // Histórico completo de saldo por cliente (todos os meses com dados),
-  // para o gráfico de evolução do saldo de créditos (somente no admin).
+  // Histórico de saldo por morador (base = excedente do mês).
   const mesesComDados = Array.from(
     new Set<string>([
       ...geracaoPorMes.keys(),
@@ -103,9 +119,9 @@ export default async function UsinaPage({
   const historico = clientes.map((c) => {
     let saldo = 0;
     const pontos = mesesComDados.map((ref) => {
-      const g = geracaoPorMes.get(ref) ?? 0;
+      const base = baseMes(ref);
       const pct = pctPorClienteMes.get(`${ref}|${c.id}`) ?? 0;
-      const creditos = (g * pct) / 100;
+      const creditos = (base * pct) / 100;
       const consumo = consumoPorClienteMes.get(`${ref}|${c.id}`) ?? 0;
       const disponivel = saldo + creditos;
       saldo = disponivel - Math.min(consumo, disponivel);
@@ -131,31 +147,41 @@ export default async function UsinaPage({
         </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Kpi icon={<Sun />} titulo="Geração do mês" valor={formatKwh(geracaoMes)} cor="bg-brand-500/15 text-brand-300" />
-        <Kpi icon={<Layers />} titulo="Créditos alocados" valor={formatKwh(totalCreditos)} cor="bg-blue-500/15 text-blue-300" />
-        <Kpi icon={<Zap />} titulo="Compensado no mês" valor={formatKwh(totalCompensado)} cor="bg-amber-500/15 text-amber-300" />
-        <Kpi icon={<BatteryCharging />} titulo="Saldo acumulado (créditos)" valor={formatKwh(totalSaldo)} cor="bg-eco-500/15 text-eco-300" />
+      {/* Consumo do Prédio: geração, consumo e compensação (antes do rateio). */}
+      <div className="card">
+        <div className="mb-1 flex items-center gap-2">
+          <Building2 className="h-5 w-5 text-brand-300" />
+          <h2 className="font-semibold text-white">Consumo do Prédio</h2>
+        </div>
+        <p className="mb-4 text-sm text-slate-400">
+          A geração cobre o consumo do prédio primeiro. O que sobra (excedente) é a base do rateio dos demais moradores.
+        </p>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Kpi icon={<Sun />} titulo="Geração do mês" valor={formatKwh(geracaoMes)} cor="bg-brand-500/15 text-brand-300" />
+          <Kpi icon={<Building2 />} titulo="Consumo do prédio" valor={formatKwh(consumoPredio)} cor="bg-slate-500/15 text-slate-200" />
+          <Kpi icon={<Zap />} titulo="Compensação do prédio" valor={formatKwh(compensacaoPredio)} cor="bg-amber-500/15 text-amber-300" />
+          <Kpi icon={<BatteryCharging />} titulo="Excedente p/ rateio" valor={formatKwh(excedente)} cor="bg-eco-500/15 text-eco-300" />
+        </div>
       </div>
 
       <RateioEditor
         referencia={referencia}
         geracaoInicial={geracaoMes}
+        consumoPredio={consumoPredio}
         linhas={linhas}
-        totais={{ consumo: totalConsumo, compensado: totalCompensado, saldo: totalSaldo, somaPct }}
         desabilitado={migracaoPendente}
       />
 
       <p className="text-xs text-slate-500">
-        Créditos = geração × %. Compensado = quanto do consumo do cliente foi coberto por créditos (saldo anterior + créditos do mês).
-        O que sobra vira saldo e acumula para os próximos meses (rollover). A soma dos percentuais do mês idealmente é 100%.
-        O consumo vem das faturas do mês de cada cliente.
+        Créditos = excedente × %. Compensado = quanto do consumo do morador foi coberto por créditos (saldo anterior + créditos do mês).
+        O que sobra vira saldo e acumula (rollover). O consumo do prédio e o de cada morador vêm das faturas do mês.
+        Total de créditos alocados aos moradores neste mês: {formatKwh(totalCreditos)}.
       </p>
 
       {historico.length > 0 && mesesComDados.length >= 1 && (
         <div className="card">
           <h2 className="mb-1 font-semibold text-white">Histórico de saldo por cliente</h2>
-          <p className="mb-4 text-sm text-slate-400">Evolução do saldo de créditos (kWh) mês a mês, por morador.</p>
+          <p className="mb-4 text-sm text-slate-400">Evolução do saldo de créditos (kWh) mês a mês, por morador do rateio.</p>
           <SaldoHistoricoCliente clientes={historico} destaqueRef={referencia} />
         </div>
       )}
@@ -165,10 +191,10 @@ export default async function UsinaPage({
 
 function Kpi({ icon, titulo, valor, cor }: { icon: React.ReactNode; titulo: string; valor: string; cor: string }) {
   return (
-    <div className="card">
-      <div className={`mb-3 inline-flex h-9 w-9 items-center justify-center rounded-lg ${cor}`}>{icon}</div>
-      <p className="text-sm text-slate-400">{titulo}</p>
-      <p className="mt-1 text-xl font-bold text-white">{valor}</p>
+    <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+      <div className={`mb-2 inline-flex h-8 w-8 items-center justify-center rounded-lg ${cor}`}>{icon}</div>
+      <p className="text-xs text-slate-400">{titulo}</p>
+      <p className="mt-0.5 text-lg font-bold text-white">{valor}</p>
     </div>
   );
 }
