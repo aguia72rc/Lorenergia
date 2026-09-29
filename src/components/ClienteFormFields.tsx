@@ -95,12 +95,11 @@ export default function ClienteFormFields({ cliente }: { cliente?: Cliente }) {
 
       <div>
         <label className="label" htmlFor="predio_papel">Papel no rateio</label>
-        <select id="predio_papel" name="predio_papel" className="input" defaultValue={cliente?.predio_papel ?? ""}>
+        <select id="predio_papel" name="predio_papel" className="input" defaultValue={cliente?.predio_papel === "membro" ? "membro" : ""}>
           <option value="">Participa do rateio (normal)</option>
-          <option value="membro">Membro do Consumo do Prédio</option>
-          <option value="grupo">É a UC “Consumo do Prédio”</option>
+          <option value="membro">Faz parte do Consumo do Prédio</option>
         </select>
-        <p className="mt-1 text-xs text-slate-400">Membros do prédio saem dos sliders individuais e entram na linha única “Consumo do Prédio”.</p>
+        <p className="mt-1 text-xs text-slate-400">Membros do prédio saem do rateio individual; o consumo deles é somado no “Consumo do Prédio”, coberto pela geração antes do rateio.</p>
       </div>
 
       <div className="flex items-end">

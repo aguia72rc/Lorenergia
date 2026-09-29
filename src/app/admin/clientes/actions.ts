@@ -20,7 +20,7 @@ function dadosDoForm(formData: FormData) {
   const modalidade = String(formData.get("modalidade_beneficio") ?? "desconto");
   const periodicidade = String(formData.get("cashback_periodicidade") ?? "semestral");
   const papelRaw = String(formData.get("predio_papel") ?? "");
-  const predio_papel = papelRaw === "membro" || papelRaw === "grupo" ? papelRaw : null;
+  const predio_papel = papelRaw === "membro" ? "membro" : null;
   return {
     nome: String(formData.get("nome") ?? "").trim(),
     unidade: String(formData.get("unidade") ?? "").trim() || null,

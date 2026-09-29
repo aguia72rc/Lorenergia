@@ -46,11 +46,13 @@ const PILL: Record<Situacao["st"], string> = {
 export default function RateioEditor({
   referencia,
   geracaoInicial,
+  consumoPredio = 0,
   linhas,
   desabilitado = false,
 }: {
   referencia: string;
   geracaoInicial: number;
+  consumoPredio?: number;
   linhas: Linha[];
   totais?: unknown;
   desabilitado?: boolean;
@@ -61,7 +63,9 @@ export default function RateioEditor({
   const [geracao, setGeracao] = useState<string>(String(geracaoInicial ?? 0));
   const [pcts, setPcts] = useState<number[]>(linhas.map((l) => Number(l.percentual) || 0));
 
-  const base = Math.max(0, Number(geracao) || 0);
+  const geracaoNum = Math.max(0, Number(geracao) || 0);
+  // Base do rateio = excedente (geração − consumo do prédio).
+  const base = Math.max(0, geracaoNum - consumoPredio);
 
   const calc = useMemo(
     () =>
@@ -233,14 +237,19 @@ export default function RateioEditor({
         <div className="card space-y-4">
           <div>
             <h2 className="font-semibold text-white">Base do mês</h2>
-            <p className="text-sm text-slate-400">Geração usada para converter % em kWh.</p>
+            <p className="text-sm text-slate-400">O excedente (geração − consumo do prédio) é o que se rateia.</p>
           </div>
           <div>
             <label className="label" htmlFor="geracao">Geração da usina no mês (kWh)</label>
             <input id="geracao" type="number" min={0} step={0.01} value={geracao} onChange={(e) => setGeracao(e.target.value)} disabled={desabilitado} className="input w-full" />
           </div>
+          <div className="space-y-1 rounded-lg bg-white/5 p-3 text-sm">
+            <div className="flex justify-between text-slate-400"><span>Geração</span><span className="tabular-nums">{formatKwh(geracaoNum)}</span></div>
+            <div className="flex justify-between text-slate-400"><span>− Consumo do prédio</span><span className="tabular-nums">{formatKwh(consumoPredio)}</span></div>
+            <div className="flex justify-between border-t border-white/10 pt-1 font-semibold text-eco-300"><span>= Excedente p/ rateio</span><span className="tabular-nums">{formatKwh(base)}</span></div>
+          </div>
           <div className="rounded-lg bg-white/5 p-3 text-xs text-slate-400">
-            “Sugerir rateio” cobre o consumo de cada associado descontando 1/12 do saldo acumulado por mês e nivela a geração (water-filling). A soma ideal é 100%.
+            “Sugerir rateio” cobre o consumo de cada morador descontando 1/12 do saldo acumulado por mês e nivela o excedente (water-filling). A soma ideal é 100%.
           </div>
           <div className="flex items-center justify-end gap-3">
             {msg && <span className="text-sm text-slate-400">{msg}</span>}
