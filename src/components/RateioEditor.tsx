@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Scale, Percent, Save, Wand2, RotateCcw } from "lucide-react";
+import { Scale, Percent, Save, Wand2, RotateCcw, Building2 } from "lucide-react";
 import { formatKwh } from "@/lib/format";
 import { salvarRateio } from "@/app/admin/usina/actions";
 
@@ -274,6 +274,34 @@ export default function RateioEditor({
               </tr>
             </thead>
             <tbody>
+              {consumoPredio > 0 && (() => {
+                const comp = Math.min(consumoPredio, geracaoNum);
+                const mx = Math.max(comp, consumoPredio, 1) * 1.1;
+                const coberto = geracaoNum >= consumoPredio;
+                return (
+                  <tr className="border-b border-white/5 bg-brand-500/5">
+                    <td className="py-2.5 font-medium text-white">
+                      <Building2 className="mr-2 inline h-4 w-4 align-middle text-brand-300" />
+                      Consumo do Prédio
+                      <span className="ml-1 text-xs text-slate-500">coberto pela geração</span>
+                    </td>
+                    <td className="py-2.5 text-right tabular-nums text-slate-200">{formatKwh(comp)}</td>
+                    <td className="py-2.5 text-right tabular-nums text-slate-300">{formatKwh(consumoPredio)}</td>
+                    <td className="py-2.5">
+                      <div className="relative h-2 min-w-[120px] rounded bg-white/10" title="Barra: coberto · marca: consumo">
+                        <span className="absolute left-0 top-0 bottom-0 rounded bg-brand-400" style={{ width: `${(comp / mx) * 100}%` }} />
+                        <em className="absolute -top-1 -bottom-1 w-0.5 bg-white" style={{ left: `${(consumoPredio / mx) * 100}%` }} />
+                      </div>
+                    </td>
+                    <td className="py-2.5 text-right tabular-nums text-slate-500">—</td>
+                    <td className="py-2.5">
+                      <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${coberto ? PILL.ok : PILL.bad}`}>
+                        {coberto ? "Coberto pela geração" : `Faltou ${formatKwh(consumoPredio - geracaoNum)}`}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })()}
               {linhas.map((l, i) => {
                 const c = calc[i];
                 const mx = Math.max(c.aloc, l.consumo, 1) * 1.1;
