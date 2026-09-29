@@ -46,13 +46,15 @@ const PILL: Record<Situacao["st"], string> = {
 export default function RateioEditor({
   referencia,
   geracaoInicial,
-  consumoPredio = 0,
+  consumoPredioAuto = 0,
+  consumoPredioOverride = null,
   linhas,
   desabilitado = false,
 }: {
   referencia: string;
   geracaoInicial: number;
-  consumoPredio?: number;
+  consumoPredioAuto?: number;
+  consumoPredioOverride?: number | null;
   linhas: Linha[];
   totais?: unknown;
   desabilitado?: boolean;
@@ -61,9 +63,12 @@ export default function RateioEditor({
   const [pending, startTransition] = useTransition();
   const [msg, setMsg] = useState<string | null>(null);
   const [geracao, setGeracao] = useState<string>(String(geracaoInicial ?? 0));
+  const [consumoPredioStr, setConsumoPredioStr] = useState<string>(consumoPredioOverride != null ? String(consumoPredioOverride) : "");
   const [pcts, setPcts] = useState<number[]>(linhas.map((l) => Number(l.percentual) || 0));
 
   const geracaoNum = Math.max(0, Number(geracao) || 0);
+  // Consumo do prédio: manual (se preenchido) ou a soma automática das faturas.
+  const consumoPredio = consumoPredioStr.trim() === "" ? consumoPredioAuto : Math.max(0, Number(consumoPredioStr) || 0);
   // Base do rateio = excedente (geração − consumo do prédio).
   const base = Math.max(0, geracaoNum - consumoPredio);
 
@@ -117,6 +122,7 @@ export default function RateioEditor({
   function reverter() {
     setPcts(linhas.map((l) => Number(l.percentual) || 0));
     setGeracao(String(geracaoInicial ?? 0));
+    setConsumoPredioStr(consumoPredioOverride != null ? String(consumoPredioOverride) : "");
   }
 
   function salvar() {
@@ -124,7 +130,8 @@ export default function RateioEditor({
     startTransition(async () => {
       const r = await salvarRateio({
         referencia,
-        kwh_injetado: base,
+        kwh_injetado: geracaoNum,
+        consumo_predio: consumoPredioStr.trim() === "" ? null : Math.max(0, Number(consumoPredioStr) || 0),
         itens: linhas.map((l, i) => ({ cliente_id: l.clienteId, percentual: pcts[i] || 0 })),
       });
       setMsg(r.mensagem);
@@ -242,6 +249,18 @@ export default function RateioEditor({
           <div>
             <label className="label" htmlFor="geracao">Geração da usina no mês (kWh)</label>
             <input id="geracao" type="number" min={0} step={0.01} value={geracao} onChange={(e) => setGeracao(e.target.value)} disabled={desabilitado} className="input w-full" />
+          </div>
+          <div>
+            <label className="label" htmlFor="consumo_predio">Consumo do prédio no mês (kWh)</label>
+            <input
+              id="consumo_predio" type="number" min={0} step={0.01}
+              value={consumoPredioStr}
+              onChange={(e) => setConsumoPredioStr(e.target.value)}
+              disabled={desabilitado}
+              placeholder={`Auto: ${formatKwh(consumoPredioAuto)} (faturas)`}
+              className="input w-full"
+            />
+            <p className="mt-1 text-xs text-slate-400">Deixe em branco para usar a soma automática das faturas dos membros ({formatKwh(consumoPredioAuto)}).</p>
           </div>
           <div className="space-y-1 rounded-lg bg-white/5 p-3 text-sm">
             <div className="flex justify-between text-slate-400"><span>Geração</span><span className="tabular-nums">{formatKwh(geracaoNum)}</span></div>

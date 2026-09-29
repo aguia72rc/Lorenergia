@@ -34,11 +34,16 @@ export default async function UsinaPage({
     todos = (fb.data ?? []) as ClienteMin[];
   }
 
-  const [{ data: geracoes }, { data: rateiosData, error: rateioErr }, { data: faturas }] = await Promise.all([
-    supabase.from("geracao_mensal").select("referencia, kwh_injetado"),
+  const [{ data: geracoesRaw, error: gErr }, { data: rateiosData, error: rateioErr }, { data: faturas }] = await Promise.all([
+    supabase.from("geracao_mensal").select("referencia, kwh_injetado, consumo_predio"),
     supabase.from("rateio_mensal").select("referencia, cliente_id, percentual"),
     supabase.from("faturas").select("referencia, cliente_id, consumo_kwh, status"),
   ]);
+  let geracoes = (geracoesRaw ?? []) as { referencia: string; kwh_injetado: number; consumo_predio?: number | null }[];
+  if (gErr && /consumo_predio/.test(gErr.message ?? "")) {
+    const fb = await supabase.from("geracao_mensal").select("referencia, kwh_injetado");
+    geracoes = (fb.data ?? []) as { referencia: string; kwh_injetado: number; consumo_predio?: number | null }[];
+  }
 
   const migracaoPendente = !!rateioErr && /rateio_mensal|does not exist|schema cache/.test(rateioErr.message);
 
@@ -49,34 +54,39 @@ export default async function UsinaPage({
 
   // Mapas de apoio
   const geracaoPorMes = new Map<string, number>();
-  for (const g of (geracoes ?? []) as { referencia: string; kwh_injetado: number }[]) {
+  const overridePredioPorMes = new Map<string, number>(); // consumo do prédio lançado manualmente
+  for (const g of geracoes) {
     geracaoPorMes.set(g.referencia, Number(g.kwh_injetado));
+    if (g.consumo_predio != null) overridePredioPorMes.set(g.referencia, Number(g.consumo_predio));
   }
   const pctPorClienteMes = new Map<string, number>();
   for (const r of (rateiosData ?? []) as { referencia: string; cliente_id: string; percentual: number }[]) {
     pctPorClienteMes.set(`${r.referencia}|${r.cliente_id}`, Number(r.percentual));
   }
   const consumoPorClienteMes = new Map<string, number>();
-  const consumoPredioMes = new Map<string, number>(); // soma dos membros por mês
+  const consumoMembrosMes = new Map<string, number>(); // soma automática dos membros por mês
   for (const f of (faturas ?? []) as { referencia: string; cliente_id: string; consumo_kwh: number; status: string }[]) {
     if (f.status === "cancelada") continue;
     if (membroIds.has(f.cliente_id)) {
-      consumoPredioMes.set(f.referencia, (consumoPredioMes.get(f.referencia) ?? 0) + Number(f.consumo_kwh));
+      consumoMembrosMes.set(f.referencia, (consumoMembrosMes.get(f.referencia) ?? 0) + Number(f.consumo_kwh));
     } else {
       const k = `${f.referencia}|${f.cliente_id}`;
       consumoPorClienteMes.set(k, (consumoPorClienteMes.get(k) ?? 0) + Number(f.consumo_kwh));
     }
   }
 
+  // Consumo do prédio efetivo: override manual (se lançado) ou soma das faturas.
+  const consumoPredioMes = (ref: string) => overridePredioPorMes.get(ref) ?? consumoMembrosMes.get(ref) ?? 0;
   // Base do rateio no mês = geração − consumo do prédio (excedente, nunca < 0).
-  const baseMes = (ref: string) => Math.max(0, (geracaoPorMes.get(ref) ?? 0) - (consumoPredioMes.get(ref) ?? 0));
+  const baseMes = (ref: string) => Math.max(0, (geracaoPorMes.get(ref) ?? 0) - consumoPredioMes(ref));
 
   // Meses até o selecionado (rollover).
   const mesesSet = new Set<string>([referencia]);
   for (const ref of geracaoPorMes.keys()) mesesSet.add(ref);
   for (const k of pctPorClienteMes.keys()) mesesSet.add(k.split("|")[0]);
   for (const k of consumoPorClienteMes.keys()) mesesSet.add(k.split("|")[0]);
-  for (const ref of consumoPredioMes.keys()) mesesSet.add(ref);
+  for (const ref of consumoMembrosMes.keys()) mesesSet.add(ref);
+  for (const ref of overridePredioPorMes.keys()) mesesSet.add(ref);
   const meses = Array.from(mesesSet).filter((ref) => ref <= referencia).sort((a, b) => a.localeCompare(b));
 
   interface Linha { clienteId: string; nome: string; unidade: string | null; percentual: number; consumo: number; saldoAnterior: number }
@@ -103,7 +113,9 @@ export default async function UsinaPage({
   }
 
   const geracaoMes = geracaoPorMes.get(referencia) ?? 0;
-  const consumoPredio = consumoPredioMes.get(referencia) ?? 0;
+  const consumoPredioAuto = consumoMembrosMes.get(referencia) ?? 0;
+  const consumoPredioOverride = overridePredioPorMes.get(referencia) ?? null;
+  const consumoPredio = consumoPredioMes(referencia);
   const compensacaoPredio = Math.min(consumoPredio, geracaoMes);
   const excedente = Math.max(0, geracaoMes - consumoPredio);
 
@@ -167,7 +179,8 @@ export default async function UsinaPage({
       <RateioEditor
         referencia={referencia}
         geracaoInicial={geracaoMes}
-        consumoPredio={consumoPredio}
+        consumoPredioAuto={consumoPredioAuto}
+        consumoPredioOverride={consumoPredioOverride}
         linhas={linhas}
         desabilitado={migracaoPendente}
       />
