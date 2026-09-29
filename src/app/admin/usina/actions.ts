@@ -20,6 +20,7 @@ function normalizarReferencia(valor: string): string {
 export interface SalvarRateioParams {
   referencia: string; // YYYY-MM ou YYYY-MM-DD
   kwh_injetado: number; // geração do mês
+  consumo_predio?: number | null; // override manual do consumo do prédio (null = soma das faturas)
   itens: { cliente_id: string; percentual: number }[];
 }
 
@@ -36,14 +37,22 @@ export async function salvarRateio(
   if (!params.referencia) return { ok: false, mensagem: "Informe o mês de referência." };
   const referencia = normalizarReferencia(params.referencia);
   const kwh_injetado = Math.max(0, Number(params.kwh_injetado) || 0);
+  const consumo_predio =
+    params.consumo_predio == null || Number.isNaN(Number(params.consumo_predio))
+      ? null
+      : Math.max(0, Number(params.consumo_predio));
 
-  // 1) Geração do mês.
-  const { error: eGer } = await supabase
+  // 1) Geração do mês (+ consumo do prédio manual, se informado).
+  const registroGer = { referencia, kwh_injetado, consumo_predio, updated_at: new Date().toISOString() };
+  let { error: eGer } = await supabase
     .from("geracao_mensal")
-    .upsert(
-      { referencia, kwh_injetado, updated_at: new Date().toISOString() },
-      { onConflict: "referencia" }
-    );
+    .upsert(registroGer, { onConflict: "referencia" });
+  // Migração 0022 ainda não aplicada: grava sem o consumo do prédio.
+  if (eGer && /consumo_predio/.test(eGer.message)) {
+    const { consumo_predio: _cp, ...semCp } = registroGer;
+    void _cp;
+    ({ error: eGer } = await supabase.from("geracao_mensal").upsert(semCp, { onConflict: "referencia" }));
+  }
   if (eGer) return { ok: false, mensagem: eGer.message };
 
   // 2) Percentuais de rateio (um registro por cliente).
