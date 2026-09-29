@@ -2,9 +2,10 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Scale, Percent, Save, Wand2, RotateCcw, Building2 } from "lucide-react";
+import { Scale, Percent, Save, Wand2, RotateCcw } from "lucide-react";
 import { formatKwh } from "@/lib/format";
 import { salvarRateio } from "@/app/admin/usina/actions";
+import { PREDIO_ID } from "@/lib/rateio";
 
 interface Linha {
   clienteId: string;
@@ -69,23 +70,26 @@ export default function RateioEditor({
   const geracaoNum = Math.max(0, Number(geracao) || 0);
   // Consumo do prédio: manual (se preenchido) ou a soma automática das faturas.
   const consumoPredio = consumoPredioStr.trim() === "" ? consumoPredioAuto : Math.max(0, Number(consumoPredioStr) || 0);
-  // Base do rateio = excedente (geração − consumo do prédio).
-  const base = Math.max(0, geracaoNum - consumoPredio);
+  // Base do rateio = geração total (o prédio também rateia por %).
+  const base = geracaoNum;
+  // Consumo de cada linha (a linha do prédio usa o consumo do prédio editável).
+  const consumoDe = (l: Linha) => (l.clienteId === PREDIO_ID ? consumoPredio : l.consumo);
 
   const calc = useMemo(
     () =>
       linhas.map((l, i) => {
         const pct = Math.max(0, pcts[i] || 0);
         const aloc = (base * pct) / 100;
-        const sit = balanco(pct, aloc, l.consumo, l.saldoAnterior);
+        const sit = balanco(pct, aloc, consumoDe(l), l.saldoAnterior);
         return { pct, aloc, sit };
       }),
-    [linhas, pcts, base]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [linhas, pcts, base, consumoPredio]
   );
 
   const somaPct = calc.reduce((s, c) => s + c.pct, 0);
   const livre = Math.round((100 - somaPct) * 100) / 100;
-  const totalConsumo = linhas.reduce((s, l) => s + l.consumo, 0);
+  const totalConsumo = linhas.reduce((s, l) => s + consumoDe(l), 0);
 
   function setPct(i: number, v: number) {
     setPcts((arr) => arr.map((x, idx) => (idx === i ? v : x)));
@@ -98,14 +102,14 @@ export default function RateioEditor({
 
   function distribuirPorConsumo() {
     if (totalConsumo <= 0) { setMsg("Sem consumo no mês para distribuir."); return; }
-    setPcts(linhas.map((l) => Math.round((l.consumo / totalConsumo) * 10000) / 100));
+    setPcts(linhas.map((l) => Math.round((consumoDe(l) / totalConsumo) * 10000) / 100));
   }
 
   // "Sugerir rateio" (water-filling): cobre o consumo de cada UC descontando
   // 1/12 do saldo acumulado, e nivela a geração entre elas.
   function sugerir() {
     if (base <= 0) { setMsg("Informe a geração base para sugerir o rateio."); return; }
-    const need = linhas.map((l, i) => ({ i, n: Math.max(0, l.consumo - l.saldoAnterior / 12), g: 0 }));
+    const need = linhas.map((l, i) => ({ i, n: Math.max(0, consumoDe(l) - l.saldoAnterior / 12), g: 0 }));
     let rem = base;
     let left = need.length;
     need.sort((a, b) => a.n - b.n).forEach((x) => {
@@ -128,11 +132,15 @@ export default function RateioEditor({
   function salvar() {
     setMsg(null);
     startTransition(async () => {
+      const idxPredio = linhas.findIndex((l) => l.clienteId === PREDIO_ID);
       const r = await salvarRateio({
         referencia,
         kwh_injetado: geracaoNum,
         consumo_predio: consumoPredioStr.trim() === "" ? null : Math.max(0, Number(consumoPredioStr) || 0),
-        itens: linhas.map((l, i) => ({ cliente_id: l.clienteId, percentual: pcts[i] || 0 })),
+        predio_percentual: idxPredio >= 0 ? pcts[idxPredio] || 0 : 0,
+        itens: linhas
+          .map((l, i) => ({ cliente_id: l.clienteId, percentual: pcts[i] || 0 }))
+          .filter((it) => it.cliente_id !== PREDIO_ID),
       });
       setMsg(r.mensagem);
       if (r.ok) router.refresh();
@@ -244,7 +252,7 @@ export default function RateioEditor({
         <div className="card space-y-4">
           <div>
             <h2 className="font-semibold text-white">Base do mês</h2>
-            <p className="text-sm text-slate-400">O excedente (geração − consumo do prédio) é o que se rateia.</p>
+            <p className="text-sm text-slate-400">A geração total é o que se rateia (o prédio recebe % como os demais).</p>
           </div>
           <div>
             <label className="label" htmlFor="geracao">Geração da usina no mês (kWh)</label>
@@ -262,13 +270,8 @@ export default function RateioEditor({
             />
             <p className="mt-1 text-xs text-slate-400">Deixe em branco para usar a soma automática das faturas dos membros ({formatKwh(consumoPredioAuto)}).</p>
           </div>
-          <div className="space-y-1 rounded-lg bg-white/5 p-3 text-sm">
-            <div className="flex justify-between text-slate-400"><span>Geração</span><span className="tabular-nums">{formatKwh(geracaoNum)}</span></div>
-            <div className="flex justify-between text-slate-400"><span>− Consumo do prédio</span><span className="tabular-nums">{formatKwh(consumoPredio)}</span></div>
-            <div className="flex justify-between border-t border-white/10 pt-1 font-semibold text-eco-300"><span>= Excedente p/ rateio</span><span className="tabular-nums">{formatKwh(base)}</span></div>
-          </div>
           <div className="rounded-lg bg-white/5 p-3 text-xs text-slate-400">
-            “Sugerir rateio” cobre o consumo de cada morador descontando 1/12 do saldo acumulado por mês e nivela o excedente (water-filling). A soma ideal é 100%.
+            “Sugerir rateio” cobre o consumo de cada participante descontando 1/12 do saldo acumulado por mês e nivela a geração (water-filling). A soma dos % (incluindo o prédio) idealmente é 100%.
           </div>
           <div className="flex items-center justify-end gap-3">
             {msg && <span className="text-sm text-slate-400">{msg}</span>}
@@ -293,37 +296,10 @@ export default function RateioEditor({
               </tr>
             </thead>
             <tbody>
-              {consumoPredio > 0 && (() => {
-                const comp = Math.min(consumoPredio, geracaoNum);
-                const mx = Math.max(comp, consumoPredio, 1) * 1.1;
-                const coberto = geracaoNum >= consumoPredio;
-                return (
-                  <tr className="border-b border-white/5 bg-brand-500/5">
-                    <td className="py-2.5 font-medium text-white">
-                      <Building2 className="mr-2 inline h-4 w-4 align-middle text-brand-300" />
-                      Consumo do Prédio
-                      <span className="ml-1 text-xs text-slate-500">coberto pela geração</span>
-                    </td>
-                    <td className="py-2.5 text-right tabular-nums text-slate-200">{formatKwh(comp)}</td>
-                    <td className="py-2.5 text-right tabular-nums text-slate-300">{formatKwh(consumoPredio)}</td>
-                    <td className="py-2.5">
-                      <div className="relative h-2 min-w-[120px] rounded bg-white/10" title="Barra: coberto · marca: consumo">
-                        <span className="absolute left-0 top-0 bottom-0 rounded bg-brand-400" style={{ width: `${(comp / mx) * 100}%` }} />
-                        <em className="absolute -top-1 -bottom-1 w-0.5 bg-white" style={{ left: `${(consumoPredio / mx) * 100}%` }} />
-                      </div>
-                    </td>
-                    <td className="py-2.5 text-right tabular-nums text-slate-500">—</td>
-                    <td className="py-2.5">
-                      <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${coberto ? PILL.ok : PILL.bad}`}>
-                        {coberto ? "Coberto pela geração" : `Faltou ${formatKwh(consumoPredio - geracaoNum)}`}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })()}
               {linhas.map((l, i) => {
                 const c = calc[i];
-                const mx = Math.max(c.aloc, l.consumo, 1) * 1.1;
+                const cons = consumoDe(l);
+                const mx = Math.max(c.aloc, cons, 1) * 1.1;
                 return (
                   <tr key={l.clienteId} className="border-b border-white/5 last:border-0">
                     <td className="py-2.5 font-medium text-white">
@@ -331,11 +307,11 @@ export default function RateioEditor({
                       {l.nome}{l.unidade && <span className="ml-1 text-xs text-slate-500">{l.unidade}</span>}
                     </td>
                     <td className="py-2.5 text-right tabular-nums text-slate-200">{formatKwh(c.aloc)}</td>
-                    <td className="py-2.5 text-right tabular-nums text-slate-300">{formatKwh(l.consumo)}</td>
+                    <td className="py-2.5 text-right tabular-nums text-slate-300">{formatKwh(cons)}</td>
                     <td className="py-2.5">
                       <div className="relative h-2 min-w-[120px] rounded bg-white/10" title="Barra: recebido · marca: consumo">
                         <span className="absolute left-0 top-0 bottom-0 rounded" style={{ width: `${(c.aloc / mx) * 100}%`, background: cor(i) }} />
-                        <em className="absolute -top-1 -bottom-1 w-0.5 bg-white" style={{ left: `${(l.consumo / mx) * 100}%` }} />
+                        <em className="absolute -top-1 -bottom-1 w-0.5 bg-white" style={{ left: `${(cons / mx) * 100}%` }} />
                       </div>
                     </td>
                     <td className="py-2.5 text-right tabular-nums text-slate-400">{formatKwh(l.saldoAnterior)}</td>
