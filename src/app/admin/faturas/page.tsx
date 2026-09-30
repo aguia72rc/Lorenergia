@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Plus, FileText, Layers, Send } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { formatBRL, formatReferencia, formatData, faturaVencida, hojeISO } from "@/lib/format";
+import { calcularEncargosAtraso, type EncargosAtraso } from "@/lib/atraso";
 import { getBaseUrl } from "@/lib/url";
 import { montarMensagem, gerarLinkWhatsApp } from "@/lib/whatsapp";
 import StatusBadge from "@/components/StatusBadge";
@@ -67,6 +68,20 @@ export default async function FaturasPage({
   const lista = (faturas ?? []) as FaturaComCliente[];
   const cfg = config as Configuracoes;
 
+  const hoje = hojeISO();
+  const multaPct = Number(cfg?.multa_percentual ?? 2);
+  const jurosPct = Number(cfg?.juros_mensal_percentual ?? 1);
+  const encargosPorFatura = new Map<string, EncargosAtraso>();
+  const encargosDe = (f: FaturaComCliente): EncargosAtraso | null => {
+    if (f.status !== "pendente") return null;
+    let e = encargosPorFatura.get(f.id);
+    if (!e) {
+      e = calcularEncargosAtraso(Number(f.valor_liquido), f.vencimento, hoje, multaPct, jurosPct);
+      encargosPorFatura.set(f.id, e);
+    }
+    return e;
+  };
+
   // Agrupa as faturas por mês (referência), preservando a ordem desc da query.
   const grupos: { referencia: string; faturas: FaturaComCliente[]; aPagar: number; economia: number }[] = [];
   for (const f of lista) {
@@ -76,7 +91,8 @@ export default async function FaturasPage({
       grupos.push(g);
     }
     g.faturas.push(f);
-    g.aPagar += Number(f.valor_liquido) || 0;
+    const enc = encargosDe(f);
+    g.aPagar += (enc?.emAtraso ? enc.totalAtualizado : Number(f.valor_liquido)) || 0;
     g.economia += Number(f.economia) || 0;
   }
 
@@ -164,7 +180,18 @@ export default async function FaturasPage({
                             <span className="ml-1 text-xs text-slate-400">{f.clientes?.unidade}</span>
                           </td>
                           <td className="py-3 text-slate-300">{f.consumo_kwh} kWh</td>
-                          <td className="py-3 font-medium text-white">{formatBRL(f.valor_liquido)}</td>
+                          <td className="py-3 font-medium text-white">
+                            {(() => {
+                              const enc = encargosDe(f);
+                              if (!enc?.emAtraso) return formatBRL(f.valor_liquido);
+                              return (
+                                <span title={`Original ${formatBRL(f.valor_liquido)} + multa/juros de ${enc.diasAtraso} dia(s)`}>
+                                  {formatBRL(enc.totalAtualizado)}
+                                  <span className="ml-1 text-xs font-normal text-red-400">+ juros</span>
+                                </span>
+                              );
+                            })()}
+                          </td>
                           <td className="py-3 text-eco-300">{formatBRL(f.economia)}</td>
                           <td className={`py-3 ${faturaVencida(f.vencimento, f.status) ? "font-medium text-red-400" : "text-slate-300"}`}>
                             {formatData(f.vencimento)}

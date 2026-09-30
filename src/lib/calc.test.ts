@@ -1,6 +1,23 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { calcularFaturaDetalhada, consumoDeLeituras } from "./calc";
+import { calcularEncargosAtraso } from "./atraso";
+
+test("encargos de atraso: 2% de multa + 1% ao mês pro rata die", () => {
+  const r = calcularEncargosAtraso(100, "2026-01-01", "2026-01-31", 2, 1);
+  assert.equal(r.emAtraso, true);
+  assert.equal(r.diasAtraso, 30);
+  assert.equal(r.multa, 2);
+  assert.equal(r.juros, 1); // 100 × 1% × (30/30)
+  assert.equal(r.totalAtualizado, 103);
+});
+
+test("encargos de atraso: sem atraso quando não vencida", () => {
+  const r = calcularEncargosAtraso(100, "2026-12-31", "2026-01-31", 2, 1);
+  assert.equal(r.emAtraso, false);
+  assert.equal(r.encargos, 0);
+  assert.equal(r.totalAtualizado, 100);
+});
 
 test("bate no centavo com o PDF de referência (R$ 146,29)", () => {
   const r = calcularFaturaDetalhada({
