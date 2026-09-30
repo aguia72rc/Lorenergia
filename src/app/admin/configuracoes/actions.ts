@@ -19,6 +19,8 @@ export async function salvarConfiguracoes(formData: FormData) {
     adicional_bandeira: Number(formData.get("adicional_bandeira") ?? 0),
     taxa_energia_solar: Number(formData.get("taxa_energia_solar") ?? 0),
     taxa_iluminacao_publica: Number(formData.get("taxa_iluminacao_publica") ?? 0),
+    multa_percentual: Number(formData.get("multa_percentual") ?? 0),
+    juros_mensal_percentual: Number(formData.get("juros_mensal_percentual") ?? 0),
     chave_pix: String(formData.get("chave_pix") ?? "").trim() || null,
     pix_nome: String(formData.get("pix_nome") ?? "").trim() || null,
     pix_cidade: String(formData.get("pix_cidade") ?? "").trim() || null,
@@ -26,9 +28,16 @@ export async function salvarConfiguracoes(formData: FormData) {
     mensagem_whatsapp: String(formData.get("mensagem_whatsapp") ?? "").trim(),
   };
 
-  const { error } = await supabase.from("configuracoes").update(dados).eq("id", 1);
+  let { error } = await supabase.from("configuracoes").update(dados).eq("id", 1);
+  // Migração 0024 ainda não aplicada: salva sem as taxas de atraso.
+  if (error && /multa_percentual|juros_mensal_percentual/.test(error.message)) {
+    const { multa_percentual: _m, juros_mensal_percentual: _j, ...semTaxas } = dados;
+    void _m; void _j;
+    ({ error } = await supabase.from("configuracoes").update(semTaxas).eq("id", 1));
+  }
   if (error) throw new Error(error.message);
 
   revalidatePath("/admin/configuracoes");
   revalidatePath("/admin");
+  revalidatePath("/admin/faturas");
 }

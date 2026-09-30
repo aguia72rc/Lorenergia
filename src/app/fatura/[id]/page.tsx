@@ -4,8 +4,9 @@ import { ArrowLeft, Sun } from "lucide-react";
 import QRCode from "qrcode";
 import { createClient } from "@/lib/supabase/server";
 import { getSessao } from "@/lib/auth";
-import { formatBRL, formatReferencia, formatData, formatReferenciaCurta } from "@/lib/format";
+import { formatBRL, formatReferencia, formatData, formatReferenciaCurta, hojeISO } from "@/lib/format";
 import { gerarPixCopiaECola } from "@/lib/pix";
+import { calcularEncargosAtraso } from "@/lib/atraso";
 import StatusBadge from "@/components/StatusBadge";
 import PrintButton from "@/components/PrintButton";
 import EconomiaChart from "@/components/EconomiaChart";
@@ -55,6 +56,12 @@ export default async function FaturaPage({ params }: { params: Promise<{ id: str
   const isCashback = f.modalidade_beneficio === "cashback";
   const beneficioFatura = isCashback ? Number(f.cashback_valor ?? 0) : Number(f.economia);
 
+  // Multa + juros de mora automáticos (só para faturas pendentes e vencidas).
+  const encargos = f.status === "pendente"
+    ? calcularEncargosAtraso(Number(f.valor_liquido), f.vencimento, hojeISO(), Number(cfg?.multa_percentual ?? 2), Number(cfg?.juros_mensal_percentual ?? 1))
+    : null;
+  const valorAPagar = encargos?.emAtraso ? encargos.totalAtualizado : Number(f.valor_liquido);
+
   const pontosConsumo = hist.slice(-6).map((h) => ({ label: formatReferenciaCurta(h.referencia), valor: Number(h.consumo_kwh), referencia: h.referencia }));
   const pontosEconomia = hist.slice(-6).map((h) => ({ label: formatReferenciaCurta(h.referencia), valor: beneficioDe(h), referencia: h.referencia }));
   const economiaAcumulada = hist.reduce((s, h) => s + beneficioDe(h), 0);
@@ -76,7 +83,7 @@ export default async function FaturaPage({ params }: { params: Promise<{ id: str
       chave: cfg.chave_pix,
       nome: cfg.pix_nome || cfg.nome_usina || "Recebedor",
       cidade: cfg.pix_cidade || "Cidade",
-      valor: Number(f.valor_liquido),
+      valor: valorAPagar,
     });
     qrSvg = await QRCode.toString(pixCopiaECola, { type: "svg", margin: 1, width: 150 });
   }
@@ -196,9 +203,17 @@ export default async function FaturaPage({ params }: { params: Promise<{ id: str
                   <span className="text-2xl font-bold text-red-600">{formatBRL(f.valor_bruto)}</span>
                 </div>
               )}
+              {encargos?.emAtraso && (
+                <div className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+                  <div className="mb-1 font-bold uppercase">Fatura vencida há {encargos.diasAtraso} dia(s)</div>
+                  <div className="flex items-center justify-between"><span>Valor original</span><span className="tabular-nums">{formatBRL(f.valor_liquido)}</span></div>
+                  <div className="flex items-center justify-between"><span>Multa ({numero(cfg?.multa_percentual ?? 2, 0)}%)</span><span className="tabular-nums">+ {formatBRL(encargos.multa)}</span></div>
+                  <div className="flex items-center justify-between"><span>Juros de mora ({numero(cfg?.juros_mensal_percentual ?? 1, 0)}%/mês · {encargos.diasAtraso} dias)</span><span className="tabular-nums">+ {formatBRL(encargos.juros)}</span></div>
+                </div>
+              )}
               <div className="flex items-center justify-between">
-                <span className="font-semibold text-slate-700">Total a pagar</span>
-                <span className="text-3xl font-extrabold text-slate-900">{formatBRL(f.valor_liquido)}</span>
+                <span className="font-semibold text-slate-700">Total a pagar{encargos?.emAtraso ? " (atualizado)" : ""}</span>
+                <span className="text-3xl font-extrabold text-slate-900">{formatBRL(valorAPagar)}</span>
               </div>
               {isCashback ? (
                 <div className="mt-3 rounded-lg bg-brand-100 px-3 py-2 text-sm text-brand-800">
@@ -284,10 +299,10 @@ export default async function FaturaPage({ params }: { params: Promise<{ id: str
           {/* Rodapé total */}
           <div className="flex items-center justify-between bg-slate-900 px-6 py-4 text-white">
             <div>
-              <p className="text-xs text-slate-400">Total a pagar</p>
+              <p className="text-xs text-slate-400">Total a pagar{encargos?.emAtraso ? " (atualizado)" : ""}</p>
               {f.vencimento && <p className="text-xs text-slate-400">Vencimento em {formatData(f.vencimento)}</p>}
             </div>
-            <p className="text-2xl font-extrabold text-brand-400">{formatBRL(f.valor_liquido)}</p>
+            <p className="text-2xl font-extrabold text-brand-400">{formatBRL(valorAPagar)}</p>
           </div>
         </div>
 

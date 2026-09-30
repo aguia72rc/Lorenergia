@@ -35,6 +35,8 @@ export interface Configuracoes {
   fio_b: number;
   taxa_energia_solar: number;
   taxa_iluminacao_publica: number;
+  multa_percentual: number;
+  juros_mensal_percentual: number;
   chave_pix: string | null;
   pix_nome: string | null;
   pix_cidade: string | null;

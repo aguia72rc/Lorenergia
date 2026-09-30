@@ -56,6 +56,21 @@ export default async function ConfiguracoesPage() {
         </div>
 
         <div>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Atraso (multa e juros automáticos)</p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="label" htmlFor="multa_percentual">Multa por atraso (%)</label>
+              <input id="multa_percentual" name="multa_percentual" type="number" min={0} step={0.5} className="input" defaultValue={cfg?.multa_percentual ?? 2} />
+            </div>
+            <div>
+              <label className="label" htmlFor="juros_mensal_percentual">Juros de mora (% ao mês)</label>
+              <input id="juros_mensal_percentual" name="juros_mensal_percentual" type="number" min={0} step={0.5} className="input" defaultValue={cfg?.juros_mensal_percentual ?? 1} />
+            </div>
+          </div>
+          <p className="mt-1 text-xs text-slate-400">Aplicados automaticamente às faturas vencidas e não pagas: multa uma vez ao vencer + juros por dia (pro rata die). O valor atualizado aparece na fatura e no admin.</p>
+        </div>
+
+        <div>
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Pagamento via PIX (para o QR Code)</p>
           <div className="grid gap-4 sm:grid-cols-3">
             <div>
