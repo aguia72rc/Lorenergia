@@ -1,15 +1,16 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Leaf, Wallet, FileText, TrendingDown, ChevronRight, Home, ExternalLink } from "lucide-react";
+import { Leaf, Wallet, FileText, TrendingDown, ChevronRight, Home, ExternalLink, AlertTriangle } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getSessao } from "@/lib/auth";
-import { formatBRL, formatReferencia, formatData, formatReferenciaCurta } from "@/lib/format";
+import { formatBRL, formatReferencia, formatData, formatReferenciaCurta, hojeISO } from "@/lib/format";
+import { calcularEncargosAtraso } from "@/lib/atraso";
 import StatusBadge from "@/components/StatusBadge";
 import EconomiaChart from "@/components/EconomiaChart";
 import EconomiaRing from "@/components/EconomiaRing";
 import BoasVindasModal from "@/components/BoasVindasModal";
 import { AnimatedNumber } from "@/components/motion";
-import type { Cliente, Fatura } from "@/lib/types";
+import type { Cliente, Fatura, Configuracoes } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -34,17 +35,28 @@ export default async function PortalPage() {
     );
   }
 
-  const [{ data: cliente }, { data: faturas }] = await Promise.all([
+  const [{ data: cliente }, { data: faturas }, { data: config }] = await Promise.all([
     supabase.from("clientes").select("*").eq("id", sessao.profile.cliente_id).single(),
     supabase
       .from("faturas")
       .select("*")
       .eq("cliente_id", sessao.profile.cliente_id)
       .order("referencia", { ascending: false }),
+    supabase.from("configuracoes").select("*").eq("id", 1).single(),
   ]);
 
   const c = cliente as Cliente;
   const lista = (faturas ?? []) as Fatura[];
+  const cfg = config as Configuracoes | null;
+
+  // Encargos de atraso (multa + juros) por fatura pendente vencida.
+  const hoje = hojeISO();
+  const multaPct = Number(cfg?.multa_percentual ?? 2);
+  const jurosPct = Number(cfg?.juros_mensal_percentual ?? 1);
+  const encargosDe = (f: Fatura) =>
+    f.status === "pendente" ? calcularEncargosAtraso(Number(f.valor_liquido), f.vencimento, hoje, multaPct, jurosPct) : null;
+  const vencidas = lista.filter((f) => encargosDe(f)?.emAtraso);
+  const totalVencidoAtualizado = vencidas.reduce((s, f) => s + (encargosDe(f)?.totalAtualizado ?? 0), 0);
 
   const anoAtual = new Date().getFullYear();
   const economiaTotal = lista.reduce((s, f) => s + Number(f.economia), 0);
@@ -101,6 +113,37 @@ export default async function PortalPage() {
         <h1 className="text-2xl font-bold text-white" style={{ fontFamily: "var(--font-display)" }}>Olá, {c?.nome?.split(" ")[0]} 👋</h1>
         <p className="text-sm text-slate-400">Acompanhe suas faturas e sua economia com energia solar.</p>
       </div>
+
+      {vencidas.length > 0 && (
+        <div className="rounded-2xl border border-red-500/40 bg-red-500/10 p-5">
+          <div className="flex items-start gap-3">
+            <span className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-red-500/20 text-red-300">
+              <AlertTriangle className="h-5 w-5" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold text-red-200">
+                Você tem {vencidas.length} fatura(s) vencida(s)
+              </p>
+              <p className="mt-0.5 text-sm text-red-200/80">
+                Total atualizado com multa e juros: <strong className="text-white">{formatBRL(totalVencidoAtualizado)}</strong>.
+                Os juros aumentam a cada dia — regularize o quanto antes para evitar mais encargos.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {vencidas.map((f) => {
+                  const e = encargosDe(f)!;
+                  return (
+                    <Link key={f.id} href={`/fatura/${f.id}`}
+                      className="inline-flex items-center gap-2 rounded-lg border border-red-400/40 bg-red-500/10 px-3 py-1.5 text-sm text-red-100 hover:bg-red-500/20">
+                      {formatReferencia(f.referencia)} · <strong>{formatBRL(e.totalAtualizado)}</strong>
+                      <span className="text-xs text-red-300">venc. há {e.diasAtraso}d</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Kpi icon={<Leaf />} titulo="Economia total" valor={economiaTotal} fmt="brl" cor="bg-eco-500/15 text-eco-300" destaque />
@@ -194,7 +237,10 @@ export default async function PortalPage() {
           <p className="py-6 text-center text-sm text-slate-400">Você ainda não tem faturas.</p>
         ) : (
           <div className="divide-y divide-white/5">
-            {lista.map((f) => (
+            {lista.map((f) => {
+              const e = encargosDe(f);
+              const vencida = !!e?.emAtraso;
+              return (
               <Link
                 key={f.id}
                 href={`/fatura/${f.id}`}
@@ -202,23 +248,27 @@ export default async function PortalPage() {
               >
                 <div>
                   <p className="font-medium capitalize text-white">{formatReferencia(f.referencia)}</p>
-                  <p className="text-xs text-slate-400">
-                    {f.consumo_kwh} kWh · economia {formatBRL(f.economia)}
-                    {f.vencimento ? ` · vence ${formatData(f.vencimento)}` : ""}
+                  <p className={`text-xs ${vencida ? "text-red-300" : "text-slate-400"}`}>
+                    {vencida
+                      ? `Vencida há ${e!.diasAtraso} dia(s) · com multa e juros`
+                      : <>{f.consumo_kwh} kWh · economia {formatBRL(f.economia)}{f.vencimento ? ` · vence ${formatData(f.vencimento)}` : ""}</>}
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="flex flex-col items-end gap-0.5">
-                    {Number(f.valor_desconto) > 0 && (
+                    {vencida ? (
+                      <p className="text-xs tabular-nums text-slate-500 line-through">{formatBRL(f.valor_liquido)}</p>
+                    ) : Number(f.valor_desconto) > 0 ? (
                       <p className="text-xs tabular-nums text-slate-500 line-through">{formatBRL(f.valor_bruto)}</p>
-                    )}
-                    <p className="font-semibold tabular-nums text-white">{formatBRL(f.valor_liquido)}</p>
-                    <StatusBadge status={f.status} />
+                    ) : null}
+                    <p className={`font-semibold tabular-nums ${vencida ? "text-red-300" : "text-white"}`}>{formatBRL(vencida ? e!.totalAtualizado : f.valor_liquido)}</p>
+                    {vencida ? <span className="badge bg-red-500/15 text-red-300 ring-1 ring-red-500/25">Vencida</span> : <StatusBadge status={f.status} />}
                   </div>
                   <ChevronRight className="h-4 w-4 shrink-0 text-slate-500" />
                 </div>
               </Link>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
