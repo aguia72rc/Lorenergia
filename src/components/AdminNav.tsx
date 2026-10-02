@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Sun, LayoutDashboard, Users, FileText, BarChart3, Settings, LogOut, Target, KanbanSquare, Radar, SlidersHorizontal, Gauge, Factory } from "lucide-react";
+import { Sun, LayoutDashboard, Users, FileText, BarChart3, Settings, LogOut, Target, KanbanSquare, Radar, SlidersHorizontal, Gauge } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 
 const itens = [
@@ -12,7 +12,6 @@ const itens = [
   { href: "/admin/leads/pipeline", label: "Pipeline", icon: KanbanSquare },
   { href: "/admin/clientes", label: "Moradores", icon: Users },
   { href: "/admin/faturas", label: "Faturas", icon: FileText },
-  { href: "/admin/usina", label: "Usina", icon: Factory },
   { href: "/admin/relatorios", label: "Relatórios", icon: BarChart3 },
   { href: "/admin/planos", label: "Planos", icon: SlidersHorizontal },
   { href: "/admin/parametros", label: "Parâmetros", icon: Gauge },

@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { Users, FileText, Wallet, Leaf, Plus, AlertTriangle, Send, TrendingUp, CheckCircle2, Building2 } from "lucide-react";
+import { Users, FileText, Wallet, Leaf, Plus, AlertTriangle, Send, TrendingUp, CheckCircle2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { formatBRL, formatKwh, formatReferencia, formatReferenciaCurta, primeiroDiaMesAtual, hojeISO } from "@/lib/format";
+import { formatBRL, formatReferencia, formatReferenciaCurta, primeiroDiaMesAtual, hojeISO } from "@/lib/format";
 import StatusBadge from "@/components/StatusBadge";
 import FaturamentoChart from "@/components/FaturamentoChart";
 import { AnimatedNumber } from "@/components/motion";
@@ -46,23 +46,6 @@ export default async function AdminDashboard() {
       recebidoPorMes.set(f.referencia, (recebidoPorMes.get(f.referencia) ?? 0) + Number(f.valor_liquido));
     }
   }
-  // ---- Consumo do Prédio no mês (override manual ou soma das faturas dos membros) ----
-  let consumoPredioMesTotal = 0;
-  let qtdMembrosPredio = 0;
-  const membrosRes = await supabase.from("clientes").select("id").eq("predio_papel", "membro").eq("ativo", true);
-  const membroIds = new Set((membrosRes.data ?? []).map((c: { id: string }) => c.id));
-  qtdMembrosPredio = membroIds.size;
-  const gRes = await supabase.from("geracao_mensal").select("consumo_predio").eq("referencia", refMes).maybeSingle();
-  const overridePredio = !gRes.error && gRes.data ? (gRes.data as { consumo_predio?: number | null }).consumo_predio : null;
-  if (overridePredio != null) {
-    consumoPredioMesTotal = Number(overridePredio);
-  } else if (qtdMembrosPredio > 0) {
-    const fatRes = await supabase.from("faturas").select("cliente_id, consumo_kwh, status").eq("referencia", refMes);
-    for (const f of (fatRes.data ?? []) as { cliente_id: string; consumo_kwh: number; status: string }[]) {
-      if (f.status !== "cancelada" && membroIds.has(f.cliente_id)) consumoPredioMesTotal += Number(f.consumo_kwh);
-    }
-  }
-
   const faturamentoAcumulado = Array.from(faturadoPorMes.values()).reduce((s, v) => s + v, 0);
   const recebidoAcumulado = Array.from(recebidoPorMes.values()).reduce((s, v) => s + v, 0);
   const pontosFaturamento = Array.from(faturadoPorMes.keys())
@@ -92,19 +75,6 @@ export default async function AdminDashboard() {
         <Kpi icon={<FileText />} titulo="Faturado no mês" valor={receitaMes} fmt="brl" cor="bg-brand-500/15 text-brand-300" />
         <Kpi icon={<Leaf />} titulo="Economia gerada no mês" valor={economiaMes} fmt="brl" cor="bg-eco-500/15 text-eco-300" />
       </div>
-
-      {qtdMembrosPredio > 0 && (
-        <div className="card flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-brand-500/15 text-brand-300"><Building2 className="h-5 w-5" /></span>
-            <div>
-              <p className="text-sm text-slate-400">Consumo do Prédio no mês · {qtdMembrosPredio} moradores</p>
-              <p className="mt-0.5 text-xl font-bold text-white">{formatKwh(consumoPredioMesTotal)}</p>
-            </div>
-          </div>
-          <Link href="/admin/usina" className="text-sm text-brand-300 hover:underline">Ver na Usina →</Link>
-        </div>
-      )}
 
       <div className="card">
         <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
