@@ -25,6 +25,7 @@ export async function quitarCashback(clienteId: string): Promise<{ ok: boolean; 
     .update({ cashback_pago: true, cashback_pago_em: hoje })
     .eq("cliente_id", clienteId)
     .eq("modalidade_beneficio", "cashback")
+    .eq("publicada", true)
     .eq("cashback_pago", false)
     .select("id");
 

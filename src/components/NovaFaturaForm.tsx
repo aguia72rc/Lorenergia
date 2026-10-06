@@ -21,32 +21,69 @@ export interface TarifasPadrao {
   iluminacao: number; // R$
 }
 
+/** Dados de uma fatura existente, para o modo "editar". */
+export interface FaturaEdicao {
+  id: string;
+  cliente_id: string;
+  referencia: string; // YYYY-MM-DD
+  leitura_anterior: number | null;
+  leitura_atual: number | null;
+  fator_multiplicador: number;
+  consumo_kwh: number;
+  tarifa_tusd: number;
+  tarifa_te: number;
+  taxa_energia_solar: number;
+  adicional_bandeira: number;
+  taxa_iluminacao: number;
+  multa_juros: number;
+  icms: number;
+  pis: number;
+  cofins: number;
+  desconto_percentual: number;
+  data_emissao: string | null;
+  vencimento: string | null;
+  status: "pendente" | "paga" | "cancelada";
+  observacoes: string | null;
+  publicada: boolean;
+}
+
 export default function NovaFaturaForm({
   clientes,
   ultimaLeitura,
   tarifas,
   referenciaPadrao,
+  fatura,
 }: {
   clientes: ClienteOpcao[];
   ultimaLeitura: Record<string, number>;
   tarifas: TarifasPadrao;
   referenciaPadrao: string; // YYYY-MM
+  /** Quando informada, o formulário edita esta fatura (morador e mês ficam fixos). */
+  fatura?: FaturaEdicao;
 }) {
+  const editando = !!fatura;
   const hoje = new Date().toISOString().slice(0, 10);
-  const primeiro = clientes[0];
+  const primeiro = clientes.find((c) => c.id === fatura?.cliente_id) ?? clientes[0];
+  const num = (v: number | null | undefined) => (v == null ? "" : String(v));
   const [clienteId, setClienteId] = useState(primeiro?.id ?? "");
   const [leituraAnterior, setLeituraAnterior] = useState(
-    primeiro && ultimaLeitura[primeiro.id] != null ? String(ultimaLeitura[primeiro.id]) : ""
+    fatura
+      ? fatura.leitura_atual != null ? num(fatura.leitura_anterior) : "0"
+      : primeiro && ultimaLeitura[primeiro.id] != null ? String(ultimaLeitura[primeiro.id]) : ""
   );
-  const [leituraAtual, setLeituraAtual] = useState("");
-  const [fator, setFator] = useState("1");
-  const [tusd, setTusd] = useState(String(tarifas.tusd));
-  const [te, setTe] = useState(String(tarifas.te));
-  const [bandeira, setBandeira] = useState(String(tarifas.bandeira));
-  const [taxaSolar, setTaxaSolar] = useState(String(tarifas.taxaSolar));
-  const [iluminacao, setIluminacao] = useState(String(tarifas.iluminacao));
-  const [multa, setMulta] = useState("0");
-  const [desconto, setDesconto] = useState(String(primeiro?.desconto_percentual ?? 20));
+  // Faturas antigas sem leituras: usa o consumo gravado como leitura atual (fator 1).
+  const [leituraAtual, setLeituraAtual] = useState(
+    fatura ? (fatura.leitura_atual != null ? num(fatura.leitura_atual) : num(fatura.consumo_kwh)) : ""
+  );
+  const [fator, setFator] = useState(fatura ? (fatura.leitura_atual != null ? num(fatura.fator_multiplicador) : "1") : "1");
+  const [tusd, setTusd] = useState(fatura ? num(fatura.tarifa_tusd) : String(tarifas.tusd));
+  const [te, setTe] = useState(fatura ? num(fatura.tarifa_te) : String(tarifas.te));
+  const [bandeira, setBandeira] = useState(fatura ? num(fatura.adicional_bandeira) : String(tarifas.bandeira));
+  const [taxaSolar, setTaxaSolar] = useState(fatura ? num(fatura.taxa_energia_solar) : String(tarifas.taxaSolar));
+  const [iluminacao, setIluminacao] = useState(fatura ? num(fatura.taxa_iluminacao) : String(tarifas.iluminacao));
+  const [multa, setMulta] = useState(fatura ? num(fatura.multa_juros) : "0");
+  const [desconto, setDesconto] = useState(fatura ? num(fatura.desconto_percentual) : String(primeiro?.desconto_percentual ?? 20));
+  const [rascunho, setRascunho] = useState(true);
 
   const consumo = consumoDeLeituras(Number(leituraAnterior), Number(leituraAtual), Number(fator));
 
@@ -77,25 +114,33 @@ export default function NovaFaturaForm({
       <div className="card space-y-4 lg:col-span-2">
         <div>
           <label className="label" htmlFor="cliente_id">Morador *</label>
-          <select id="cliente_id" name="cliente_id" className="input" value={clienteId} onChange={(e) => onSelecionarCliente(e.target.value)} required>
+          <select id="cliente_id" name={editando ? undefined : "cliente_id"} className="input" value={clienteId} onChange={(e) => onSelecionarCliente(e.target.value)} disabled={editando} required>
             {clientes.map((c) => (
               <option key={c.id} value={c.id}>{c.nome} {c.unidade ? `— ${c.unidade}` : ""}</option>
             ))}
           </select>
+          {editando && <input type="hidden" name="cliente_id" value={clienteId} />}
         </div>
 
         <div className="grid gap-4 sm:grid-cols-3">
           <div>
             <label className="label" htmlFor="referencia">Mês de referência *</label>
-            <input id="referencia" name="referencia" type="month" className="input" defaultValue={referenciaPadrao} required />
+            {editando ? (
+              <>
+                <div className="flex h-[38px] items-center rounded-lg bg-white/10 px-3 text-sm font-semibold text-slate-200">{referenciaPadrao}</div>
+                <input type="hidden" name="referencia" value={referenciaPadrao} />
+              </>
+            ) : (
+              <input id="referencia" name="referencia" type="month" className="input" defaultValue={referenciaPadrao} required />
+            )}
           </div>
           <div>
             <label className="label" htmlFor="data_emissao">Data de emissão</label>
-            <input id="data_emissao" name="data_emissao" type="date" className="input" defaultValue={hoje} />
+            <input id="data_emissao" name="data_emissao" type="date" className="input" defaultValue={fatura?.data_emissao ?? hoje} />
           </div>
           <div>
             <label className="label" htmlFor="vencimento">Vencimento</label>
-            <input id="vencimento" name="vencimento" type="date" className="input" />
+            <input id="vencimento" name="vencimento" type="date" className="input" defaultValue={fatura?.vencimento ?? ""} />
           </div>
         </div>
 
@@ -126,9 +171,9 @@ export default function NovaFaturaForm({
 
         <p className="pt-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Tributos (informativo) · Situação</p>
         <div className="grid gap-4 sm:grid-cols-4">
-          <NumInput label="ICMS (R$)" name="icms" step={0.01} />
-          <NumInput label="PIS (R$)" name="pis" step={0.01} />
-          <NumInput label="COFINS (R$)" name="cofins" step={0.01} />
+          <NumInput label="ICMS (R$)" name="icms" step={0.01} valor={fatura?.icms} />
+          <NumInput label="PIS (R$)" name="pis" step={0.01} valor={fatura?.pis} />
+          <NumInput label="COFINS (R$)" name="cofins" step={0.01} valor={fatura?.cofins} />
           <div>
             <label className="label" htmlFor="desconto_percentual">Desconto (%)</label>
             <input id="desconto_percentual" name="desconto_percentual" type="number" min={0} max={100} step={0.5} className="input" value={desconto} onChange={(e) => setDesconto(e.target.value)} />
@@ -138,14 +183,14 @@ export default function NovaFaturaForm({
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label className="label" htmlFor="status">Situação</label>
-            <select id="status" name="status" className="input" defaultValue="pendente">
+            <select id="status" name="status" className="input" defaultValue={fatura?.status === "paga" ? "paga" : "pendente"}>
               <option value="pendente">Pendente</option>
               <option value="paga">Paga</option>
             </select>
           </div>
           <div>
             <label className="label" htmlFor="observacoes">Observações</label>
-            <input id="observacoes" name="observacoes" className="input" />
+            <input id="observacoes" name="observacoes" className="input" defaultValue={fatura?.observacoes ?? ""} />
           </div>
         </div>
       </div>
@@ -169,8 +214,25 @@ export default function NovaFaturaForm({
             <div className="mt-2 rounded-lg bg-eco-600/20 px-3 py-2 text-eco-300">🌱 Economia: <strong>{formatBRL(r.economia)}</strong></div>
           </div>
         </div>
+        {editando ? (
+          <div className={`rounded-lg border p-3 text-sm ${fatura!.publicada ? "border-amber-500/30 bg-amber-500/10 text-amber-300" : "border-sky-500/30 bg-sky-500/10 text-sky-300"}`}>
+            {fatura!.publicada
+              ? "⚠️ Esta fatura já está publicada: o cliente verá as alterações assim que você salvar. Para ajustar sem ele ver, despublique antes."
+              : "📝 Rascunho: só você vê. Salve as alterações e, quando estiver certo, publique."}
+          </div>
+        ) : (
+          <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-sky-500/30 bg-sky-500/10 p-3 text-sm text-sky-200">
+            <input type="checkbox" name="rascunho" checked={rascunho} onChange={(e) => setRascunho(e.target.checked)} className="mt-0.5 h-4 w-4" />
+            <span>
+              <strong>Salvar como rascunho</strong>
+              <span className="block text-xs text-sky-300/80">Só você vê. O cliente só enxerga depois que você publicar.</span>
+            </span>
+          </label>
+        )}
         <div className="flex flex-col gap-2">
-          <button type="submit" className="btn-primary w-full">Gerar fatura</button>
+          <button type="submit" className="btn-primary w-full">
+            {editando ? "Salvar alterações" : rascunho ? "Salvar rascunho" : "Gerar e publicar"}
+          </button>
           <Link href="/admin/faturas" className="btn-outline w-full">Cancelar</Link>
         </div>
       </div>
@@ -187,11 +249,11 @@ function Campo({ label, name, value, onChange, step, required }: { label: string
   );
 }
 
-function NumInput({ label, name, step }: { label: string; name: string; step: number }) {
+function NumInput({ label, name, step, valor }: { label: string; name: string; step: number; valor?: number }) {
   return (
     <div>
       <label className="label" htmlFor={name}>{label}</label>
-      <input id={name} name={name} type="number" min={0} step={step} className="input" defaultValue={0} />
+      <input id={name} name={name} type="number" min={0} step={step} className="input" defaultValue={valor ?? 0} />
     </div>
   );
 }

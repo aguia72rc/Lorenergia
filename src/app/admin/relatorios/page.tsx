@@ -35,9 +35,10 @@ export default async function RelatoriosPage({
     supabase
       .from("faturas")
       .select("*, clientes(id, nome, unidade, telefone, email)")
+      .eq("publicada", true)
       .eq("referencia", referencia)
       .order("created_at", { ascending: true }),
-    supabase.from("faturas").select("referencia, valor_liquido, economia, consumo_kwh, status"),
+    supabase.from("faturas").select("referencia, valor_liquido, economia, consumo_kwh, status").eq("publicada", true),
     supabase.from("geracao_mensal").select("referencia, kwh_injetado, kwh_consumido"),
   ]);
 

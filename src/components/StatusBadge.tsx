@@ -12,6 +12,10 @@ const rotulos: Record<StatusFatura, string> = {
   cancelada: "Cancelada",
 };
 
-export default function StatusBadge({ status }: { status: StatusFatura }) {
+/** `rascunho`: fatura ainda não publicada (só o admin vê) — sobrepõe o status. */
+export default function StatusBadge({ status, rascunho = false }: { status: StatusFatura; rascunho?: boolean }) {
+  if (rascunho) {
+    return <span className="badge bg-sky-500/15 text-sky-300 ring-1 ring-sky-500/25">Rascunho</span>;
+  }
   return <span className={`badge ${estilos[status]}`}>{rotulos[status]}</span>;
 }

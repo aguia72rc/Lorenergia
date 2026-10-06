@@ -16,15 +16,15 @@ export default async function AdminDashboard() {
   const [{ count: totalMoradores }, { data: faturasMes }, { data: pendentes }, { data: vencidas }, { data: ultimas }, { data: todasFaturas }] =
     await Promise.all([
       supabase.from("clientes").select("*", { count: "exact", head: true }).eq("ativo", true),
-      supabase.from("faturas").select("valor_liquido, economia").eq("referencia", refMes),
-      supabase.from("faturas").select("valor_liquido").eq("status", "pendente"),
-      supabase.from("faturas").select("valor_liquido").eq("status", "pendente").lt("vencimento", hojeISO()),
+      supabase.from("faturas").select("valor_liquido, economia").eq("publicada", true).eq("referencia", refMes),
+      supabase.from("faturas").select("valor_liquido").eq("publicada", true).eq("status", "pendente"),
+      supabase.from("faturas").select("valor_liquido").eq("publicada", true).eq("status", "pendente").lt("vencimento", hojeISO()),
       supabase
         .from("faturas")
         .select("*, clientes(id, nome, unidade, telefone, email)")
         .order("created_at", { ascending: false })
         .limit(5),
-      supabase.from("faturas").select("referencia, valor_liquido, status"),
+      supabase.from("faturas").select("referencia, valor_liquido, status").eq("publicada", true),
     ]);
 
   const receitaMes = (faturasMes ?? []).reduce((s, f) => s + Number(f.valor_liquido), 0);
@@ -138,7 +138,7 @@ export default async function AdminDashboard() {
                     </td>
                     <td className="py-2.5 text-slate-300">{formatReferencia(f.referencia)}</td>
                     <td className="py-2.5 text-slate-200">{formatBRL(f.valor_liquido)}</td>
-                    <td className="py-2.5"><StatusBadge status={f.status} /></td>
+                    <td className="py-2.5"><StatusBadge status={f.status} rascunho={f.publicada === false} /></td>
                   </tr>
                 ))}
               </tbody>

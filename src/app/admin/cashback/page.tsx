@@ -23,10 +23,11 @@ export default async function CashbackPage() {
     .from("faturas")
     .select("id, cliente_id, referencia, cashback_valor, cashback_pago, cashback_pago_em, clientes(nome, unidade, cashback_periodicidade)")
     .eq("modalidade_beneficio", "cashback")
+    .eq("publicada", true)
     .order("referencia", { ascending: true });
 
   // Migração 0018 ainda não aplicada.
-  if (error && /modalidade_beneficio|cashback/.test(error.message)) {
+  if (error && /modalidade_beneficio|cashback|publicada/.test(error.message)) {
     return (
       <div className="space-y-4">
         <h1 className="text-2xl font-bold text-white">Cashback</h1>

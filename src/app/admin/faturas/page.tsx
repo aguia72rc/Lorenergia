@@ -7,6 +7,7 @@ import { getBaseUrl } from "@/lib/url";
 import { montarMensagem, gerarLinkWhatsApp } from "@/lib/whatsapp";
 import StatusBadge from "@/components/StatusBadge";
 import FaturaRowActions from "@/components/FaturaRowActions";
+import { PublicarMesButton } from "@/components/PublicarButtons";
 import MonthFilter from "@/components/MonthFilter";
 import type { FaturaComCliente, Configuracoes, StatusFatura } from "@/lib/types";
 
@@ -18,6 +19,7 @@ const filtros: { chave: string; rotulo: string }[] = [
   { chave: "vencidas", rotulo: "Vencidas" },
   { chave: "paga", rotulo: "Pagas" },
   { chave: "cancelada", rotulo: "Canceladas" },
+  { chave: "rascunho", rotulo: "Rascunhos" },
 ];
 
 function normalizarMes(mes?: string): string | null {
@@ -53,10 +55,12 @@ export default async function FaturasPage({
     .order("referencia", { ascending: false })
     .order("created_at", { ascending: false });
 
-  if (statusFiltro === "vencidas") {
-    query = query.eq("status", "pendente").lt("vencimento", hojeISO());
+  if (statusFiltro === "rascunho") {
+    query = query.eq("publicada", false);
+  } else if (statusFiltro === "vencidas") {
+    query = query.eq("publicada", true).eq("status", "pendente").lt("vencimento", hojeISO());
   } else if (statusFiltro !== "todas") {
-    query = query.eq("status", statusFiltro as StatusFatura);
+    query = query.eq("publicada", true).eq("status", statusFiltro as StatusFatura);
   }
   if (mesFiltro) query = query.eq("referencia", mesFiltro);
 
@@ -73,7 +77,7 @@ export default async function FaturasPage({
   const jurosPct = Number(cfg?.juros_mensal_percentual ?? 1);
   const encargosPorFatura = new Map<string, EncargosAtraso>();
   const encargosDe = (f: FaturaComCliente): EncargosAtraso | null => {
-    if (f.status !== "pendente") return null;
+    if (f.status !== "pendente" || f.publicada === false) return null;
     let e = encargosPorFatura.get(f.id);
     if (!e) {
       e = calcularEncargosAtraso(Number(f.valor_liquido), f.vencimento, hoje, multaPct, jurosPct);
@@ -83,14 +87,19 @@ export default async function FaturasPage({
   };
 
   // Agrupa as faturas por mês (referência), preservando a ordem desc da query.
-  const grupos: { referencia: string; faturas: FaturaComCliente[]; aPagar: number; economia: number }[] = [];
+  const grupos: { referencia: string; faturas: FaturaComCliente[]; aPagar: number; economia: number; rascunhos: number }[] = [];
   for (const f of lista) {
     let g = grupos.find((x) => x.referencia === f.referencia);
     if (!g) {
-      g = { referencia: f.referencia, faturas: [], aPagar: 0, economia: 0 };
+      g = { referencia: f.referencia, faturas: [], aPagar: 0, economia: 0, rascunhos: 0 };
       grupos.push(g);
     }
     g.faturas.push(f);
+    if (f.publicada === false) {
+      // Rascunho não entra nos totais (o cliente ainda não vê).
+      g.rascunhos++;
+      continue;
+    }
     const enc = encargosDe(f);
     g.aPagar += (enc?.emAtraso ? enc.totalAtualizado : Number(f.valor_liquido)) || 0;
     g.economia += Number(f.economia) || 0;
@@ -150,11 +159,19 @@ export default async function FaturasPage({
                   {formatReferencia(g.referencia)}
                   <span className="ml-2 text-sm font-normal text-slate-400">{g.faturas.length} fatura(s)</span>
                 </h2>
-                <p className="text-sm text-slate-400">
-                  A pagar <span className="font-semibold text-white">{formatBRL(g.aPagar)}</span>
-                  <span className="mx-2 text-slate-600">·</span>
-                  Economia <span className="font-semibold text-eco-300">{formatBRL(g.economia)}</span>
-                </p>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-400">
+                  <span>
+                    A pagar <span className="font-semibold text-white">{formatBRL(g.aPagar)}</span>
+                    <span className="mx-2 text-slate-600">·</span>
+                    Economia <span className="font-semibold text-eco-300">{formatBRL(g.economia)}</span>
+                  </span>
+                  {g.rascunhos > 0 && (
+                    <>
+                      <span className="badge bg-sky-500/15 text-sky-300 ring-1 ring-sky-500/25">{g.rascunhos} rascunho(s)</span>
+                      <PublicarMesButton referencia={g.referencia} qtd={g.faturas.filter((x) => x.publicada === false && x.status !== "cancelada").length} rotuloMes={formatReferencia(g.referencia)} />
+                    </>
+                  )}
+                </div>
               </div>
               <div className="card overflow-x-auto">
                 <table className="w-full text-sm">
@@ -173,8 +190,10 @@ export default async function FaturasPage({
                     {g.faturas.map((f) => {
                       const mensagem = montarMensagem(f, cfg, `${baseUrl}/fatura/${f.id}`);
                       const link = gerarLinkWhatsApp(f.clientes?.telefone, mensagem);
+                      const rascunho = f.publicada === false;
+                      const vencida = !rascunho && faturaVencida(f.vencimento, f.status);
                       return (
-                        <tr key={f.id} className="border-b border-white/5 last:border-0">
+                        <tr key={f.id} className={`border-b border-white/5 last:border-0 ${rascunho ? "bg-sky-500/[0.04]" : ""}`}>
                           <td className="py-3">
                             <span className="font-medium text-white">{f.clientes?.nome ?? "-"}</span>
                             <span className="ml-1 text-xs text-slate-400">{f.clientes?.unidade}</span>
@@ -193,20 +212,22 @@ export default async function FaturasPage({
                             })()}
                           </td>
                           <td className="py-3 text-eco-300">{formatBRL(f.economia)}</td>
-                          <td className={`py-3 ${faturaVencida(f.vencimento, f.status) ? "font-medium text-red-400" : "text-slate-300"}`}>
+                          <td className={`py-3 ${vencida ? "font-medium text-red-400" : "text-slate-300"}`}>
                             {formatData(f.vencimento)}
                           </td>
                           <td className="py-3">
-                            {faturaVencida(f.vencimento, f.status) ? (
+                            {vencida ? (
                               <span className="badge bg-red-500/15 text-red-300 ring-1 ring-red-500/25">Vencida</span>
                             ) : (
-                              <StatusBadge status={f.status} />
+                              <StatusBadge status={f.status} rascunho={rascunho} />
                             )}
                           </td>
                           <td className="py-3">
                             <FaturaRowActions
                               id={f.id}
                               status={f.status}
+                              publicada={!rascunho}
+                              nome={f.clientes?.nome}
                               whatsappLink={link}
                               whatsappEnviadoEm={f.whatsapp_enviado_em}
                             />

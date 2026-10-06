@@ -73,6 +73,7 @@ export interface Fatura {
   cashback_valor: number;
   cashback_pago: boolean;
   cashback_pago_em: string | null;
+  publicada: boolean; // false = rascunho (só o admin vê)
   data_emissao: string | null;
   vencimento: string | null;
   status: StatusFatura;
