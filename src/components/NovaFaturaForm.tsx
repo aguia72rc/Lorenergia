@@ -5,6 +5,7 @@ import Link from "next/link";
 import { calcularFaturaDetalhada, consumoDeLeituras } from "@/lib/calc";
 import { formatBRL, formatKwh } from "@/lib/format";
 import { gerarFatura } from "@/app/admin/faturas/actions";
+import { vencimentoSugerido, type UltimoVencimento } from "@/lib/vencimento";
 
 interface ClienteOpcao {
   id: string;
@@ -52,12 +53,15 @@ export default function NovaFaturaForm({
   ultimaLeitura,
   tarifas,
   referenciaPadrao,
+  ultimoVencimento = {},
   fatura,
 }: {
   clientes: ClienteOpcao[];
   ultimaLeitura: Record<string, number>;
   tarifas: TarifasPadrao;
   referenciaPadrao: string; // YYYY-MM
+  /** Última fatura com vencimento de cada morador (base da sugestão de vencimento). */
+  ultimoVencimento?: Record<string, UltimoVencimento>;
   /** Quando informada, o formulário edita esta fatura (morador e mês ficam fixos). */
   fatura?: FaturaEdicao;
 }) {
@@ -84,6 +88,13 @@ export default function NovaFaturaForm({
   const [multa, setMulta] = useState(fatura ? num(fatura.multa_juros) : "0");
   const [desconto, setDesconto] = useState(fatura ? num(fatura.desconto_percentual) : String(primeiro?.desconto_percentual ?? 20));
   const [rascunho, setRascunho] = useState(true);
+  // Vencimento: já vem sugerido pelo padrão da última fatura do morador e
+  // continua editável. Uma edição manual não é mais sobrescrita pela sugestão.
+  const [referencia, setReferencia] = useState(referenciaPadrao);
+  const [vencimento, setVencimento] = useState(
+    fatura ? (fatura.vencimento ?? "") : vencimentoSugerido(ultimoVencimento[primeiro?.id ?? ""], referenciaPadrao)
+  );
+  const [vencEditado, setVencEditado] = useState(!!fatura);
 
   const consumo = consumoDeLeituras(Number(leituraAnterior), Number(leituraAtual), Number(fator));
 
@@ -107,6 +118,12 @@ export default function NovaFaturaForm({
     const c = clientes.find((x) => x.id === id);
     if (c) setDesconto(String(c.desconto_percentual));
     setLeituraAnterior(ultimaLeitura[id] != null ? String(ultimaLeitura[id]) : "");
+    if (!vencEditado) setVencimento(vencimentoSugerido(ultimoVencimento[id], referencia));
+  }
+
+  function onMudarReferencia(valor: string) {
+    setReferencia(valor);
+    if (!vencEditado) setVencimento(vencimentoSugerido(ultimoVencimento[clienteId], valor));
   }
 
   return (
@@ -131,7 +148,7 @@ export default function NovaFaturaForm({
                 <input type="hidden" name="referencia" value={referenciaPadrao} />
               </>
             ) : (
-              <input id="referencia" name="referencia" type="month" className="input" defaultValue={referenciaPadrao} required />
+              <input id="referencia" name="referencia" type="month" className="input" value={referencia} onChange={(e) => onMudarReferencia(e.target.value)} required />
             )}
           </div>
           <div>
@@ -140,7 +157,10 @@ export default function NovaFaturaForm({
           </div>
           <div>
             <label className="label" htmlFor="vencimento">Vencimento</label>
-            <input id="vencimento" name="vencimento" type="date" className="input" defaultValue={fatura?.vencimento ?? ""} />
+            <input id="vencimento" name="vencimento" type="date" className="input" value={vencimento} onChange={(e) => { setVencimento(e.target.value); setVencEditado(true); }} />
+            {!editando && vencimento && !vencEditado && (
+              <p className="mt-1 text-xs text-slate-400">Sugerido pela última fatura do morador — pode alterar.</p>
+            )}
           </div>
         </div>
 

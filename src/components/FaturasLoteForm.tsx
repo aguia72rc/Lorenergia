@@ -8,6 +8,7 @@ import { formatBRL, formatKwh } from "@/lib/format";
 import { gerarFaturasLote, type ItemLote } from "@/app/admin/faturas/actions";
 import type { StatusFatura } from "@/lib/types";
 import type { TarifasPadrao } from "@/components/NovaFaturaForm";
+import { vencimentoSugerido, type UltimoVencimento } from "@/lib/vencimento";
 
 interface ClienteLote {
   id: string;
@@ -19,6 +20,7 @@ interface ClienteLote {
 interface LinhaEstado {
   leituraAnterior: string;
   leituraAtual: string;
+  vencimento: string;
 }
 
 export default function FaturasLoteForm({
@@ -26,9 +28,12 @@ export default function FaturasLoteForm({
   ultimaLeitura,
   tarifas,
   referenciaPadrao,
+  ultimoVencimento = {},
 }: {
   clientes: ClienteLote[];
   ultimaLeitura: Record<string, number>;
+  /** Última fatura com vencimento de cada morador (base da sugestão). */
+  ultimoVencimento?: Record<string, UltimoVencimento>;
   tarifas: TarifasPadrao;
   referenciaPadrao: string; // YYYY-MM
 }) {
@@ -54,13 +59,40 @@ export default function FaturasLoteForm({
     Object.fromEntries(
       clientes.map((c) => [
         c.id,
-        { leituraAnterior: ultimaLeitura[c.id] != null ? String(ultimaLeitura[c.id]) : "", leituraAtual: "" },
+        {
+          leituraAnterior: ultimaLeitura[c.id] != null ? String(ultimaLeitura[c.id]) : "",
+          leituraAtual: "",
+          vencimento: vencimentoSugerido(ultimoVencimento[c.id], referenciaPadrao),
+        },
       ])
     )
   );
+  // Moradores cujo vencimento foi alterado à mão: a sugestão não os sobrescreve.
+  const [vencEditado, setVencEditado] = useState<Record<string, boolean>>({});
 
   function atualizar(id: string, campo: keyof LinhaEstado, valor: string) {
     setLinhas((prev) => ({ ...prev, [id]: { ...prev[id], [campo]: valor } }));
+    if (campo === "vencimento") setVencEditado((prev) => ({ ...prev, [id]: true }));
+  }
+
+  // Trocar o mês recalcula a sugestão de quem ainda não foi editado.
+  function onMudarReferencia(valor: string) {
+    setReferencia(valor);
+    setLinhas((prev) =>
+      Object.fromEntries(
+        clientes.map((c) => [
+          c.id,
+          vencEditado[c.id] ? prev[c.id] : { ...prev[c.id], vencimento: vencimentoSugerido(ultimoVencimento[c.id], valor) },
+        ])
+      )
+    );
+  }
+
+  // "Vencimento para todos": aplica a mesma data a todos os moradores.
+  function aplicarVencimentoATodos(valor: string) {
+    setVencimento(valor);
+    setLinhas((prev) => Object.fromEntries(clientes.map((c) => [c.id, { ...prev[c.id], vencimento: valor }])));
+    setVencEditado(Object.fromEntries(clientes.map((c) => [c.id, valor !== ""])));
   }
 
   const calculados = useMemo(() => {
@@ -96,6 +128,7 @@ export default function FaturasLoteForm({
         leitura_anterior: l.leituraAnterior === "" ? null : Number(l.leituraAnterior),
         leitura_atual: l.leituraAtual === "" ? null : Number(l.leituraAtual),
         desconto_percentual: c.desconto_percentual,
+        vencimento: l.vencimento || null,
       };
     });
 
@@ -126,15 +159,16 @@ export default function FaturasLoteForm({
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <div>
             <label className="label" htmlFor="referencia">Mês de referência *</label>
-            <input id="referencia" type="month" className="input" value={referencia} onChange={(e) => setReferencia(e.target.value)} required />
+            <input id="referencia" type="month" className="input" value={referencia} onChange={(e) => onMudarReferencia(e.target.value)} required />
           </div>
           <div>
             <label className="label" htmlFor="data_emissao">Data de emissão</label>
             <input id="data_emissao" type="date" className="input" value={dataEmissao} onChange={(e) => setDataEmissao(e.target.value)} />
           </div>
           <div>
-            <label className="label" htmlFor="vencimento">Vencimento</label>
-            <input id="vencimento" type="date" className="input" value={vencimento} onChange={(e) => setVencimento(e.target.value)} />
+            <label className="label" htmlFor="vencimento">Vencimento (todos)</label>
+            <input id="vencimento" type="date" className="input" value={vencimento} onChange={(e) => aplicarVencimentoATodos(e.target.value)} />
+            <p className="mt-1 text-xs text-slate-400">Opcional: preenche a data de todos. Cada morador pode ter a sua na tabela.</p>
           </div>
           <div>
             <label className="label" htmlFor="taxa">Ilum. pública (R$)</label>
@@ -194,6 +228,7 @@ export default function FaturasLoteForm({
               <th className="pb-2 font-medium">Morador</th>
               <th className="pb-2 font-medium">Leitura anterior</th>
               <th className="pb-2 font-medium">Leitura atual</th>
+              <th className="pb-2 font-medium">Vencimento</th>
               <th className="pb-2 font-medium">Consumo</th>
               <th className="pb-2 font-medium">Desc.</th>
               <th className="pb-2 text-right font-medium">A pagar</th>
@@ -227,6 +262,15 @@ export default function FaturasLoteForm({
                     onChange={(e) => atualizar(c.id, "leituraAtual", e.target.value)}
                   />
                 </td>
+                <td className="py-2 pr-2">
+                  <input
+                    type="date"
+                    className="input w-36 py-1"
+                    value={linhas[c.id].vencimento}
+                    onChange={(e) => atualizar(c.id, "vencimento", e.target.value)}
+                    aria-label={`Vencimento de ${c.nome}`}
+                  />
+                </td>
                 <td className="py-2 pr-2 text-slate-300">{preenchida ? formatKwh(consumo) : "-"}</td>
                 <td className="py-2 pr-2 text-slate-300">{c.desconto_percentual}%</td>
                 <td className="py-2 pr-2 text-right font-medium text-white">{preenchida ? formatBRL(valorLiquido) : "-"}</td>
@@ -236,7 +280,7 @@ export default function FaturasLoteForm({
           </tbody>
           <tfoot>
             <tr className="border-t border-white/10 font-semibold text-white">
-              <td className="pt-3" colSpan={5}>Total ({preenchidas.length} fatura(s))</td>
+              <td className="pt-3" colSpan={6}>Total ({preenchidas.length} fatura(s))</td>
               <td className="pt-3 text-right">{formatBRL(totalPagar)}</td>
               <td className="pt-3 text-right text-eco-300">{formatBRL(totalEconomia)}</td>
             </tr>
