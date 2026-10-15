@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getSessao } from "@/lib/auth";
-import { calcularFaturaDetalhada, consumoDeLeituras, valorTusdGd2 } from "@/lib/calc";
+import { calcularFaturaDetalhada, consumoDeLeituras, valorTusdGd2, distribuirTusdGd2, type ModoGd2 } from "@/lib/calc";
 import type { ResultadoCalculoDetalhado } from "@/lib/calc";
 import type { StatusFatura, ModalidadeBeneficio } from "@/lib/types";
 
@@ -175,7 +175,11 @@ export async function gerarFatura(formData: FormData) {
       : Number(formData.get("consumo_kwh") ?? 0);
 
   const referencia = normalizarReferencia(referenciaRaw);
-  const taxa_energia_solar = valorTusdGd2(consumo_kwh, tarifa_gd2);
+  // O formulário envia o valor da GD II mostrado na prévia (preserva o centavo exato
+  // de um rateio ao editar); sem ele, calcula tarifa × consumo.
+  const gd2Enviado = formData.get("taxa_energia_solar");
+  const gd2Num = gd2Enviado === null || String(gd2Enviado).trim() === "" ? NaN : Number(gd2Enviado);
+  const taxa_energia_solar = Number.isFinite(gd2Num) && gd2Num >= 0 ? Math.round(gd2Num * 100) / 100 : valorTusdGd2(consumo_kwh, tarifa_gd2);
   const r = calcularFaturaDetalhada({
     consumoKwh: consumo_kwh,
     tarifaTusd: tarifa_tusd,
@@ -272,7 +276,12 @@ export interface ParametrosLote {
   tarifa_tusd: number;
   tarifa_te: number;
   adicional_bandeira: number;
-  /** TUSD GD II em R$/kWh: cada morador paga tarifa × o próprio consumo. */
+  /**
+   * TUSD GD II (Fio B). "total": `gd2_total` é o Fio B da conta (R$), rateado pelo consumo
+   * de cada morador. "tarifa": `tarifa_gd2` (R$/kWh) × o consumo de cada um.
+   */
+  gd2_modo: ModoGd2;
+  gd2_total: number;
   tarifa_gd2: number;
   taxa_iluminacao: number;
   /** Multa/juros (R$) e tributos informativos (R$): valem para todos os moradores do lote. */
@@ -324,9 +333,19 @@ export async function gerarFaturasLote(
     itensValidos.map((it) => it.cliente_id)
   );
 
-  const registros = itensValidos.map((it) => {
-    const consumo_kwh = consumoDeLeituras(it.leitura_anterior, it.leitura_atual, params.fator_multiplicador);
-    const taxa_energia_solar = valorTusdGd2(consumo_kwh, params.tarifa_gd2);
+  // TUSD GD II: calculada para o lote inteiro (o rateio depende do consumo de todos).
+  const consumos = itensValidos.map((it) =>
+    consumoDeLeituras(it.leitura_anterior, it.leitura_atual, params.fator_multiplicador)
+  );
+  const gd2 = distribuirTusdGd2(
+    params.gd2_modo === "total" ? "total" : "tarifa",
+    params.gd2_modo === "total" ? params.gd2_total : params.tarifa_gd2,
+    consumos
+  );
+
+  const registros = itensValidos.map((it, idx) => {
+    const consumo_kwh = consumos[idx];
+    const taxa_energia_solar = gd2.valores[idx];
     const r = calcularFaturaDetalhada({
       consumoKwh: consumo_kwh,
       tarifaTusd: params.tarifa_tusd,
@@ -350,7 +369,7 @@ export async function gerarFaturasLote(
       tarifa_te: params.tarifa_te,
       adicional_bandeira: params.adicional_bandeira,
       taxa_energia_solar,
-      tarifa_gd2: params.tarifa_gd2,
+      tarifa_gd2: gd2.tarifa,
       taxa_iluminacao: params.taxa_iluminacao,
       multa_juros: params.multa_juros ?? 0,
       icms: params.icms ?? 0,

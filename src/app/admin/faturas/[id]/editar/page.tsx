@@ -45,6 +45,7 @@ export default async function EditarFaturaPage({ params }: { params: Promise<{ i
     tarifa_tusd: Number(f.tarifa_tusd),
     tarifa_te: Number(f.tarifa_te),
     tarifa_gd2: tarifaGd2,
+    taxa_energia_solar: Number(f.taxa_energia_solar),
     adicional_bandeira: Number(f.adicional_bandeira),
     taxa_iluminacao: Number(f.taxa_iluminacao),
     multa_juros: Number(f.multa_juros),

@@ -34,6 +34,7 @@ export interface FaturaEdicao {
   tarifa_tusd: number;
   tarifa_te: number;
   tarifa_gd2: number; // TUSD GD II (R$/kWh)
+  taxa_energia_solar: number; // TUSD GD II em R$ já gravado (preservado se nada mudar)
   adicional_bandeira: number;
   taxa_iluminacao: number;
   multa_juros: number;
@@ -98,6 +99,15 @@ export default function NovaFaturaForm({
 
   const consumo = consumoDeLeituras(Number(leituraAnterior), Number(leituraAtual), Number(fator));
 
+  // TUSD GD II em R$. Ao editar, se consumo e tarifa não mudaram, mantém o valor gravado
+  // (inclusive o centavo exato de um rateio do lote); senão, tarifa × consumo.
+  const valorGd2 =
+    fatura &&
+    Math.abs(consumo - Number(fatura.consumo_kwh)) < 0.005 &&
+    Math.abs(Number(tarifaGd2) - Number(fatura.tarifa_gd2)) < 1e-9
+      ? Number(fatura.taxa_energia_solar)
+      : valorTusdGd2(consumo, Number(tarifaGd2));
+
   const r = useMemo(
     () =>
       calcularFaturaDetalhada({
@@ -105,12 +115,12 @@ export default function NovaFaturaForm({
         tarifaTusd: Number(tusd),
         tarifaTe: Number(te),
         adicionalBandeira: Number(bandeira),
-        taxaEnergiaSolar: valorTusdGd2(consumo, Number(tarifaGd2)),
+        taxaEnergiaSolar: valorGd2,
         taxaIluminacao: Number(iluminacao),
         multaJuros: Number(multa),
         descontoPercentual: Number(desconto),
       }),
-    [consumo, tusd, te, bandeira, tarifaGd2, iluminacao, multa, desconto]
+    [consumo, tusd, te, bandeira, valorGd2, iluminacao, multa, desconto]
   );
 
   function onSelecionarCliente(id: string) {
@@ -180,7 +190,8 @@ export default function NovaFaturaForm({
           <Campo label="Consumo — TUSD" name="tarifa_tusd" value={tusd} onChange={setTusd} step={0.00001} />
           <Campo label="Consumo — TE" name="tarifa_te" value={te} onChange={setTe} step={0.00001} />
           <div>
-            <Campo label="TUSD GD II" name="tarifa_gd2" value={tarifaGd2} onChange={setTarifaGd2} step={0.00001} />
+            <Campo label="TUSD GD II (R$/kWh)" name="tarifa_gd2" value={tarifaGd2} onChange={setTarifaGd2} step={0.00001} />
+            <input type="hidden" name="taxa_energia_solar" value={valorGd2.toFixed(2)} />
             <p className="mt-1 text-xs text-slate-400">= {formatBRL(r.taxaSolar)} neste consumo</p>
           </div>
         </div>

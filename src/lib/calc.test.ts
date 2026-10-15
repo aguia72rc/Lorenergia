@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { calcularFaturaDetalhada, consumoDeLeituras, valorTusdGd2 } from "./calc";
+import { calcularFaturaDetalhada, consumoDeLeituras, valorTusdGd2, ratearProporcional, distribuirTusdGd2 } from "./calc";
 import { calcularEncargosAtraso } from "./atraso";
 import { vencimentoSugerido } from "./vencimento";
 
@@ -116,4 +116,32 @@ test("TUSD GD II é proporcional ao consumo: tarifa (R$/kWh) × kWh", () => {
   assert.equal(valorTusdGd2(340, -1), 0);
   // cada morador paga conforme o próprio consumo
   assert.ok(valorTusdGd2(500, 0.06) > valorTusdGd2(340, 0.06));
+});
+
+const centavos = (v: number[]) => Math.round(v.reduce((s, x) => s + x, 0) * 100);
+
+test("rateio proporcional: partes proporcionais ao consumo e soma exata ao centavo", () => {
+  assert.deepEqual(ratearProporcional(600, [1, 2, 3]), [100, 200, 300]);
+  const partes = ratearProporcional(150.33, [340, 500, 410]);
+  assert.equal(centavos(partes), 15033); // nunca perde nem sobra centavo
+  assert.ok(partes[1] > partes[2] && partes[2] > partes[0]); // quem consome mais paga mais
+  assert.equal(centavos(ratearProporcional(100, [1, 1, 1])), 10000);
+});
+
+test("rateio proporcional: casos de borda", () => {
+  assert.deepEqual(ratearProporcional(100, [0, 0]), [0, 0]);
+  assert.deepEqual(ratearProporcional(0, [10, 20]), [0, 0]);
+  assert.deepEqual(ratearProporcional(100, [50, 0]), [100, 0]);
+  assert.deepEqual(ratearProporcional(-5, [10, 20]), [0, 0]);
+});
+
+test("TUSD GD II no lote: total da conta rateado, ou tarifa por kWh", () => {
+  const consumos = [340, 500, 410];
+  const total = distribuirTusdGd2("total", 150.33, consumos);
+  assert.equal(centavos(total.valores), 15033);
+  assert.equal(total.tarifa, Math.round((150.33 / 1250) * 1e5) / 1e5);
+  const porKwh = distribuirTusdGd2("tarifa", 0.06, consumos);
+  assert.deepEqual(porKwh.valores, [20.4, 30, 24.6]);
+  assert.equal(porKwh.tarifa, 0.06);
+  assert.deepEqual(distribuirTusdGd2("total", 100, []).valores, []);
 });

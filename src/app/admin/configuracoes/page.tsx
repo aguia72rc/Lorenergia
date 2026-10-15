@@ -38,7 +38,7 @@ export default async function ConfiguracoesPage() {
               <input id="tarifa_gd2" name="tarifa_gd2" type="number" min={0} step={0.00001} className="input" defaultValue={cfg?.tarifa_gd2 ?? 0} />
             </div>
           </div>
-          <p className="mt-1 text-xs text-slate-400">A TUSD GD II é cobrada por kWh: cada morador paga esta tarifa × o próprio consumo.</p>
+          <p className="mt-1 text-xs text-slate-400">Tarifa por kWh da TUSD GD II (Fio B), usada quando você escolhe “tarifa por kWh”. No lote você também pode informar o Fio B total da conta e rateá-lo pelo consumo de cada morador.</p>
         </div>
 
         <div>

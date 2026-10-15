@@ -110,6 +110,49 @@ export function valorTusdGd2(consumoKwh: number, tarifaGd2: number): number {
   return arredondar(consumo * tarifa);
 }
 
+/**
+ * Divide `total` (R$) proporcionalmente aos `pesos` (ex.: kWh de cada morador).
+ * Exato ao centavo: a soma das partes é sempre igual ao total (método do maior resto).
+ */
+export function ratearProporcional(total: number, pesos: number[]): number[] {
+  const centavos = Math.round(Math.max(0, Number(total) || 0) * 100);
+  const w = pesos.map((p) => Math.max(0, Number(p) || 0));
+  const soma = w.reduce((s, x) => s + x, 0);
+  if (centavos === 0 || soma <= 0) return w.map(() => 0);
+
+  const cotas = w.map((x) => (x / soma) * centavos);
+  const base = cotas.map((c) => Math.floor(c));
+  let resto = centavos - base.reduce((s, x) => s + x, 0);
+  const ordem = cotas.map((c, i) => ({ i, f: c - Math.floor(c) })).sort((a, b) => b.f - a.f || a.i - b.i);
+  for (let k = 0; resto > 0 && k < ordem.length; k++, resto--) base[ordem[k].i] += 1;
+  return base.map((c) => c / 100);
+}
+
+export type ModoGd2 = "total" | "tarifa";
+
+/**
+ * TUSD GD II (Fio B) de cada morador do lote.
+ *  - "total": `entrada` é o Fio B TOTAL da conta (R$), rateado pelo consumo de cada um.
+ *  - "tarifa": `entrada` é a tarifa em R$/kWh; cada um paga tarifa × o próprio consumo.
+ * Retorna o valor (R$) por morador e a tarifa equivalente em R$/kWh.
+ */
+export function distribuirTusdGd2(
+  modo: ModoGd2,
+  entrada: number,
+  consumos: number[]
+): { valores: number[]; tarifa: number } {
+  if (modo === "total") {
+    const total = Math.max(0, Number(entrada) || 0);
+    const soma = consumos.reduce((s, c) => s + Math.max(0, Number(c) || 0), 0);
+    return {
+      valores: ratearProporcional(total, consumos),
+      tarifa: soma > 0 ? Math.round((total / soma) * 1e5) / 1e5 : 0,
+    };
+  }
+  const tarifa = Math.max(0, Number(entrada) || 0);
+  return { valores: consumos.map((c) => valorTusdGd2(c, tarifa)), tarifa };
+}
+
 export function calcularFaturaDetalhada(e: EntradaCalculoDetalhada): ResultadoCalculoDetalhado {
   const consumo = Math.max(0, Number(e.consumoKwh) || 0);
   const tusd = Math.max(0, Number(e.tarifaTusd) || 0);

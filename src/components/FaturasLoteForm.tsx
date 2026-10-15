@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { calcularFaturaDetalhada, consumoDeLeituras, valorTusdGd2 } from "@/lib/calc";
+import { calcularFaturaDetalhada, consumoDeLeituras, distribuirTusdGd2, type ModoGd2 } from "@/lib/calc";
 import { formatBRL, formatKwh } from "@/lib/format";
 import { gerarFaturasLote, type ItemLote } from "@/app/admin/faturas/actions";
 import type { StatusFatura } from "@/lib/types";
@@ -49,6 +49,10 @@ export default function FaturasLoteForm({
   const [tusd, setTusd] = useState(String(tarifas.tusd));
   const [te, setTe] = useState(String(tarifas.te));
   const [bandeira, setBandeira] = useState(String(tarifas.bandeira));
+  // TUSD GD II (Fio B): por padrão informa o TOTAL da conta da Neoenergia (R$) e o
+  // sistema divide entre os moradores pelo consumo de cada um. Alternativa: tarifa por kWh.
+  const [gd2Modo, setGd2Modo] = useState<ModoGd2>("total");
+  const [gd2Total, setGd2Total] = useState("");
   const [tarifaGd2, setTarifaGd2] = useState(String(tarifas.tarifaGd2));
   const [taxa, setTaxa] = useState(String(tarifas.iluminacao));
   const [multa, setMulta] = useState("0");
@@ -112,17 +116,28 @@ export default function FaturasLoteForm({
   const descontoDe = (c: ClienteLote, l: LinhaEstado) => (l.desconto === "" ? c.desconto_percentual : Number(l.desconto));
 
   const calculados = useMemo(() => {
-    return clientes.map((c) => {
+    const base = clientes.map((c) => {
       const l = linhas[c.id];
       const preenchida = l.leituraAtual !== "";
       const consumo = consumoDeLeituras(Number(l.leituraAnterior), Number(l.leituraAtual), Number(fator));
+      return { c, l, preenchida, consumo };
+    });
+    // O rateio considera só quem tem leitura atual preenchida.
+    const ativos = base.filter((b) => b.preenchida);
+    const gd2 = distribuirTusdGd2(
+      gd2Modo,
+      Number(gd2Modo === "total" ? gd2Total : tarifaGd2),
+      ativos.map((b) => b.consumo)
+    );
+    const valorGd2 = new Map(ativos.map((b, i) => [b.c.id, gd2.valores[i]]));
+
+    return base.map(({ c, l, preenchida, consumo }) => {
       const r = calcularFaturaDetalhada({
         consumoKwh: consumo,
         tarifaTusd: Number(tusd),
         tarifaTe: Number(te),
         adicionalBandeira: Number(bandeira),
-        // TUSD GD II proporcional: tarifa (R$/kWh) × consumo deste morador.
-        taxaEnergiaSolar: valorTusdGd2(consumo, Number(tarifaGd2)),
+        taxaEnergiaSolar: valorGd2.get(c.id) ?? 0,
         taxaIluminacao: Number(taxa),
         multaJuros: Number(multa),
         descontoPercentual: descontoDe(c, l),
@@ -130,9 +145,14 @@ export default function FaturasLoteForm({
       return { cliente: c, consumo, preenchida, ...r };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clientes, linhas, fator, tusd, te, bandeira, tarifaGd2, taxa, multa]);
+  }, [clientes, linhas, fator, tusd, te, bandeira, gd2Modo, gd2Total, tarifaGd2, taxa, multa]);
 
   const preenchidas = calculados.filter((x) => x.preenchida);
+  const kwhRateio = preenchidas.reduce((sum, x) => sum + x.consumo, 0);
+  const gd2Resumo =
+    gd2Modo === "total" && Number(gd2Total) > 0 && kwhRateio > 0
+      ? `R$ ${(Number(gd2Total) / kwhRateio).toLocaleString("pt-BR", { maximumFractionDigits: 5 })} por kWh (${kwhRateio.toLocaleString("pt-BR")} kWh no lote)`
+      : "";
   const totalPagar = preenchidas.reduce((s, x) => s + x.valorLiquido, 0);
   const totalEconomia = preenchidas.reduce((s, x) => s + x.economia, 0);
 
@@ -157,7 +177,9 @@ export default function FaturasLoteForm({
         tarifa_tusd: Number(tusd),
         tarifa_te: Number(te),
         adicional_bandeira: Number(bandeira),
-        tarifa_gd2: Number(tarifaGd2),
+        gd2_modo: gd2Modo,
+        gd2_total: Number(gd2Total) || 0,
+        tarifa_gd2: Number(tarifaGd2) || 0,
         taxa_iluminacao: Number(taxa),
         multa_juros: Number(multa) || 0,
         icms: Number(icms) || 0,
@@ -201,7 +223,6 @@ export default function FaturasLoteForm({
           </div>
         </div>
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Tarifas de energia (R$/kWh) · Fator</p>
-        <p className="-mt-2 text-xs text-slate-400">A TUSD GD II é por kWh: cada morador paga a tarifa × o próprio consumo (aparece no “A pagar” de cada linha).</p>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <label className="label" htmlFor="tusd">Consumo — TUSD</label>
@@ -212,13 +233,36 @@ export default function FaturasLoteForm({
             <input id="te" type="number" min={0} step={0.00001} className="input" value={te} onChange={(e) => setTe(e.target.value)} />
           </div>
           <div>
-            <label className="label" htmlFor="tarifaGd2">TUSD GD II</label>
-            <input id="tarifaGd2" type="number" min={0} step={0.00001} className="input" value={tarifaGd2} onChange={(e) => setTarifaGd2(e.target.value)} />
-          </div>
-          <div>
             <label className="label" htmlFor="fator">Fator multiplicador</label>
             <input id="fator" type="number" min={0} step={0.0001} className="input" value={fator} onChange={(e) => setFator(e.target.value)} />
           </div>
+        </div>
+
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">TUSD GD II (Fio B) — proporcional ao consumo</p>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div>
+            <label className="label" htmlFor="gd2_modo">Como informar</label>
+            <select id="gd2_modo" className="input" value={gd2Modo} onChange={(e) => setGd2Modo(e.target.value as ModoGd2)}>
+              <option value="total">Total da conta (R$) — rateado</option>
+              <option value="tarifa">Tarifa por kWh (R$/kWh)</option>
+            </select>
+          </div>
+          {gd2Modo === "total" ? (
+            <div>
+              <label className="label" htmlFor="gd2_total">Fio B total do mês (R$)</label>
+              <input id="gd2_total" type="number" min={0} step={0.01} className="input" value={gd2Total} onChange={(e) => setGd2Total(e.target.value)} placeholder="valor da conta" />
+            </div>
+          ) : (
+            <div>
+              <label className="label" htmlFor="tarifaGd2">TUSD GD II (R$/kWh)</label>
+              <input id="tarifaGd2" type="number" min={0} step={0.00001} className="input" value={tarifaGd2} onChange={(e) => setTarifaGd2(e.target.value)} />
+            </div>
+          )}
+          <p className="text-xs text-slate-400 sm:col-span-2">
+            {gd2Modo === "total"
+              ? `Informe o Fio B da conta da Neoenergia (já com o percentual do ano). Cada morador paga a parte proporcional ao próprio consumo${gd2Resumo ? ` — equivale a ${gd2Resumo}` : ""}.`
+              : "Cada morador paga a tarifa × o próprio consumo."}
+          </p>
         </div>
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Valores fixos (R$)</p>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
