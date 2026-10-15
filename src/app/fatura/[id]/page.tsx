@@ -9,6 +9,7 @@ import { gerarPixCopiaECola } from "@/lib/pix";
 import { calcularEncargosAtraso } from "@/lib/atraso";
 import StatusBadge from "@/components/StatusBadge";
 import PrintButton from "@/components/PrintButton";
+import { PublicarFaturaButton } from "@/components/PublicarButtons";
 import EconomiaChart from "@/components/EconomiaChart";
 import type { FaturaComCliente, Configuracoes, Fatura } from "@/lib/types";
 
@@ -42,6 +43,7 @@ export default async function FaturaPage({ params }: { params: Promise<{ id: str
     .from("faturas")
     .select("consumo_kwh, economia, cashback_valor, modalidade_beneficio, referencia, status")
     .eq("cliente_id", f.cliente_id)
+    .eq("publicada", true)
     .neq("status", "cancelada")
     .order("referencia", { ascending: true });
 
@@ -92,7 +94,10 @@ export default async function FaturaPage({ params }: { params: Promise<{ id: str
   const valorTe = Number(f.consumo_kwh) * Number(f.tarifa_te);
   const codigo = [c?.unidade, c?.tipo_ligacao].filter(Boolean).join(" · ");
   const dataEmissao = (f.data_emissao ?? f.created_at ?? "").slice(0, 10);
-  const voltarHref = sessao.profile?.role === "admin" ? "/admin/faturas" : "/portal";
+  const ehAdmin = sessao.profile?.role === "admin";
+  const voltarHref = ehAdmin ? "/admin/faturas" : "/portal";
+  // Rascunho: o cliente nem chega aqui (o banco bloqueia); só o admin vê.
+  const rascunho = f.publicada === false;
 
   return (
     <div className="min-h-screen py-8">
@@ -103,6 +108,19 @@ export default async function FaturaPage({ params }: { params: Promise<{ id: str
           </Link>
           <PrintButton />
         </div>
+
+        {rascunho && ehAdmin && (
+          <div className="no-print mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-sky-500/40 bg-sky-500/10 p-4">
+            <div>
+              <p className="font-semibold text-sky-200">📝 Rascunho — só você vê esta fatura</p>
+              <p className="text-sm text-sky-300/80">O cliente ainda não tem acesso. Confira os valores, edite se precisar e publique.</p>
+            </div>
+            <div className="flex gap-2">
+              <Link href={`/admin/faturas/${f.id}/editar`} className="btn-outline">Editar</Link>
+              <PublicarFaturaButton id={f.id} nome={c?.nome} />
+            </div>
+          </div>
+        )}
 
         <div className="print-light overflow-hidden rounded-2xl bg-white shadow-[0_0_60px_-12px_rgba(255,176,32,0.35)] ring-1 ring-white/10">
           {/* Cabeçalho */}

@@ -47,6 +47,8 @@ export default function FaturasLoteForm({
   const [taxa, setTaxa] = useState(String(tarifas.iluminacao));
   const [vencimento, setVencimento] = useState("");
   const [status, setStatus] = useState<StatusFatura>("pendente");
+  // Padrão seguro: o lote nasce como rascunho (só o admin vê até publicar).
+  const [rascunho, setRascunho] = useState(true);
 
   const [linhas, setLinhas] = useState<Record<string, LinhaEstado>>(() =>
     Object.fromEntries(
@@ -109,6 +111,7 @@ export default function FaturasLoteForm({
         data_emissao: dataEmissao || null,
         vencimento: vencimento || null,
         status,
+        rascunho,
         itens,
       });
       setMensagem(r.mensagem);
@@ -172,6 +175,15 @@ export default function FaturasLoteForm({
           </div>
         </div>
         <p className="text-xs text-slate-400">Multa/juros e tributos informativos são aplicados individualmente na tela de cada fatura, quando houver.</p>
+        <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-sky-500/30 bg-sky-500/10 p-3 text-sm text-sky-200">
+          <input type="checkbox" checked={rascunho} onChange={(e) => setRascunho(e.target.checked)} className="mt-0.5 h-4 w-4" />
+          <span>
+            <strong>Salvar como rascunho</strong>
+            <span className="block text-xs text-sky-300/80">
+              As faturas ficam só no admin: você confere, edita o que precisar e publica depois (uma a uma ou o mês inteiro). Faturas que já existem mantêm o estado atual.
+            </span>
+          </span>
+        </label>
       </div>
 
       {/* Tabela de leituras */}
@@ -236,7 +248,7 @@ export default function FaturasLoteForm({
         {mensagem && <span className="text-sm text-slate-300">{mensagem}</span>}
         <Link href="/admin/faturas" className="btn-outline">Cancelar</Link>
         <button type="submit" className="btn-primary" disabled={pending || preenchidas.length === 0}>
-          {pending ? "Gerando..." : `Gerar ${preenchidas.length} fatura(s)`}
+          {pending ? "Salvando..." : rascunho ? `Salvar ${preenchidas.length} rascunho(s)` : `Gerar e publicar ${preenchidas.length} fatura(s)`}
         </button>
       </div>
     </form>

@@ -25,14 +25,21 @@ export default async function EnviarWhatsappPage({
   const [ano, m] = mesParam.split("-");
   const referencia = `${ano}-${(m ?? "01").padStart(2, "0")}-01`;
 
-  const [{ data: faturas }, { data: config }] = await Promise.all([
+  const [{ data: faturas }, { data: config }, { count: qtdRascunhos }] = await Promise.all([
     supabase
       .from("faturas")
       .select("*, clientes(id, nome, unidade, telefone, email)")
+      .eq("publicada", true)
       .eq("referencia", referencia)
       .neq("status", "cancelada")
       .order("created_at", { ascending: true }),
     supabase.from("configuracoes").select("*").eq("id", 1).single(),
+    supabase
+      .from("faturas")
+      .select("*", { count: "exact", head: true })
+      .eq("publicada", false)
+      .eq("referencia", referencia)
+      .neq("status", "cancelada"),
   ]);
 
   const lista = (faturas ?? []) as FaturaComCliente[];
@@ -61,6 +68,15 @@ export default async function EnviarWhatsappPage({
         💡 Clique em <strong>Enviar WhatsApp</strong> em cada morador: abre o WhatsApp com a mensagem e o link da
         fatura prontos — é só apertar enviar. O sistema marca automaticamente quem já foi enviado.
       </div>
+
+      {(qtdRascunhos ?? 0) > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-sky-500/30 bg-sky-500/10 p-3 text-sm text-sky-300">
+          <span>
+            📝 {qtdRascunhos} fatura(s) deste mês ainda estão em <strong>rascunho</strong> e não aparecem aqui. Publique para poder enviar.
+          </span>
+          <Link href="/admin/faturas?status=rascunho" className="font-medium underline">Ver rascunhos</Link>
+        </div>
+      )}
 
       {semTelefone > 0 && (
         <div className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-300">
