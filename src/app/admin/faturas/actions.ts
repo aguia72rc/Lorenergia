@@ -270,6 +270,11 @@ export interface ParametrosLote {
   adicional_bandeira: number;
   taxa_energia_solar: number;
   taxa_iluminacao: number;
+  /** Multa/juros (R$) e tributos informativos (R$): valem para todos os moradores do lote. */
+  multa_juros?: number;
+  icms?: number;
+  pis?: number;
+  cofins?: number;
   data_emissao: string | null;
   vencimento: string | null;
   status: StatusFatura;
@@ -323,7 +328,7 @@ export async function gerarFaturasLote(
       adicionalBandeira: params.adicional_bandeira,
       taxaEnergiaSolar: params.taxa_energia_solar,
       taxaIluminacao: params.taxa_iluminacao,
-      multaJuros: 0,
+      multaJuros: params.multa_juros ?? 0,
       descontoPercentual: it.desconto_percentual,
     });
     const valores = aplicarModalidade(r, modalidadePorCliente.get(it.cliente_id) ?? "desconto");
@@ -340,7 +345,10 @@ export async function gerarFaturasLote(
       adicional_bandeira: params.adicional_bandeira,
       taxa_energia_solar: params.taxa_energia_solar,
       taxa_iluminacao: params.taxa_iluminacao,
-      multa_juros: 0,
+      multa_juros: params.multa_juros ?? 0,
+      icms: params.icms ?? 0,
+      pis: params.pis ?? 0,
+      cofins: params.cofins ?? 0,
       desconto_percentual: it.desconto_percentual,
       ...valores,
       publicada: publicacaoPorCliente.get(it.cliente_id) ?? !params.rascunho,
