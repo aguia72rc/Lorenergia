@@ -258,6 +258,8 @@ export interface ItemLote {
   leitura_anterior: number | null;
   leitura_atual: number | null;
   desconto_percentual: number;
+  /** Vencimento deste morador; se vazio, usa o vencimento geral do lote. */
+  vencimento?: string | null;
 }
 
 export interface ParametrosLote {
@@ -343,7 +345,7 @@ export async function gerarFaturasLote(
       ...valores,
       publicada: publicacaoPorCliente.get(it.cliente_id) ?? !params.rascunho,
       data_emissao,
-      vencimento: params.vencimento,
+      vencimento: it.vencimento || params.vencimento,
       status: params.status,
     };
   });

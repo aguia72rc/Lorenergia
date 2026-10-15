@@ -3,17 +3,18 @@ import { ArrowLeft, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import NovaFaturaForm from "@/components/NovaFaturaForm";
 import { primeiroDiaMesAtual } from "@/lib/format";
-import { ultimaLeituraPorCliente } from "@/lib/leituras";
+import { ultimaLeituraPorCliente, ultimoVencimentoPorCliente } from "@/lib/leituras";
 
 export const dynamic = "force-dynamic";
 
 export default async function NovaFaturaPage() {
   const supabase = await createClient();
 
-  const [{ data: clientes }, { data: config }, ultimaLeitura] = await Promise.all([
+  const [{ data: clientes }, { data: config }, ultimaLeitura, ultimoVencimento] = await Promise.all([
     supabase.from("clientes").select("id, nome, unidade, desconto_percentual").eq("ativo", true).order("nome"),
     supabase.from("configuracoes").select("tarifa_tusd, tarifa_te, adicional_bandeira, taxa_energia_solar, taxa_iluminacao_publica").eq("id", 1).single(),
     ultimaLeituraPorCliente(supabase),
+    ultimoVencimentoPorCliente(supabase),
   ]);
 
   const refAtual = primeiroDiaMesAtual().slice(0, 7); // YYYY-MM
@@ -35,6 +36,7 @@ export default async function NovaFaturaPage() {
         <NovaFaturaForm
           clientes={clientes ?? []}
           ultimaLeitura={ultimaLeitura}
+          ultimoVencimento={ultimoVencimento}
           tarifas={{
             tusd: Number(config?.tarifa_tusd ?? 0),
             te: Number(config?.tarifa_te ?? 0),

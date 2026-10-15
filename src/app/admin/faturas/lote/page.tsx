@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowLeft, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { primeiroDiaMesAtual } from "@/lib/format";
-import { ultimaLeituraPorCliente } from "@/lib/leituras";
+import { ultimaLeituraPorCliente, ultimoVencimentoPorCliente } from "@/lib/leituras";
 import FaturasLoteForm from "@/components/FaturasLoteForm";
 
 export const dynamic = "force-dynamic";
@@ -10,10 +10,11 @@ export const dynamic = "force-dynamic";
 export default async function FaturasLotePage() {
   const supabase = await createClient();
 
-  const [{ data: clientes }, { data: config }, ultimaLeitura] = await Promise.all([
+  const [{ data: clientes }, { data: config }, ultimaLeitura, ultimoVencimento] = await Promise.all([
     supabase.from("clientes").select("id, nome, unidade, desconto_percentual").eq("ativo", true).order("nome"),
     supabase.from("configuracoes").select("tarifa_tusd, tarifa_te, adicional_bandeira, taxa_energia_solar, taxa_iluminacao_publica").eq("id", 1).single(),
     ultimaLeituraPorCliente(supabase),
+    ultimoVencimentoPorCliente(supabase),
   ]);
 
   const refAtual = primeiroDiaMesAtual().slice(0, 7);
@@ -40,6 +41,7 @@ export default async function FaturasLotePage() {
         <FaturasLoteForm
           clientes={clientes ?? []}
           ultimaLeitura={ultimaLeitura}
+          ultimoVencimento={ultimoVencimento}
           tarifas={{
             tusd: Number(config?.tarifa_tusd ?? 0),
             te: Number(config?.tarifa_te ?? 0),

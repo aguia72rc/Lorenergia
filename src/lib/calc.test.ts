@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { calcularFaturaDetalhada, consumoDeLeituras } from "./calc";
 import { calcularEncargosAtraso } from "./atraso";
+import { vencimentoSugerido } from "./vencimento";
 
 test("encargos de atraso: 2% de multa + 1% ao mês pro rata die", () => {
   const r = calcularEncargosAtraso(100, "2026-01-01", "2026-01-31", 2, 1);
@@ -89,4 +90,21 @@ test("entradas negativas ou inválidas são tratadas como zero", () => {
   });
   assert.equal(r.valorLiquido, 0);
   assert.equal(r.economia, 0);
+});
+
+test("vencimento sugerido: mantém o dia e o deslocamento da última fatura", () => {
+  const ultimo = { vencimento: "2026-10-10", referencia: "2026-09-01" }; // dia 10, mês seguinte
+  assert.equal(vencimentoSugerido(ultimo, "2026-10"), "2026-11-10");
+  assert.equal(vencimentoSugerido(ultimo, "2026-10-01"), "2026-11-10");
+});
+
+test("vencimento sugerido: virada de ano e vencimento no próprio mês", () => {
+  assert.equal(vencimentoSugerido({ vencimento: "2026-12-10", referencia: "2026-11-01" }, "2026-12"), "2027-01-10");
+  assert.equal(vencimentoSugerido({ vencimento: "2026-10-20", referencia: "2026-10-01" }, "2026-11"), "2026-11-20");
+});
+
+test("vencimento sugerido: dia 31 usa o último dia do mês curto; sem histórico fica vazio", () => {
+  assert.equal(vencimentoSugerido({ vencimento: "2026-01-31", referencia: "2025-12-01" }, "2026-01"), "2026-02-28");
+  assert.equal(vencimentoSugerido(null, "2026-10"), "");
+  assert.equal(vencimentoSugerido({ vencimento: "", referencia: "2026-09-01" }, "2026-10"), "");
 });
