@@ -112,7 +112,9 @@ export function valorTusdGd2(consumoKwh: number, tarifaGd2: number): number {
 
 /**
  * Divide `total` (R$) proporcionalmente aos `pesos` (ex.: kWh de cada morador).
- * Exato ao centavo: a soma das partes é sempre igual ao total (método do maior resto).
+ * Cada parte é arredondada normalmente ao centavo; a pequena diferença de
+ * arredondamento (centavos) vai para o MAIOR consumo, de modo que a soma das
+ * partes é sempre igual ao total.
  */
 export function ratearProporcional(total: number, pesos: number[]): number[] {
   const centavos = Math.round(Math.max(0, Number(total) || 0) * 100);
@@ -120,12 +122,10 @@ export function ratearProporcional(total: number, pesos: number[]): number[] {
   const soma = w.reduce((s, x) => s + x, 0);
   if (centavos === 0 || soma <= 0) return w.map(() => 0);
 
-  const cotas = w.map((x) => (x / soma) * centavos);
-  const base = cotas.map((c) => Math.floor(c));
-  let resto = centavos - base.reduce((s, x) => s + x, 0);
-  const ordem = cotas.map((c, i) => ({ i, f: c - Math.floor(c) })).sort((a, b) => b.f - a.f || a.i - b.i);
-  for (let k = 0; resto > 0 && k < ordem.length; k++, resto--) base[ordem[k].i] += 1;
-  return base.map((c) => c / 100);
+  const partes = w.map((x) => Math.round((x / soma) * centavos));
+  const diferenca = centavos - partes.reduce((s, x) => s + x, 0);
+  partes[w.indexOf(Math.max(...w))] += diferenca; // empate: o primeiro
+  return partes.map((c) => c / 100);
 }
 
 export type ModoGd2 = "total" | "tarifa";

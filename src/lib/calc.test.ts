@@ -145,3 +145,11 @@ test("TUSD GD II no lote: total da conta rateado, ou tarifa por kWh", () => {
   assert.equal(porKwh.tarifa, 0.06);
   assert.deepEqual(distribuirTusdGd2("total", 100, []).valores, []);
 });
+
+test("rateio do Fio B: exemplo real (R$ 208,45 ÷ 1.810,3 kWh) — centavo de ajuste no maior consumo", () => {
+  const consumos = [180.7, 136.2, 204.5, 213.1, 85.0, 310.7, 136.2, 68.8, 475.1];
+  const r = distribuirTusdGd2("total", 208.45, consumos);
+  assert.equal(r.tarifa, 0.11515);
+  assert.deepEqual(r.valores, [20.81, 15.68, 23.55, 24.54, 9.79, 35.78, 15.68, 7.92, 54.7]);
+  assert.equal(centavos(r.valores), 20845); // fecha exatamente em R$ 208,45
+});
