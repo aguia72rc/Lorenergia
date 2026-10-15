@@ -24,7 +24,7 @@ export default async function ConfiguracoesPage() {
 
         <div>
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Tarifas de energia padrão (R$/kWh)</p>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-3">
             <div>
               <label className="label" htmlFor="tarifa_tusd">Consumo — TUSD</label>
               <input id="tarifa_tusd" name="tarifa_tusd" type="number" min={0} step={0.00001} className="input" defaultValue={cfg?.tarifa_tusd ?? 0} />
@@ -33,16 +33,17 @@ export default async function ConfiguracoesPage() {
               <label className="label" htmlFor="tarifa_te">Consumo — TE</label>
               <input id="tarifa_te" name="tarifa_te" type="number" min={0} step={0.00001} className="input" defaultValue={cfg?.tarifa_te ?? 0} />
             </div>
+            <div>
+              <label className="label" htmlFor="tarifa_gd2">TUSD GD II</label>
+              <input id="tarifa_gd2" name="tarifa_gd2" type="number" min={0} step={0.00001} className="input" defaultValue={cfg?.tarifa_gd2 ?? 0} />
+            </div>
           </div>
+          <p className="mt-1 text-xs text-slate-400">A TUSD GD II é cobrada por kWh: cada morador paga esta tarifa × o próprio consumo.</p>
         </div>
 
         <div>
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Valores fixos padrão (R$)</p>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div>
-              <label className="label" htmlFor="taxa_energia_solar">TUSD GD II</label>
-              <input id="taxa_energia_solar" name="taxa_energia_solar" type="number" min={0} step={0.01} className="input" defaultValue={cfg?.taxa_energia_solar ?? 0} />
-            </div>
+          <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label className="label" htmlFor="adicional_bandeira">Adicional bandeira</label>
               <input id="adicional_bandeira" name="adicional_bandeira" type="number" min={0} step={0.01} className="input" defaultValue={cfg?.adicional_bandeira ?? 0} />

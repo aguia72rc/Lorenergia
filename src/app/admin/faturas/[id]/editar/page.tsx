@@ -24,6 +24,16 @@ export default async function EditarFaturaPage({ params }: { params: Promise<{ i
   };
   if (!f.clientes) notFound();
 
+  // Faturas anteriores à migração 0026 guardam só o valor em R$: derivamos a tarifa
+  // (valor ÷ consumo) para que a edição não perca a TUSD GD II.
+  const consumo = Number(f.consumo_kwh);
+  const tarifaGd2 =
+    Number(f.tarifa_gd2) > 0
+      ? Number(f.tarifa_gd2)
+      : consumo > 0 && Number(f.taxa_energia_solar) > 0
+        ? Math.round((Number(f.taxa_energia_solar) / consumo) * 1e6) / 1e6
+        : 0;
+
   const edicao: FaturaEdicao = {
     id: f.id,
     cliente_id: f.cliente_id,
@@ -34,7 +44,7 @@ export default async function EditarFaturaPage({ params }: { params: Promise<{ i
     consumo_kwh: Number(f.consumo_kwh),
     tarifa_tusd: Number(f.tarifa_tusd),
     tarifa_te: Number(f.tarifa_te),
-    taxa_energia_solar: Number(f.taxa_energia_solar),
+    tarifa_gd2: tarifaGd2,
     adicional_bandeira: Number(f.adicional_bandeira),
     taxa_iluminacao: Number(f.taxa_iluminacao),
     multa_juros: Number(f.multa_juros),
@@ -64,7 +74,7 @@ export default async function EditarFaturaPage({ params }: { params: Promise<{ i
       <NovaFaturaForm
         clientes={[f.clientes]}
         ultimaLeitura={{}}
-        tarifas={{ tusd: 0, te: 0, bandeira: 0, taxaSolar: 0, iluminacao: 0 }}
+        tarifas={{ tusd: 0, te: 0, bandeira: 0, tarifaGd2: 0, iluminacao: 0 }}
         referenciaPadrao={f.referencia.slice(0, 7)}
         fatura={edicao}
       />

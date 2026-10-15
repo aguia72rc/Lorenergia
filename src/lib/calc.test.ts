@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { calcularFaturaDetalhada, consumoDeLeituras } from "./calc";
+import { calcularFaturaDetalhada, consumoDeLeituras, valorTusdGd2 } from "./calc";
 import { calcularEncargosAtraso } from "./atraso";
 import { vencimentoSugerido } from "./vencimento";
 
@@ -107,4 +107,13 @@ test("vencimento sugerido: dia 31 usa o último dia do mês curto; sem históric
   assert.equal(vencimentoSugerido({ vencimento: "2026-01-31", referencia: "2025-12-01" }, "2026-01"), "2026-02-28");
   assert.equal(vencimentoSugerido(null, "2026-10"), "");
   assert.equal(vencimentoSugerido({ vencimento: "", referencia: "2026-09-01" }, "2026-10"), "");
+});
+
+test("TUSD GD II é proporcional ao consumo: tarifa (R$/kWh) × kWh", () => {
+  assert.equal(valorTusdGd2(340, 0.06), 20.4);
+  assert.equal(valorTusdGd2(100, 0.06), 6);
+  assert.equal(valorTusdGd2(0, 0.06), 0);
+  assert.equal(valorTusdGd2(340, -1), 0);
+  // cada morador paga conforme o próprio consumo
+  assert.ok(valorTusdGd2(500, 0.06) > valorTusdGd2(340, 0.06));
 });

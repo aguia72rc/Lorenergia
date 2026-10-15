@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { calcularFaturaDetalhada, consumoDeLeituras } from "@/lib/calc";
+import { calcularFaturaDetalhada, consumoDeLeituras, valorTusdGd2 } from "@/lib/calc";
 import { formatBRL, formatKwh } from "@/lib/format";
 import { gerarFaturasLote, type ItemLote } from "@/app/admin/faturas/actions";
 import type { StatusFatura } from "@/lib/types";
@@ -49,7 +49,7 @@ export default function FaturasLoteForm({
   const [tusd, setTusd] = useState(String(tarifas.tusd));
   const [te, setTe] = useState(String(tarifas.te));
   const [bandeira, setBandeira] = useState(String(tarifas.bandeira));
-  const [taxaSolar, setTaxaSolar] = useState(String(tarifas.taxaSolar));
+  const [tarifaGd2, setTarifaGd2] = useState(String(tarifas.tarifaGd2));
   const [taxa, setTaxa] = useState(String(tarifas.iluminacao));
   const [multa, setMulta] = useState("0");
   const [icms, setIcms] = useState("0");
@@ -121,7 +121,8 @@ export default function FaturasLoteForm({
         tarifaTusd: Number(tusd),
         tarifaTe: Number(te),
         adicionalBandeira: Number(bandeira),
-        taxaEnergiaSolar: Number(taxaSolar),
+        // TUSD GD II proporcional: tarifa (R$/kWh) × consumo deste morador.
+        taxaEnergiaSolar: valorTusdGd2(consumo, Number(tarifaGd2)),
         taxaIluminacao: Number(taxa),
         multaJuros: Number(multa),
         descontoPercentual: descontoDe(c, l),
@@ -129,7 +130,7 @@ export default function FaturasLoteForm({
       return { cliente: c, consumo, preenchida, ...r };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clientes, linhas, fator, tusd, te, bandeira, taxaSolar, taxa, multa]);
+  }, [clientes, linhas, fator, tusd, te, bandeira, tarifaGd2, taxa, multa]);
 
   const preenchidas = calculados.filter((x) => x.preenchida);
   const totalPagar = preenchidas.reduce((s, x) => s + x.valorLiquido, 0);
@@ -156,7 +157,7 @@ export default function FaturasLoteForm({
         tarifa_tusd: Number(tusd),
         tarifa_te: Number(te),
         adicional_bandeira: Number(bandeira),
-        taxa_energia_solar: Number(taxaSolar),
+        tarifa_gd2: Number(tarifaGd2),
         taxa_iluminacao: Number(taxa),
         multa_juros: Number(multa) || 0,
         icms: Number(icms) || 0,
@@ -200,7 +201,8 @@ export default function FaturasLoteForm({
           </div>
         </div>
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Tarifas de energia (R$/kWh) · Fator</p>
-        <div className="grid gap-4 sm:grid-cols-3">
+        <p className="-mt-2 text-xs text-slate-400">A TUSD GD II é por kWh: cada morador paga a tarifa × o próprio consumo (aparece no “A pagar” de cada linha).</p>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <label className="label" htmlFor="tusd">Consumo — TUSD</label>
             <input id="tusd" type="number" min={0} step={0.00001} className="input" value={tusd} onChange={(e) => setTusd(e.target.value)} />
@@ -210,13 +212,16 @@ export default function FaturasLoteForm({
             <input id="te" type="number" min={0} step={0.00001} className="input" value={te} onChange={(e) => setTe(e.target.value)} />
           </div>
           <div>
+            <label className="label" htmlFor="tarifaGd2">TUSD GD II</label>
+            <input id="tarifaGd2" type="number" min={0} step={0.00001} className="input" value={tarifaGd2} onChange={(e) => setTarifaGd2(e.target.value)} />
+          </div>
+          <div>
             <label className="label" htmlFor="fator">Fator multiplicador</label>
             <input id="fator" type="number" min={0} step={0.0001} className="input" value={fator} onChange={(e) => setFator(e.target.value)} />
           </div>
         </div>
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Valores fixos (R$)</p>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Campo id="taxaSolar" label="TUSD GD II" value={taxaSolar} onChange={setTaxaSolar} />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Campo id="bandeira" label="Adic. bandeira" value={bandeira} onChange={setBandeira} />
           <Campo id="taxa" label="Ilum. pública" value={taxa} onChange={setTaxa} />
           <Campo id="multa" label="Multa / juros" value={multa} onChange={setMulta} />

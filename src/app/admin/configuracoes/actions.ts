@@ -17,7 +17,7 @@ export async function salvarConfiguracoes(formData: FormData) {
     tarifa_te,
     tarifa_kwh: tarifa_tusd + tarifa_te, // compatibilidade
     adicional_bandeira: Number(formData.get("adicional_bandeira") ?? 0),
-    taxa_energia_solar: Number(formData.get("taxa_energia_solar") ?? 0),
+    tarifa_gd2: Math.max(0, Number(formData.get("tarifa_gd2") ?? 0) || 0),
     taxa_iluminacao_publica: Number(formData.get("taxa_iluminacao_publica") ?? 0),
     multa_percentual: Number(formData.get("multa_percentual") ?? 0),
     juros_mensal_percentual: Number(formData.get("juros_mensal_percentual") ?? 0),
@@ -30,9 +30,9 @@ export async function salvarConfiguracoes(formData: FormData) {
 
   let { error } = await supabase.from("configuracoes").update(dados).eq("id", 1);
   // Migração 0024 ainda não aplicada: salva sem as taxas de atraso.
-  if (error && /multa_percentual|juros_mensal_percentual/.test(error.message)) {
-    const { multa_percentual: _m, juros_mensal_percentual: _j, ...semTaxas } = dados;
-    void _m; void _j;
+  if (error && /multa_percentual|juros_mensal_percentual|tarifa_gd2/.test(error.message)) {
+    const { multa_percentual: _m, juros_mensal_percentual: _j, tarifa_gd2: _g, ...semTaxas } = dados;
+    void _m; void _j; void _g;
     ({ error } = await supabase.from("configuracoes").update(semTaxas).eq("id", 1));
   }
   if (error) throw new Error(error.message);

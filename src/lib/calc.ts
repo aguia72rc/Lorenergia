@@ -79,7 +79,7 @@ export interface EntradaCalculoDetalhada {
   tarifaTusd: number; // R$/kWh
   tarifaTe: number; // R$/kWh
   adicionalBandeira: number; // R$ fixo
-  taxaEnergiaSolar: number; // R$ fixo (entra no desconto)
+  taxaEnergiaSolar: number; // TUSD GD II em R$ (= tarifa × consumo; ver valorTusdGd2)
   taxaIluminacao: number; // R$ fixo (sem desconto)
   multaJuros: number; // R$ fixo (sem desconto)
   descontoPercentual: number;
@@ -98,6 +98,16 @@ export interface ResultadoCalculoDetalhado {
   valorBruto: number; // tudo, antes do desconto
   valorLiquido: number; // total a pagar
   economia: number;
+}
+
+/**
+ * TUSD GD II proporcional ao consumo: tarifa (R$/kWh) × consumo (kWh),
+ * arredondado em centavos. O resultado entra em `taxaEnergiaSolar`.
+ */
+export function valorTusdGd2(consumoKwh: number, tarifaGd2: number): number {
+  const consumo = Math.max(0, Number(consumoKwh) || 0);
+  const tarifa = Math.max(0, Number(tarifaGd2) || 0);
+  return arredondar(consumo * tarifa);
 }
 
 export function calcularFaturaDetalhada(e: EntradaCalculoDetalhada): ResultadoCalculoDetalhado {
