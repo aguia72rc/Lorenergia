@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { calcularFaturaDetalhada, consumoDeLeituras } from "@/lib/calc";
+import { calcularFaturaDetalhada, consumoDeLeituras, distribuirTusdGd2, type ModoGd2 } from "@/lib/calc";
 import { formatBRL, formatKwh } from "@/lib/format";
 import { gerarFaturasLote, type ItemLote } from "@/app/admin/faturas/actions";
 import type { StatusFatura } from "@/lib/types";
@@ -21,6 +21,7 @@ interface LinhaEstado {
   leituraAnterior: string;
   leituraAtual: string;
   vencimento: string;
+  desconto: string; // % deste morador (começa no cadastro dele; editável)
 }
 
 export default function FaturasLoteForm({
@@ -48,8 +49,17 @@ export default function FaturasLoteForm({
   const [tusd, setTusd] = useState(String(tarifas.tusd));
   const [te, setTe] = useState(String(tarifas.te));
   const [bandeira, setBandeira] = useState(String(tarifas.bandeira));
-  const [taxaSolar, setTaxaSolar] = useState(String(tarifas.taxaSolar));
+  // TUSD GD II (Fio B): por padrão informa o TOTAL da conta da Neoenergia (R$) e o
+  // sistema divide entre os moradores pelo consumo de cada um. Alternativa: tarifa por kWh.
+  const [gd2Modo, setGd2Modo] = useState<ModoGd2>("total");
+  const [gd2Total, setGd2Total] = useState("");
+  const [tarifaGd2, setTarifaGd2] = useState(String(tarifas.tarifaGd2));
   const [taxa, setTaxa] = useState(String(tarifas.iluminacao));
+  const [multa, setMulta] = useState("0");
+  const [icms, setIcms] = useState("0");
+  const [pis, setPis] = useState("0");
+  const [cofins, setCofins] = useState("0");
+  const [descontoTodos, setDescontoTodos] = useState("");
   const [vencimento, setVencimento] = useState("");
   const [status, setStatus] = useState<StatusFatura>("pendente");
   // Padrão seguro: o lote nasce como rascunho (só o admin vê até publicar).
@@ -63,6 +73,7 @@ export default function FaturasLoteForm({
           leituraAnterior: ultimaLeitura[c.id] != null ? String(ultimaLeitura[c.id]) : "",
           leituraAtual: "",
           vencimento: vencimentoSugerido(ultimoVencimento[c.id], referenciaPadrao),
+          desconto: String(c.desconto_percentual),
         },
       ])
     )
@@ -95,26 +106,53 @@ export default function FaturasLoteForm({
     setVencEditado(Object.fromEntries(clientes.map((c) => [c.id, valor !== ""])));
   }
 
+  // "Desconto (%) para todos": aplica o mesmo percentual a todos os moradores.
+  function aplicarDescontoATodos(valor: string) {
+    setDescontoTodos(valor);
+    if (valor === "") return;
+    setLinhas((prev) => Object.fromEntries(clientes.map((c) => [c.id, { ...prev[c.id], desconto: valor }])));
+  }
+
+  const descontoDe = (c: ClienteLote, l: LinhaEstado) => (l.desconto === "" ? c.desconto_percentual : Number(l.desconto));
+
   const calculados = useMemo(() => {
-    return clientes.map((c) => {
+    const base = clientes.map((c) => {
       const l = linhas[c.id];
       const preenchida = l.leituraAtual !== "";
       const consumo = consumoDeLeituras(Number(l.leituraAnterior), Number(l.leituraAtual), Number(fator));
+      return { c, l, preenchida, consumo };
+    });
+    // O rateio considera só quem tem leitura atual preenchida.
+    const ativos = base.filter((b) => b.preenchida);
+    const gd2 = distribuirTusdGd2(
+      gd2Modo,
+      Number(gd2Modo === "total" ? gd2Total : tarifaGd2),
+      ativos.map((b) => b.consumo)
+    );
+    const valorGd2 = new Map(ativos.map((b, i) => [b.c.id, gd2.valores[i]]));
+
+    return base.map(({ c, l, preenchida, consumo }) => {
       const r = calcularFaturaDetalhada({
         consumoKwh: consumo,
         tarifaTusd: Number(tusd),
         tarifaTe: Number(te),
         adicionalBandeira: Number(bandeira),
-        taxaEnergiaSolar: Number(taxaSolar),
+        taxaEnergiaSolar: valorGd2.get(c.id) ?? 0,
         taxaIluminacao: Number(taxa),
-        multaJuros: 0,
-        descontoPercentual: c.desconto_percentual,
+        multaJuros: Number(multa),
+        descontoPercentual: descontoDe(c, l),
       });
       return { cliente: c, consumo, preenchida, ...r };
     });
-  }, [clientes, linhas, fator, tusd, te, bandeira, taxaSolar, taxa]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clientes, linhas, fator, tusd, te, bandeira, gd2Modo, gd2Total, tarifaGd2, taxa, multa]);
 
   const preenchidas = calculados.filter((x) => x.preenchida);
+  const kwhRateio = preenchidas.reduce((sum, x) => sum + x.consumo, 0);
+  const gd2Resumo =
+    gd2Modo === "total" && Number(gd2Total) > 0 && kwhRateio > 0
+      ? `R$ ${(Number(gd2Total) / kwhRateio).toLocaleString("pt-BR", { maximumFractionDigits: 5 })} por kWh (${kwhRateio.toLocaleString("pt-BR")} kWh no lote)`
+      : "";
   const totalPagar = preenchidas.reduce((s, x) => s + x.valorLiquido, 0);
   const totalEconomia = preenchidas.reduce((s, x) => s + x.economia, 0);
 
@@ -127,7 +165,7 @@ export default function FaturasLoteForm({
         cliente_id: c.id,
         leitura_anterior: l.leituraAnterior === "" ? null : Number(l.leituraAnterior),
         leitura_atual: l.leituraAtual === "" ? null : Number(l.leituraAtual),
-        desconto_percentual: c.desconto_percentual,
+        desconto_percentual: descontoDe(c, l),
         vencimento: l.vencimento || null,
       };
     });
@@ -139,8 +177,14 @@ export default function FaturasLoteForm({
         tarifa_tusd: Number(tusd),
         tarifa_te: Number(te),
         adicional_bandeira: Number(bandeira),
-        taxa_energia_solar: Number(taxaSolar),
+        gd2_modo: gd2Modo,
+        gd2_total: Number(gd2Total) || 0,
+        tarifa_gd2: Number(tarifaGd2) || 0,
         taxa_iluminacao: Number(taxa),
+        multa_juros: Number(multa) || 0,
+        icms: Number(icms) || 0,
+        pis: Number(pis) || 0,
+        cofins: Number(cofins) || 0,
         data_emissao: dataEmissao || null,
         vencimento: vencimento || null,
         status,
@@ -156,7 +200,7 @@ export default function FaturasLoteForm({
     <form onSubmit={onSubmit} className="space-y-6">
       {/* Parâmetros do mês (aplicados a todos os moradores) */}
       <div className="card space-y-4">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <label className="label" htmlFor="referencia">Mês de referência *</label>
             <input id="referencia" type="month" className="input" value={referencia} onChange={(e) => onMudarReferencia(e.target.value)} required />
@@ -171,10 +215,6 @@ export default function FaturasLoteForm({
             <p className="mt-1 text-xs text-slate-400">Opcional: preenche a data de todos. Cada morador pode ter a sua na tabela.</p>
           </div>
           <div>
-            <label className="label" htmlFor="taxa">Ilum. pública (R$)</label>
-            <input id="taxa" type="number" min={0} step={0.01} className="input" value={taxa} onChange={(e) => setTaxa(e.target.value)} />
-          </div>
-          <div>
             <label className="label" htmlFor="status">Situação</label>
             <select id="status" className="input" value={status} onChange={(e) => setStatus(e.target.value as StatusFatura)}>
               <option value="pendente">Pendente</option>
@@ -183,7 +223,7 @@ export default function FaturasLoteForm({
           </div>
         </div>
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Tarifas de energia (R$/kWh) · Fator</p>
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <label className="label" htmlFor="tusd">Consumo — TUSD</label>
             <input id="tusd" type="number" min={0} step={0.00001} className="input" value={tusd} onChange={(e) => setTusd(e.target.value)} />
@@ -197,18 +237,53 @@ export default function FaturasLoteForm({
             <input id="fator" type="number" min={0} step={0.0001} className="input" value={fator} onChange={(e) => setFator(e.target.value)} />
           </div>
         </div>
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Valores fixos (R$)</p>
-        <div className="grid gap-4 sm:grid-cols-2">
+
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">TUSD GD II (Fio B) — proporcional ao consumo</p>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div>
-            <label className="label" htmlFor="taxaSolar">TUSD GD II</label>
-            <input id="taxaSolar" type="number" min={0} step={0.01} className="input" value={taxaSolar} onChange={(e) => setTaxaSolar(e.target.value)} />
+            <label className="label" htmlFor="gd2_modo">Como informar</label>
+            <select id="gd2_modo" className="input" value={gd2Modo} onChange={(e) => setGd2Modo(e.target.value as ModoGd2)}>
+              <option value="total">Total da conta (R$) — rateado</option>
+              <option value="tarifa">Tarifa por kWh (R$/kWh)</option>
+            </select>
           </div>
+          {gd2Modo === "total" ? (
+            <div>
+              <label className="label" htmlFor="gd2_total">Fio B total do mês (R$)</label>
+              <input id="gd2_total" type="number" min={0} step={0.01} className="input" value={gd2Total} onChange={(e) => setGd2Total(e.target.value)} placeholder="valor da conta" />
+            </div>
+          ) : (
+            <div>
+              <label className="label" htmlFor="tarifaGd2">TUSD GD II (R$/kWh)</label>
+              <input id="tarifaGd2" type="number" min={0} step={0.00001} className="input" value={tarifaGd2} onChange={(e) => setTarifaGd2(e.target.value)} />
+            </div>
+          )}
+          <p className="text-xs text-slate-400 sm:col-span-2">
+            {gd2Modo === "total"
+              ? `Informe o Fio B da conta da Neoenergia (já com o percentual do ano). Cada morador paga a parte proporcional ao próprio consumo${gd2Resumo ? ` — equivale a ${gd2Resumo}` : ""}.`
+              : "Cada morador paga a tarifa × o próprio consumo."}
+          </p>
+        </div>
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Valores fixos (R$)</p>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <Campo id="bandeira" label="Adic. bandeira" value={bandeira} onChange={setBandeira} />
+          <Campo id="taxa" label="Ilum. pública" value={taxa} onChange={setTaxa} />
+          <Campo id="multa" label="Multa / juros" value={multa} onChange={setMulta} />
+        </div>
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Tributos (informativo) · Desconto</p>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Campo id="icms" label="ICMS (R$)" value={icms} onChange={setIcms} />
+          <Campo id="pis" label="PIS (R$)" value={pis} onChange={setPis} />
+          <Campo id="cofins" label="COFINS (R$)" value={cofins} onChange={setCofins} />
           <div>
-            <label className="label" htmlFor="bandeira">Adicional bandeira</label>
-            <input id="bandeira" type="number" min={0} step={0.01} className="input" value={bandeira} onChange={(e) => setBandeira(e.target.value)} />
+            <label className="label" htmlFor="desconto_todos">Desconto (%) — todos</label>
+            <input id="desconto_todos" type="number" min={0} max={100} step={0.5} className="input" value={descontoTodos} placeholder="cada um o seu" onChange={(e) => aplicarDescontoATodos(e.target.value)} />
           </div>
         </div>
-        <p className="text-xs text-slate-400">Multa/juros e tributos informativos são aplicados individualmente na tela de cada fatura, quando houver.</p>
+        <p className="text-xs text-slate-400">
+          Estes valores se aplicam a <strong>todos</strong> os moradores do lote. O desconto vem do cadastro de cada morador e pode ser ajustado
+          um a um na tabela (ou para todos de uma vez no campo acima). Para um valor diferente em só uma fatura, edite-a depois.
+        </p>
         <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-sky-500/30 bg-sky-500/10 p-3 text-sm text-sky-200">
           <input type="checkbox" checked={rascunho} onChange={(e) => setRascunho(e.target.checked)} className="mt-0.5 h-4 w-4" />
           <span>
@@ -272,7 +347,18 @@ export default function FaturasLoteForm({
                   />
                 </td>
                 <td className="py-2 pr-2 text-slate-300">{preenchida ? formatKwh(consumo) : "-"}</td>
-                <td className="py-2 pr-2 text-slate-300">{c.desconto_percentual}%</td>
+                <td className="py-2 pr-2">
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={0.5}
+                    className="input w-20 py-1"
+                    value={linhas[c.id].desconto}
+                    onChange={(e) => atualizar(c.id, "desconto", e.target.value)}
+                    aria-label={`Desconto de ${c.nome} (%)`}
+                  />
+                </td>
                 <td className="py-2 pr-2 text-right font-medium text-white">{preenchida ? formatBRL(valorLiquido) : "-"}</td>
                 <td className="py-2 text-right text-eco-300">{preenchida ? formatBRL(economia) : "-"}</td>
               </tr>
@@ -296,5 +382,14 @@ export default function FaturasLoteForm({
         </button>
       </div>
     </form>
+  );
+}
+
+function Campo({ id, label, value, onChange }: { id: string; label: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <div>
+      <label className="label" htmlFor={id}>{label}</label>
+      <input id={id} type="number" min={0} step={0.01} className="input" value={value} onChange={(e) => onChange(e.target.value)} />
+    </div>
   );
 }

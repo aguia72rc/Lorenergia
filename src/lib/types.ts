@@ -34,6 +34,7 @@ export interface Configuracoes {
   adicional_bandeira: number;
   fio_b: number;
   taxa_energia_solar: number;
+  tarifa_gd2: number; // TUSD GD II padrão (R$/kWh)
   taxa_iluminacao_publica: number;
   multa_percentual: number;
   juros_mensal_percentual: number;
@@ -58,7 +59,8 @@ export interface Fatura {
   tarifa_te: number;
   adicional_bandeira: number;
   fio_b: number;
-  taxa_energia_solar: number;
+  taxa_energia_solar: number; // TUSD GD II em R$ (tarifa_gd2 × consumo)
+  tarifa_gd2: number; // TUSD GD II (R$/kWh) usada na fatura
   taxa_iluminacao: number;
   multa_juros: number;
   icms: number;

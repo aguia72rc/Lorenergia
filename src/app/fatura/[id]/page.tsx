@@ -196,7 +196,7 @@ export default async function FaturaPage({ params }: { params: Promise<{ id: str
                   <LinhaComp desc="Consumo — TUSD" qtd={numero(f.consumo_kwh, 1)} preco={numero(f.tarifa_tusd, 2)} valor={valorTusd} />
                   <LinhaComp desc="Consumo — TE" qtd={numero(f.consumo_kwh, 1)} preco={numero(f.tarifa_te, 2)} valor={valorTe} />
                   <LinhaComp desc="Contribuição de iluminação pública" valor={f.taxa_iluminacao} />
-                  <LinhaComp desc="TUSD GD II" valor={f.taxa_energia_solar} />
+                  <LinhaComp desc="TUSD GD II" qtd={Number(f.tarifa_gd2) > 0 ? numero(f.consumo_kwh, 1) : undefined} preco={Number(f.tarifa_gd2) > 0 ? numero(f.tarifa_gd2, 4) : undefined} valor={f.taxa_energia_solar} />
                   <LinhaComp desc="Adicional bandeira" valor={f.adicional_bandeira} />
                   <LinhaComp desc="Multa / juros" valor={f.multa_juros} destaque={Number(f.multa_juros) > 0} />
                   {isCashback ? (

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { calcularFaturaDetalhada, consumoDeLeituras } from "./calc";
+import { calcularFaturaDetalhada, consumoDeLeituras, valorTusdGd2, ratearProporcional, distribuirTusdGd2 } from "./calc";
 import { calcularEncargosAtraso } from "./atraso";
 import { vencimentoSugerido } from "./vencimento";
 
@@ -107,4 +107,49 @@ test("vencimento sugerido: dia 31 usa o último dia do mês curto; sem históric
   assert.equal(vencimentoSugerido({ vencimento: "2026-01-31", referencia: "2025-12-01" }, "2026-01"), "2026-02-28");
   assert.equal(vencimentoSugerido(null, "2026-10"), "");
   assert.equal(vencimentoSugerido({ vencimento: "", referencia: "2026-09-01" }, "2026-10"), "");
+});
+
+test("TUSD GD II é proporcional ao consumo: tarifa (R$/kWh) × kWh", () => {
+  assert.equal(valorTusdGd2(340, 0.06), 20.4);
+  assert.equal(valorTusdGd2(100, 0.06), 6);
+  assert.equal(valorTusdGd2(0, 0.06), 0);
+  assert.equal(valorTusdGd2(340, -1), 0);
+  // cada morador paga conforme o próprio consumo
+  assert.ok(valorTusdGd2(500, 0.06) > valorTusdGd2(340, 0.06));
+});
+
+const centavos = (v: number[]) => Math.round(v.reduce((s, x) => s + x, 0) * 100);
+
+test("rateio proporcional: partes proporcionais ao consumo e soma exata ao centavo", () => {
+  assert.deepEqual(ratearProporcional(600, [1, 2, 3]), [100, 200, 300]);
+  const partes = ratearProporcional(150.33, [340, 500, 410]);
+  assert.equal(centavos(partes), 15033); // nunca perde nem sobra centavo
+  assert.ok(partes[1] > partes[2] && partes[2] > partes[0]); // quem consome mais paga mais
+  assert.equal(centavos(ratearProporcional(100, [1, 1, 1])), 10000);
+});
+
+test("rateio proporcional: casos de borda", () => {
+  assert.deepEqual(ratearProporcional(100, [0, 0]), [0, 0]);
+  assert.deepEqual(ratearProporcional(0, [10, 20]), [0, 0]);
+  assert.deepEqual(ratearProporcional(100, [50, 0]), [100, 0]);
+  assert.deepEqual(ratearProporcional(-5, [10, 20]), [0, 0]);
+});
+
+test("TUSD GD II no lote: total da conta rateado, ou tarifa por kWh", () => {
+  const consumos = [340, 500, 410];
+  const total = distribuirTusdGd2("total", 150.33, consumos);
+  assert.equal(centavos(total.valores), 15033);
+  assert.equal(total.tarifa, Math.round((150.33 / 1250) * 1e5) / 1e5);
+  const porKwh = distribuirTusdGd2("tarifa", 0.06, consumos);
+  assert.deepEqual(porKwh.valores, [20.4, 30, 24.6]);
+  assert.equal(porKwh.tarifa, 0.06);
+  assert.deepEqual(distribuirTusdGd2("total", 100, []).valores, []);
+});
+
+test("rateio do Fio B: exemplo real (R$ 208,45 ÷ 1.810,3 kWh) — centavo de ajuste no maior consumo", () => {
+  const consumos = [180.7, 136.2, 204.5, 213.1, 85.0, 310.7, 136.2, 68.8, 475.1];
+  const r = distribuirTusdGd2("total", 208.45, consumos);
+  assert.equal(r.tarifa, 0.11515);
+  assert.deepEqual(r.valores, [20.81, 15.68, 23.55, 24.54, 9.79, 35.78, 15.68, 7.92, 54.7]);
+  assert.equal(centavos(r.valores), 20845); // fecha exatamente em R$ 208,45
 });

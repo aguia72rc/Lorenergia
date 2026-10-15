@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { calcularFaturaDetalhada, consumoDeLeituras } from "@/lib/calc";
+import { calcularFaturaDetalhada, consumoDeLeituras, valorTusdGd2 } from "@/lib/calc";
 import { formatBRL, formatKwh } from "@/lib/format";
 import { gerarFatura } from "@/app/admin/faturas/actions";
 import { vencimentoSugerido, type UltimoVencimento } from "@/lib/vencimento";
@@ -18,7 +18,7 @@ export interface TarifasPadrao {
   tusd: number;
   te: number;
   bandeira: number; // R$
-  taxaSolar: number; // R$
+  tarifaGd2: number; // TUSD GD II, R$/kWh (× consumo de cada morador)
   iluminacao: number; // R$
 }
 
@@ -33,7 +33,8 @@ export interface FaturaEdicao {
   consumo_kwh: number;
   tarifa_tusd: number;
   tarifa_te: number;
-  taxa_energia_solar: number;
+  tarifa_gd2: number; // TUSD GD II (R$/kWh)
+  taxa_energia_solar: number; // TUSD GD II em R$ já gravado (preservado se nada mudar)
   adicional_bandeira: number;
   taxa_iluminacao: number;
   multa_juros: number;
@@ -83,7 +84,7 @@ export default function NovaFaturaForm({
   const [tusd, setTusd] = useState(fatura ? num(fatura.tarifa_tusd) : String(tarifas.tusd));
   const [te, setTe] = useState(fatura ? num(fatura.tarifa_te) : String(tarifas.te));
   const [bandeira, setBandeira] = useState(fatura ? num(fatura.adicional_bandeira) : String(tarifas.bandeira));
-  const [taxaSolar, setTaxaSolar] = useState(fatura ? num(fatura.taxa_energia_solar) : String(tarifas.taxaSolar));
+  const [tarifaGd2, setTarifaGd2] = useState(fatura ? num(fatura.tarifa_gd2) : String(tarifas.tarifaGd2));
   const [iluminacao, setIluminacao] = useState(fatura ? num(fatura.taxa_iluminacao) : String(tarifas.iluminacao));
   const [multa, setMulta] = useState(fatura ? num(fatura.multa_juros) : "0");
   const [desconto, setDesconto] = useState(fatura ? num(fatura.desconto_percentual) : String(primeiro?.desconto_percentual ?? 20));
@@ -98,6 +99,15 @@ export default function NovaFaturaForm({
 
   const consumo = consumoDeLeituras(Number(leituraAnterior), Number(leituraAtual), Number(fator));
 
+  // TUSD GD II em R$. Ao editar, se consumo e tarifa não mudaram, mantém o valor gravado
+  // (inclusive o centavo exato de um rateio do lote); senão, tarifa × consumo.
+  const valorGd2 =
+    fatura &&
+    Math.abs(consumo - Number(fatura.consumo_kwh)) < 0.005 &&
+    Math.abs(Number(tarifaGd2) - Number(fatura.tarifa_gd2)) < 1e-9
+      ? Number(fatura.taxa_energia_solar)
+      : valorTusdGd2(consumo, Number(tarifaGd2));
+
   const r = useMemo(
     () =>
       calcularFaturaDetalhada({
@@ -105,12 +115,12 @@ export default function NovaFaturaForm({
         tarifaTusd: Number(tusd),
         tarifaTe: Number(te),
         adicionalBandeira: Number(bandeira),
-        taxaEnergiaSolar: Number(taxaSolar),
+        taxaEnergiaSolar: valorGd2,
         taxaIluminacao: Number(iluminacao),
         multaJuros: Number(multa),
         descontoPercentual: Number(desconto),
       }),
-    [consumo, tusd, te, bandeira, taxaSolar, iluminacao, multa, desconto]
+    [consumo, tusd, te, bandeira, valorGd2, iluminacao, multa, desconto]
   );
 
   function onSelecionarCliente(id: string) {
@@ -176,14 +186,18 @@ export default function NovaFaturaForm({
         </div>
 
         <p className="pt-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Tarifas de energia (R$/kWh)</p>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-3">
           <Campo label="Consumo — TUSD" name="tarifa_tusd" value={tusd} onChange={setTusd} step={0.00001} />
           <Campo label="Consumo — TE" name="tarifa_te" value={te} onChange={setTe} step={0.00001} />
+          <div>
+            <Campo label="TUSD GD II (R$/kWh)" name="tarifa_gd2" value={tarifaGd2} onChange={setTarifaGd2} step={0.00001} />
+            <input type="hidden" name="taxa_energia_solar" value={valorGd2.toFixed(2)} />
+            <p className="mt-1 text-xs text-slate-400">= {formatBRL(r.taxaSolar)} neste consumo</p>
+          </div>
         </div>
 
         <p className="pt-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Valores fixos (R$)</p>
-        <div className="grid gap-4 sm:grid-cols-4">
-          <Campo label="TUSD GD II" name="taxa_energia_solar" value={taxaSolar} onChange={setTaxaSolar} step={0.01} />
+        <div className="grid gap-4 sm:grid-cols-3">
           <Campo label="Adic. bandeira" name="adicional_bandeira" value={bandeira} onChange={setBandeira} step={0.01} />
           <Campo label="Ilum. pública" name="taxa_iluminacao" value={iluminacao} onChange={setIluminacao} step={0.01} />
           <Campo label="Multa / juros" name="multa_juros" value={multa} onChange={setMulta} step={0.01} />

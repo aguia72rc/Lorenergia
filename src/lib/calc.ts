@@ -79,7 +79,7 @@ export interface EntradaCalculoDetalhada {
   tarifaTusd: number; // R$/kWh
   tarifaTe: number; // R$/kWh
   adicionalBandeira: number; // R$ fixo
-  taxaEnergiaSolar: number; // R$ fixo (entra no desconto)
+  taxaEnergiaSolar: number; // TUSD GD II em R$ (= tarifa × consumo; ver valorTusdGd2)
   taxaIluminacao: number; // R$ fixo (sem desconto)
   multaJuros: number; // R$ fixo (sem desconto)
   descontoPercentual: number;
@@ -98,6 +98,59 @@ export interface ResultadoCalculoDetalhado {
   valorBruto: number; // tudo, antes do desconto
   valorLiquido: number; // total a pagar
   economia: number;
+}
+
+/**
+ * TUSD GD II proporcional ao consumo: tarifa (R$/kWh) × consumo (kWh),
+ * arredondado em centavos. O resultado entra em `taxaEnergiaSolar`.
+ */
+export function valorTusdGd2(consumoKwh: number, tarifaGd2: number): number {
+  const consumo = Math.max(0, Number(consumoKwh) || 0);
+  const tarifa = Math.max(0, Number(tarifaGd2) || 0);
+  return arredondar(consumo * tarifa);
+}
+
+/**
+ * Divide `total` (R$) proporcionalmente aos `pesos` (ex.: kWh de cada morador).
+ * Cada parte é arredondada normalmente ao centavo; a pequena diferença de
+ * arredondamento (centavos) vai para o MAIOR consumo, de modo que a soma das
+ * partes é sempre igual ao total.
+ */
+export function ratearProporcional(total: number, pesos: number[]): number[] {
+  const centavos = Math.round(Math.max(0, Number(total) || 0) * 100);
+  const w = pesos.map((p) => Math.max(0, Number(p) || 0));
+  const soma = w.reduce((s, x) => s + x, 0);
+  if (centavos === 0 || soma <= 0) return w.map(() => 0);
+
+  const partes = w.map((x) => Math.round((x / soma) * centavos));
+  const diferenca = centavos - partes.reduce((s, x) => s + x, 0);
+  partes[w.indexOf(Math.max(...w))] += diferenca; // empate: o primeiro
+  return partes.map((c) => c / 100);
+}
+
+export type ModoGd2 = "total" | "tarifa";
+
+/**
+ * TUSD GD II (Fio B) de cada morador do lote.
+ *  - "total": `entrada` é o Fio B TOTAL da conta (R$), rateado pelo consumo de cada um.
+ *  - "tarifa": `entrada` é a tarifa em R$/kWh; cada um paga tarifa × o próprio consumo.
+ * Retorna o valor (R$) por morador e a tarifa equivalente em R$/kWh.
+ */
+export function distribuirTusdGd2(
+  modo: ModoGd2,
+  entrada: number,
+  consumos: number[]
+): { valores: number[]; tarifa: number } {
+  if (modo === "total") {
+    const total = Math.max(0, Number(entrada) || 0);
+    const soma = consumos.reduce((s, c) => s + Math.max(0, Number(c) || 0), 0);
+    return {
+      valores: ratearProporcional(total, consumos),
+      tarifa: soma > 0 ? Math.round((total / soma) * 1e5) / 1e5 : 0,
+    };
+  }
+  const tarifa = Math.max(0, Number(entrada) || 0);
+  return { valores: consumos.map((c) => valorTusdGd2(c, tarifa)), tarifa };
 }
 
 export function calcularFaturaDetalhada(e: EntradaCalculoDetalhada): ResultadoCalculoDetalhado {
