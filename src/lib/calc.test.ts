@@ -4,6 +4,7 @@ import { calcularFaturaDetalhada, consumoDeLeituras, valorTusdGd2, ratearProporc
 import { calcularEncargosAtraso } from "./atraso";
 import { vencimentoSugerido } from "./vencimento";
 import { beneficioDaFatura, economiaPorMes, economiaTotal } from "./economia";
+import { interpretarResumo } from "./resumo-publico";
 
 test("encargos de atraso: 2% de multa + 1% ao mês pro rata die", () => {
   const r = calcularEncargosAtraso(100, "2026-01-01", "2026-01-31", 2, 1);
@@ -175,4 +176,18 @@ test("economia gerada: soma por mês e total ignora rascunho e cancelada", () =>
   assert.equal(porMes.get("2026-10-01"), 120);
   assert.equal(economiaTotal(porMes), 220);
   assert.equal(economiaTotal(economiaPorMes([])), 0);
+});
+
+test("resumo público: lê economia, mês e famílias; ignora dado inválido", () => {
+  assert.deepEqual(
+    interpretarResumo({ economia_total: 18450.97, ultima_referencia: "2026-10-01", familias: 13 }),
+    { economiaTotal: 18450.97, ultimaReferencia: "2026-10-01", familias: 13 }
+  );
+  // banco ainda sem o campo "familias" (migração 0028 pendente) → usa o valor padrão da página
+  assert.equal(interpretarResumo({ economia_total: 100, ultima_referencia: "2026-10-01" })?.familias, null);
+  assert.equal(interpretarResumo({ economia_total: 100, familias: 0 })?.familias, null);
+  // sem economia ou resposta estranha → nada a mostrar
+  assert.equal(interpretarResumo({ economia_total: 0, familias: 5 }), null);
+  assert.equal(interpretarResumo(null), null);
+  assert.equal(interpretarResumo("x"), null);
 });
