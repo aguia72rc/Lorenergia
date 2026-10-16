@@ -120,7 +120,7 @@ const htmlTopo = `
           </div>
           <div style="margin-top:22px; padding-top:22px; border-top:1px solid rgba(255,246,227,.12); display:grid; grid-template-columns:1fr 1fr; gap:18px;">
             <div>
-              <div style="font-family:${AR}; font-weight:900; font-size:30px; color:#FFF6E3;">8</div>
+              <div style="font-family:${AR}; font-weight:900; font-size:30px; color:#FFF6E3;">13</div>
               <div style="font-size:13px; color:rgba(255,246,227,.6); line-height:1.35;">famílias já economizam em PE</div>
             </div>
             <div>
