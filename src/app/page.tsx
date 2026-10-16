@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { getSessao } from "@/lib/auth";
 import CalculadoraEconomia from "@/components/CalculadoraEconomia";
 import FaqLista from "@/components/FaqLista";
+import { getResumoPublico } from "@/lib/resumo-publico";
+import { formatReferencia } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -127,6 +129,7 @@ const htmlTopo = `
               <div style="font-family:${AR}; font-weight:900; font-size:30px; color:#FFF6E3;">4.000</div>
               <div style="font-size:13px; color:rgba(255,246,227,.6); line-height:1.35;">kWh/mês gerados na usina</div>
             </div>
+            <!--ECONOMIA_TOTAL-->
           </div>
         </div>
       </div>
@@ -313,14 +316,30 @@ const htmlFinal = `
   </footer>
 `;
 
+/** Bloco "economia total gerada" do destaque. Vazio se ainda não há dado. */
+function blocoEconomiaTotal(resumo: Awaited<ReturnType<typeof getResumoPublico>>): string {
+  if (!resumo) return "";
+  // Arredonda para baixo: nunca anunciar mais do que foi de fato economizado.
+  const valor = Math.floor(resumo.economiaTotal).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+  const atualizado = resumo.ultimaReferencia ? ` • atualizado até ${formatReferencia(resumo.ultimaReferencia)}` : "";
+  return `
+            <div style="grid-column:1 / -1; padding-top:18px; border-top:1px solid rgba(255,246,227,.12);">
+              <div style="font-family:${AR}; font-weight:900; font-size:34px; color:#FFB21A; line-height:1.1;">${valor}</div>
+              <div style="font-size:13px; color:rgba(255,246,227,.6); line-height:1.35; margin-top:2px;">já economizados pelas famílias da Lorenergia${atualizado}</div>
+            </div>`;
+}
+
 export default async function HomePage() {
   const sessao = await getSessao();
   if (sessao?.profile?.role === "admin") redirect("/admin");
   if (sessao?.profile?.role === "cliente") redirect("/portal");
 
+  const resumo = await getResumoPublico();
+  const topo = htmlTopo.replace("<!--ECONOMIA_TOTAL-->", blocoEconomiaTotal(resumo));
+
   return (
     <main className="lp" style={{ fontFamily: "'IBM Plex Sans',system-ui,sans-serif", color: "#0B1017", background: "#FBF7F0" }}>
-      <div dangerouslySetInnerHTML={{ __html: htmlTopo }} />
+      <div dangerouslySetInnerHTML={{ __html: topo }} />
       <CalculadoraEconomia />
       <div dangerouslySetInnerHTML={{ __html: htmlMeio }} />
       <FaqLista faqs={faqs} />

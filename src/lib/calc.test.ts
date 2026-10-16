@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { calcularFaturaDetalhada, consumoDeLeituras, valorTusdGd2, ratearProporcional, distribuirTusdGd2 } from "./calc";
 import { calcularEncargosAtraso } from "./atraso";
 import { vencimentoSugerido } from "./vencimento";
+import { beneficioDaFatura, economiaPorMes, economiaTotal } from "./economia";
 
 test("encargos de atraso: 2% de multa + 1% ao mês pro rata die", () => {
   const r = calcularEncargosAtraso(100, "2026-01-01", "2026-01-31", 2, 1);
@@ -152,4 +153,26 @@ test("rateio do Fio B: exemplo real (R$ 208,45 ÷ 1.810,3 kWh) — centavo de aj
   assert.equal(r.tarifa, 0.11515);
   assert.deepEqual(r.valores, [20.81, 15.68, 23.55, 24.54, 9.79, 35.78, 15.68, 7.92, 54.7]);
   assert.equal(centavos(r.valores), 20845); // fecha exatamente em R$ 208,45
+});
+
+test("economia gerada: desconto usa a economia, cashback usa o cashback", () => {
+  assert.equal(beneficioDaFatura({ referencia: "2026-09-01", status: "pendente", economia: 70, modalidade_beneficio: "desconto" }), 70);
+  assert.equal(beneficioDaFatura({ referencia: "2026-09-01", status: "pendente", economia: 0, cashback_valor: 55.5, modalidade_beneficio: "cashback" }), 55.5);
+  assert.equal(beneficioDaFatura({ referencia: "2026-09-01", status: "pendente", economia: "12,5" as unknown as number }), 0); // lixo vira 0
+});
+
+test("economia gerada: soma por mês e total ignora rascunho e cancelada", () => {
+  const faturas = [
+    { referencia: "2026-09-01", status: "paga", economia: 70, publicada: true },
+    { referencia: "2026-09-01", status: "pendente", economia: 30, publicada: true },
+    { referencia: "2026-10-01", status: "pendente", economia: 100, publicada: true },
+    { referencia: "2026-10-01", status: "pendente", economia: 999, publicada: false }, // rascunho
+    { referencia: "2026-10-01", status: "cancelada", economia: 888, publicada: true }, // cancelada
+    { referencia: "2026-10-01", status: "pendente", economia: 0, cashback_valor: 20, modalidade_beneficio: "cashback" }, // publicada por padrão
+  ];
+  const porMes = economiaPorMes(faturas);
+  assert.equal(porMes.get("2026-09-01"), 100);
+  assert.equal(porMes.get("2026-10-01"), 120);
+  assert.equal(economiaTotal(porMes), 220);
+  assert.equal(economiaTotal(economiaPorMes([])), 0);
 });
