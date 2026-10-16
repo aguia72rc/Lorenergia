@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { formatBRL, formatReferencia, formatReferenciaCurta, primeiroDiaMesAtual, hojeISO } from "@/lib/format";
 import StatusBadge from "@/components/StatusBadge";
 import FaturamentoChart from "@/components/FaturamentoChart";
+import EconomiaChart from "@/components/EconomiaChart";
+import { beneficioDaFatura, economiaPorMes, economiaTotal, type FaturaEconomia } from "@/lib/economia";
 import { AnimatedNumber } from "@/components/motion";
 import type { FaturaComCliente, Fatura } from "@/lib/types";
 
@@ -16,7 +18,7 @@ export default async function AdminDashboard() {
   const [{ count: totalMoradores }, { data: faturasMes }, { data: pendentes }, { data: vencidas }, { data: ultimas }, { data: todasFaturas }] =
     await Promise.all([
       supabase.from("clientes").select("*", { count: "exact", head: true }).eq("ativo", true),
-      supabase.from("faturas").select("valor_liquido, economia").eq("publicada", true).eq("referencia", refMes),
+      supabase.from("faturas").select("valor_liquido, economia, cashback_valor, modalidade_beneficio, referencia, status").eq("publicada", true).eq("referencia", refMes),
       supabase.from("faturas").select("valor_liquido").eq("publicada", true).eq("status", "pendente"),
       supabase.from("faturas").select("valor_liquido").eq("publicada", true).eq("status", "pendente").lt("vencimento", hojeISO()),
       supabase
@@ -24,11 +26,13 @@ export default async function AdminDashboard() {
         .select("*, clientes(id, nome, unidade, telefone, email)")
         .order("created_at", { ascending: false })
         .limit(5),
-      supabase.from("faturas").select("referencia, valor_liquido, status").eq("publicada", true),
+      supabase.from("faturas").select("referencia, valor_liquido, status, economia, cashback_valor, modalidade_beneficio").eq("publicada", true),
     ]);
 
   const receitaMes = (faturasMes ?? []).reduce((s, f) => s + Number(f.valor_liquido), 0);
-  const economiaMes = (faturasMes ?? []).reduce((s, f) => s + Number(f.economia), 0);
+  const economiaMes = (faturasMes ?? [])
+    .filter((f) => f.status !== "cancelada")
+    .reduce((s, f) => s + beneficioDaFatura(f as FaturaEconomia), 0);
   const totalPendente = (pendentes ?? []).reduce((s, f) => s + Number(f.valor_liquido), 0);
   const totalVencido = (vencidas ?? []).reduce((s, f) => s + Number(f.valor_liquido), 0);
   const qtdVencidas = (vencidas ?? []).length;
@@ -56,6 +60,17 @@ export default async function AdminDashboard() {
       faturado: faturadoPorMes.get(ref) ?? 0,
       recebido: recebidoPorMes.get(ref) ?? 0,
     }));
+
+  // ---- Economia gerada para os clientes (consolidada, mês a mês) ----
+  // Desconto → economia; cashback → cashback acumulado. Só publicadas, sem canceladas.
+  const economiaMeses = economiaPorMes((todasFaturas ?? []) as FaturaEconomia[]);
+  const economiaAcumulada = economiaTotal(economiaMeses);
+  const pontosEconomia = Array.from(economiaMeses.keys())
+    .sort((a, b) => a.localeCompare(b))
+    .slice(-12)
+    .map((ref) => ({ label: formatReferenciaCurta(ref), valor: economiaMeses.get(ref) ?? 0, referencia: ref }));
+  const mesesComEconomia = economiaMeses.size;
+  const mediaMensalEconomia = mesesComEconomia > 0 ? economiaAcumulada / mesesComEconomia : 0;
 
   return (
     <div className="space-y-6">
@@ -88,6 +103,27 @@ export default async function AdminDashboard() {
           </div>
         </div>
         <FaturamentoChart dados={pontosFaturamento} />
+      </div>
+
+      <div className="card">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 className="font-semibold text-white">Economia gerada para os clientes</h2>
+            <p className="text-sm text-slate-400">
+              Consolidado de todas as faturas publicadas ({mesesComEconomia} {mesesComEconomia === 1 ? "mês" : "meses"}). Cashback entra pelo valor acumulado.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <MiniKpi icon={<Leaf />} titulo="Economia total acumulada" valor={economiaAcumulada} cor="bg-eco-500/15 text-eco-300" />
+            <MiniKpi icon={<TrendingUp />} titulo="Média por mês" valor={mediaMensalEconomia} cor="bg-brand-500/15 text-brand-300" />
+          </div>
+        </div>
+        <EconomiaChart
+          dados={pontosEconomia}
+          destaqueRef={refMes}
+          ariaLabel="Gráfico da economia gerada para os clientes por mês"
+          textoVazio="Ainda não há faturas publicadas para somar a economia."
+        />
       </div>
 
       {qtdVencidas > 0 && (
