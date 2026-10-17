@@ -85,6 +85,9 @@ export default function NovaFaturaForm({
   const [te, setTe] = useState(fatura ? num(fatura.tarifa_te) : String(tarifas.te));
   const [bandeira, setBandeira] = useState(fatura ? num(fatura.adicional_bandeira) : String(tarifas.bandeira));
   const [tarifaGd2, setTarifaGd2] = useState(fatura ? num(fatura.tarifa_gd2) : String(tarifas.tarifaGd2));
+  // TUSD GD II (Fio B): por padrão informa o VALOR em R$ desta fatura; alternativa: tarifa por kWh.
+  const [gd2Modo, setGd2Modo] = useState<"valor" | "tarifa">("valor");
+  const [gd2Valor, setGd2Valor] = useState(fatura ? num(fatura.taxa_energia_solar) : "0");
   const [iluminacao, setIluminacao] = useState(fatura ? num(fatura.taxa_iluminacao) : String(tarifas.iluminacao));
   const [multa, setMulta] = useState(fatura ? num(fatura.multa_juros) : "0");
   const [desconto, setDesconto] = useState(fatura ? num(fatura.desconto_percentual) : String(primeiro?.desconto_percentual ?? 20));
@@ -102,13 +105,18 @@ export default function NovaFaturaForm({
   // TUSD GD II em R$. Ao editar, se consumo e tarifa não mudaram, mantém o valor gravado
   // (inclusive o centavo exato de um rateio do lote); senão, tarifa × consumo.
   const valorGd2 =
-    fatura &&
-    Math.abs(consumo - Number(fatura.consumo_kwh)) < 0.005 &&
-    Math.abs(Number(tarifaGd2) - Number(fatura.tarifa_gd2)) < 1e-9
-      ? Number(fatura.taxa_energia_solar)
-      : valorTusdGd2(consumo, Number(tarifaGd2));
+    gd2Modo === "valor"
+      ? Math.round(Math.max(0, Number(gd2Valor) || 0) * 100) / 100
+      : fatura &&
+          Math.abs(consumo - Number(fatura.consumo_kwh)) < 0.005 &&
+          Math.abs(Number(tarifaGd2) - Number(fatura.tarifa_gd2)) < 1e-9
+        ? Number(fatura.taxa_energia_solar)
+        : valorTusdGd2(consumo, Number(tarifaGd2));
 
-  const gd2Invalida = !tarifaGd2Valida(Number(tarifaGd2));
+  // Tarifa equivalente em R$/kWh (é o que se grava e o que a trava confere).
+  const tarifaEquivalente =
+    gd2Modo === "tarifa" ? Number(tarifaGd2) || 0 : consumo > 0 ? Math.round((valorGd2 / consumo) * 1e5) / 1e5 : 0;
+  const gd2Invalida = !tarifaGd2Valida(tarifaEquivalente);
 
   const r = useMemo(
     () =>
@@ -188,18 +196,39 @@ export default function NovaFaturaForm({
         </div>
 
         <p className="pt-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Tarifas de energia (R$/kWh)</p>
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2">
           <Campo label="Consumo — TUSD" name="tarifa_tusd" value={tusd} onChange={setTusd} step={0.00001} />
           <Campo label="Consumo — TE" name="tarifa_te" value={te} onChange={setTe} step={0.00001} />
+        </div>
+
+        <p className="pt-1 text-xs font-semibold uppercase tracking-wide text-slate-400">TUSD GD II (Fio B)</p>
+        <div className="grid gap-4 sm:grid-cols-3">
           <div>
-            <Campo label="TUSD GD II (R$/kWh)" name="tarifa_gd2" value={tarifaGd2} onChange={setTarifaGd2} step={0.00001} max={1} />
-            <input type="hidden" name="taxa_energia_solar" value={valorGd2.toFixed(2)} />
-            {gd2Invalida ? (
-              <p className="mt-1 text-xs font-medium text-red-400">{MSG_TARIFA_GD2}</p>
-            ) : (
-              <p className="mt-1 text-xs text-slate-400">= {formatBRL(r.taxaSolar)} neste consumo</p>
-            )}
+            <label className="label" htmlFor="gd2_modo">Como informar</label>
+            <select id="gd2_modo" className="input" value={gd2Modo} onChange={(e) => setGd2Modo(e.target.value as "valor" | "tarifa")}>
+              <option value="valor">Valor em R$ desta fatura</option>
+              <option value="tarifa">Tarifa por kWh (R$/kWh)</option>
+            </select>
           </div>
+          <div>
+            {gd2Modo === "valor" ? (
+              <Campo label="TUSD GD II (R$)" name="gd2_valor_digitado" value={gd2Valor} onChange={setGd2Valor} step={0.01} />
+            ) : (
+              <Campo label="TUSD GD II (R$/kWh)" name="gd2_tarifa_digitada" value={tarifaGd2} onChange={setTarifaGd2} step={0.00001} max={1} />
+            )}
+            {/* Valores enviados ao servidor: o valor em R$ e a tarifa equivalente (R$/kWh). */}
+            <input type="hidden" name="taxa_energia_solar" value={valorGd2.toFixed(2)} />
+            <input type="hidden" name="tarifa_gd2" value={String(tarifaEquivalente)} />
+          </div>
+          <p className={`text-xs sm:pt-6 ${gd2Invalida ? "font-medium text-red-400" : "text-slate-400"}`}>
+            {gd2Invalida
+              ? gd2Modo === "valor"
+                ? `Esse valor equivale a R$ ${tarifaEquivalente.toLocaleString("pt-BR", { maximumFractionDigits: 2 })} por kWh — alto demais para a TUSD GD II. Confira o valor.`
+                : MSG_TARIFA_GD2
+              : gd2Modo === "valor"
+                ? `Equivale a R$ ${tarifaEquivalente.toLocaleString("pt-BR", { maximumFractionDigits: 5 })} por kWh neste consumo.`
+                : `= ${formatBRL(r.taxaSolar)} neste consumo.`}
+          </p>
         </div>
 
         <p className="pt-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Valores fixos (R$)</p>
