@@ -3,12 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getSessao } from "@/lib/auth";
+import { tarifaGd2Valida, MSG_TARIFA_GD2 } from "@/lib/calc";
 
 export async function salvarConfiguracoes(formData: FormData) {
   const sessao = await getSessao();
   if (sessao?.profile?.role !== "admin") throw new Error("Acesso negado.");
 
   const supabase = await createClient();
+  if (!tarifaGd2Valida(Number(formData.get("tarifa_gd2") ?? 0))) throw new Error(MSG_TARIFA_GD2);
   const tarifa_tusd = Number(formData.get("tarifa_tusd") ?? 0);
   const tarifa_te = Number(formData.get("tarifa_te") ?? 0);
   const dados = {

@@ -35,10 +35,10 @@ export default async function ConfiguracoesPage() {
             </div>
             <div>
               <label className="label" htmlFor="tarifa_gd2">TUSD GD II</label>
-              <input id="tarifa_gd2" name="tarifa_gd2" type="number" min={0} step={0.00001} className="input" defaultValue={cfg?.tarifa_gd2 ?? 0} />
+              <input id="tarifa_gd2" name="tarifa_gd2" type="number" min={0} max={1} step={0.00001} className="input" defaultValue={cfg?.tarifa_gd2 ?? 0} placeholder="ex.: 0,11515" />
             </div>
           </div>
-          <p className="mt-1 text-xs text-slate-400">Tarifa por kWh da TUSD GD II (Fio B), usada quando você escolhe “tarifa por kWh”. No lote você também pode informar o Fio B total da conta e rateá-lo pelo consumo de cada morador.</p>
+          <p className="mt-1 text-xs text-slate-400">Tarifa da TUSD GD II (Fio B) em <strong>R$ por kWh</strong> (ex.: 0,11515 — nunca o valor total da conta nem o antigo valor fixo), usada quando você escolhe “tarifa por kWh”. No lote você também pode informar o Fio B total da conta e rateá-lo pelo consumo de cada morador.</p>
         </div>
 
         <div>

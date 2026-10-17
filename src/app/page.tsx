@@ -13,6 +13,9 @@ const whatsappLink =
 
 const AR = "'Archivo',sans-serif";
 
+// Usado se o banco ainda não informar o nº de famílias (migração 0028 pendente ou sem dados).
+const FAMILIAS_PADRAO = 13;
+
 const pains = [
   "Você abre a fatura da Neoenergia todo mês e sente aquele aperto — de novo.",
   "Você já pensou em energia solar, mas achou que precisava gastar R$15-20 mil e esperar meses de obra.",
@@ -122,7 +125,7 @@ const htmlTopo = `
           </div>
           <div style="margin-top:22px; padding-top:22px; border-top:1px solid rgba(255,246,227,.12); display:grid; grid-template-columns:1fr 1fr; gap:18px;">
             <div>
-              <div style="font-family:${AR}; font-weight:900; font-size:30px; color:#FFF6E3;">13</div>
+              <div style="font-family:${AR}; font-weight:900; font-size:30px; color:#FFF6E3;">{{FAMILIAS}}</div>
               <div style="font-size:13px; color:rgba(255,246,227,.6); line-height:1.35;">famílias já economizam em PE</div>
             </div>
             <div>
@@ -335,7 +338,9 @@ export default async function HomePage() {
   if (sessao?.profile?.role === "cliente") redirect("/portal");
 
   const resumo = await getResumoPublico();
-  const topo = htmlTopo.replace("<!--ECONOMIA_TOTAL-->", blocoEconomiaTotal(resumo));
+  const topo = htmlTopo
+    .replace("<!--ECONOMIA_TOTAL-->", blocoEconomiaTotal(resumo))
+    .replace("{{FAMILIAS}}", String(resumo?.familias ?? FAMILIAS_PADRAO));
 
   return (
     <main className="lp" style={{ fontFamily: "'IBM Plex Sans',system-ui,sans-serif", color: "#0B1017", background: "#FBF7F0" }}>
