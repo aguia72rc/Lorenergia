@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { calcularFaturaDetalhada, consumoDeLeituras, valorTusdGd2 } from "@/lib/calc";
+import { calcularFaturaDetalhada, consumoDeLeituras, valorTusdGd2, tarifaGd2Valida, MSG_TARIFA_GD2 } from "@/lib/calc";
 import { formatBRL, formatKwh } from "@/lib/format";
 import { gerarFatura } from "@/app/admin/faturas/actions";
 import { vencimentoSugerido, type UltimoVencimento } from "@/lib/vencimento";
@@ -108,6 +108,8 @@ export default function NovaFaturaForm({
       ? Number(fatura.taxa_energia_solar)
       : valorTusdGd2(consumo, Number(tarifaGd2));
 
+  const gd2Invalida = !tarifaGd2Valida(Number(tarifaGd2));
+
   const r = useMemo(
     () =>
       calcularFaturaDetalhada({
@@ -190,9 +192,13 @@ export default function NovaFaturaForm({
           <Campo label="Consumo — TUSD" name="tarifa_tusd" value={tusd} onChange={setTusd} step={0.00001} />
           <Campo label="Consumo — TE" name="tarifa_te" value={te} onChange={setTe} step={0.00001} />
           <div>
-            <Campo label="TUSD GD II (R$/kWh)" name="tarifa_gd2" value={tarifaGd2} onChange={setTarifaGd2} step={0.00001} />
+            <Campo label="TUSD GD II (R$/kWh)" name="tarifa_gd2" value={tarifaGd2} onChange={setTarifaGd2} step={0.00001} max={1} />
             <input type="hidden" name="taxa_energia_solar" value={valorGd2.toFixed(2)} />
-            <p className="mt-1 text-xs text-slate-400">= {formatBRL(r.taxaSolar)} neste consumo</p>
+            {gd2Invalida ? (
+              <p className="mt-1 text-xs font-medium text-red-400">{MSG_TARIFA_GD2}</p>
+            ) : (
+              <p className="mt-1 text-xs text-slate-400">= {formatBRL(r.taxaSolar)} neste consumo</p>
+            )}
           </div>
         </div>
 
@@ -264,7 +270,7 @@ export default function NovaFaturaForm({
           </label>
         )}
         <div className="flex flex-col gap-2">
-          <button type="submit" className="btn-primary w-full">
+          <button type="submit" className="btn-primary w-full" disabled={gd2Invalida}>
             {editando ? "Salvar alterações" : rascunho ? "Salvar rascunho" : "Gerar e publicar"}
           </button>
           <Link href="/admin/faturas" className="btn-outline w-full">Cancelar</Link>
@@ -274,11 +280,11 @@ export default function NovaFaturaForm({
   );
 }
 
-function Campo({ label, name, value, onChange, step, required }: { label: string; name: string; value: string; onChange: (v: string) => void; step: number; required?: boolean }) {
+function Campo({ label, name, value, onChange, step, required, max }: { label: string; name: string; value: string; onChange: (v: string) => void; step: number; required?: boolean; max?: number }) {
   return (
     <div>
       <label className="label" htmlFor={name}>{label}</label>
-      <input id={name} name={name} type="number" min={0} step={step} className="input" value={value} onChange={(e) => onChange(e.target.value)} required={required} />
+      <input id={name} name={name} type="number" min={0} max={max} step={step} className="input" value={value} onChange={(e) => onChange(e.target.value)} required={required} />
     </div>
   );
 }

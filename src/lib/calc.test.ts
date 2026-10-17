@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { calcularFaturaDetalhada, consumoDeLeituras, valorTusdGd2, ratearProporcional, distribuirTusdGd2 } from "./calc";
+import { calcularFaturaDetalhada, consumoDeLeituras, valorTusdGd2, ratearProporcional, distribuirTusdGd2, tarifaGd2Valida } from "./calc";
 import { calcularEncargosAtraso } from "./atraso";
 import { vencimentoSugerido } from "./vencimento";
 import { beneficioDaFatura, economiaPorMes, economiaTotal } from "./economia";
@@ -190,4 +190,18 @@ test("resumo público: lê economia, mês e famílias; ignora dado inválido", (
   assert.equal(interpretarResumo({ economia_total: 0, familias: 5 }), null);
   assert.equal(interpretarResumo(null), null);
   assert.equal(interpretarResumo("x"), null);
+});
+
+test("trava da TUSD GD II: tarifa por kWh plausível passa; total em R$ ou valor fixo antigo não", () => {
+  assert.equal(tarifaGd2Valida(0.11515), true);
+  assert.equal(tarifaGd2Valida(0), true);
+  assert.equal(tarifaGd2Valida(1), true);
+  assert.equal(tarifaGd2Valida(20), false); // antigo valor fixo digitado no campo por kWh
+  assert.equal(tarifaGd2Valida(208.45), false); // total da conta digitado no campo por kWh
+  assert.equal(tarifaGd2Valida(-0.1), false);
+  // o rateio do exemplo real continua dentro da trava
+  const r = distribuirTusdGd2("total", 208.45, [180.7, 136.2, 204.5, 213.1, 85, 310.7, 136.2, 68.8, 475.1]);
+  assert.equal(tarifaGd2Valida(r.tarifa), true);
+  // total digitado errado (ou leituras erradas) estoura a trava no modo "total"
+  assert.equal(tarifaGd2Valida(distribuirTusdGd2("total", 20845, [180.7, 136.2]).tarifa), false);
 });

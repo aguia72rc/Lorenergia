@@ -128,6 +128,22 @@ export function ratearProporcional(total: number, pesos: number[]): number[] {
   return partes.map((c) => c / 100);
 }
 
+/**
+ * Trava de sanidade da TUSD GD II (Fio B) por kWh. O Fio B nunca passa da tarifa
+ * cheia (cerca de R$ 1,04/kWh em 2026); acima disso o valor digitado quase
+ * certamente é um TOTAL em R$ (ex.: 208,45) ou o antigo valor fixo (ex.: 20),
+ * e não uma tarifa por kWh.
+ */
+export const LIMITE_TARIFA_GD2 = 1;
+
+export const MSG_TARIFA_GD2 =
+  "A TUSD GD II é uma tarifa por kWh (ex.: 0,11515), não o valor total em R$. Para informar o Fio B da conta, use “Total da conta” no lote.";
+
+export function tarifaGd2Valida(tarifa: number): boolean {
+  const t = Number(tarifa) || 0;
+  return t >= 0 && t <= LIMITE_TARIFA_GD2;
+}
+
 export type ModoGd2 = "total" | "tarifa";
 
 /**

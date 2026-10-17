@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getSessao } from "@/lib/auth";
-import { calcularFaturaDetalhada, consumoDeLeituras, valorTusdGd2, distribuirTusdGd2, type ModoGd2 } from "@/lib/calc";
+import { calcularFaturaDetalhada, consumoDeLeituras, valorTusdGd2, distribuirTusdGd2, tarifaGd2Valida, MSG_TARIFA_GD2, type ModoGd2 } from "@/lib/calc";
 import type { ResultadoCalculoDetalhado } from "@/lib/calc";
 import type { StatusFatura, ModalidadeBeneficio } from "@/lib/types";
 
@@ -150,6 +150,7 @@ export async function gerarFatura(formData: FormData) {
   const adicional_bandeira = Number(formData.get("adicional_bandeira") ?? 0);
   // TUSD GD II proporcional ao consumo: o formulário envia a tarifa (R$/kWh).
   const tarifa_gd2 = Math.max(0, Number(formData.get("tarifa_gd2") ?? 0) || 0);
+  if (!tarifaGd2Valida(tarifa_gd2)) throw new Error(MSG_TARIFA_GD2);
   const taxa_iluminacao = Number(formData.get("taxa_iluminacao") ?? 0);
   const multa_juros = Number(formData.get("multa_juros") ?? 0);
   const icms = Number(formData.get("icms") ?? 0);
@@ -342,6 +343,19 @@ export async function gerarFaturasLote(
     params.gd2_modo === "total" ? params.gd2_total : params.tarifa_gd2,
     consumos
   );
+
+  // Trava: tarifa equivalente alta demais = total/valor fixo digitado no campo errado.
+  if (!tarifaGd2Valida(gd2.tarifa)) {
+    const eq = gd2.tarifa.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
+    return {
+      ok: false,
+      geradas: 0,
+      mensagem:
+        params.gd2_modo === "total"
+          ? `TUSD GD II equivale a R$ ${eq} por kWh — alto demais. Confira o Fio B informado e as leituras do lote.`
+          : `${MSG_TARIFA_GD2} (você informou ${eq}).`,
+    };
+  }
 
   const registros = itensValidos.map((it, idx) => {
     const consumo_kwh = consumos[idx];

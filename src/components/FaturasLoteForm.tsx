@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { calcularFaturaDetalhada, consumoDeLeituras, distribuirTusdGd2, type ModoGd2 } from "@/lib/calc";
+import { calcularFaturaDetalhada, consumoDeLeituras, distribuirTusdGd2, tarifaGd2Valida, MSG_TARIFA_GD2, type ModoGd2 } from "@/lib/calc";
 import { formatBRL, formatKwh } from "@/lib/format";
 import { gerarFaturasLote, type ItemLote } from "@/app/admin/faturas/actions";
 import type { StatusFatura } from "@/lib/types";
@@ -149,6 +149,10 @@ export default function FaturasLoteForm({
 
   const preenchidas = calculados.filter((x) => x.preenchida);
   const kwhRateio = preenchidas.reduce((sum, x) => sum + x.consumo, 0);
+  // Trava: tarifa (digitada ou equivalente ao total) acima do limite = valor no campo errado.
+  const tarifaGd2Efetiva =
+    gd2Modo === "tarifa" ? Number(tarifaGd2) || 0 : kwhRateio > 0 ? (Number(gd2Total) || 0) / kwhRateio : 0;
+  const gd2Invalida = !tarifaGd2Valida(tarifaGd2Efetiva);
   const gd2Resumo =
     gd2Modo === "total" && Number(gd2Total) > 0 && kwhRateio > 0
       ? `R$ ${(Number(gd2Total) / kwhRateio).toLocaleString("pt-BR", { maximumFractionDigits: 5 })} por kWh (${kwhRateio.toLocaleString("pt-BR")} kWh no lote)`
@@ -257,6 +261,13 @@ export default function FaturasLoteForm({
               <label className="label" htmlFor="tarifaGd2">TUSD GD II (R$/kWh)</label>
               <input id="tarifaGd2" type="number" min={0} step={0.00001} className="input" value={tarifaGd2} onChange={(e) => setTarifaGd2(e.target.value)} />
             </div>
+          )}
+          {gd2Invalida && (
+            <p className="text-xs font-medium text-red-400 sm:col-span-4">
+              {gd2Modo === "total"
+                ? `O total informado equivale a R$ ${tarifaGd2Efetiva.toLocaleString("pt-BR", { maximumFractionDigits: 2 })} por kWh — alto demais. Confira o valor do Fio B e as leituras (leitura anterior em branco infla o consumo).`
+                : MSG_TARIFA_GD2}
+            </p>
           )}
           <p className="text-xs text-slate-400 sm:col-span-2">
             {gd2Modo === "total"
@@ -377,7 +388,7 @@ export default function FaturasLoteForm({
       <div className="flex flex-wrap items-center justify-end gap-3">
         {mensagem && <span className="text-sm text-slate-300">{mensagem}</span>}
         <Link href="/admin/faturas" className="btn-outline">Cancelar</Link>
-        <button type="submit" className="btn-primary" disabled={pending || preenchidas.length === 0}>
+        <button type="submit" className="btn-primary" disabled={pending || preenchidas.length === 0 || gd2Invalida}>
           {pending ? "Salvando..." : rascunho ? `Salvar ${preenchidas.length} rascunho(s)` : `Gerar e publicar ${preenchidas.length} fatura(s)`}
         </button>
       </div>
