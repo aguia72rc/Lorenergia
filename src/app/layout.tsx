@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
-const SITE_URL = "https://lorenergia.vercel.app";
+// Endereço público do site (prévias de link, canonical, imagem de compartilhamento).
+// Segue NEXT_PUBLIC_SITE_URL (ex.: https://lorenergia.com.br); sem ela, usa o endereço da Vercel.
+const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://lorenergia.vercel.app").replace(/\/+$/, "");
 const DESCRICAO =
   "Energia solar compartilhada no seu prédio: até 20% de desconto na conta de luz, faturas transparentes e acompanhamento da sua economia em tempo real.";
 
