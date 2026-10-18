@@ -182,13 +182,13 @@ export default async function FaturaPage({ params }: { params: Promise<{ id: str
           {/* Composição da fatura */}
           <div className="p-6">
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Composição da fatura</p>
-            <div className="-mx-1 overflow-x-auto px-1">
-              <table className="w-full min-w-[440px] text-sm">
+            <div className="-mx-1 px-1">
+              <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 text-xs uppercase text-slate-400">
                     <th className="pb-2 pr-3 text-left font-medium">Descrição</th>
-                    <th className="whitespace-nowrap pb-2 pl-3 text-right font-medium">Qtd (kWh)</th>
-                    <th className="whitespace-nowrap pb-2 pl-3 text-right font-medium">Preço</th>
+                    <th className="hidden whitespace-nowrap pb-2 pl-3 text-right font-medium sm:table-cell">Qtd (kWh)</th>
+                    <th className="hidden whitespace-nowrap pb-2 pl-3 text-right font-medium sm:table-cell">Preço</th>
                     <th className="whitespace-nowrap pb-2 pl-3 text-right font-medium">Valor</th>
                   </tr>
                 </thead>
@@ -201,12 +201,14 @@ export default async function FaturaPage({ params }: { params: Promise<{ id: str
                   <LinhaComp desc="Multa / juros" valor={f.multa_juros} destaque={Number(f.multa_juros) > 0} />
                   {isCashback ? (
                     <tr className="border-b border-slate-100">
-                      <td className="py-2.5 pr-3 text-brand-700" colSpan={3}>Cashback a receber ({numero(f.desconto_percentual, 0)}%) — não abatido nesta fatura</td>
+                      <td className="py-2.5 pr-3 text-brand-700">Cashback a receber ({numero(f.desconto_percentual, 0)}%) — não abatido nesta fatura</td>
+                      <td className="hidden sm:table-cell" colSpan={2} />
                       <td className="whitespace-nowrap py-2.5 pl-3 text-right font-medium tabular-nums text-brand-700">+ {formatBRL(beneficioFatura)}</td>
                     </tr>
                   ) : (
                     <tr className="border-b border-slate-100">
-                      <td className="py-2.5 pr-3 text-eco-700" colSpan={3}>Desconto aplicado ({numero(f.desconto_percentual, 0)}%)</td>
+                      <td className="py-2.5 pr-3 text-eco-700">Desconto aplicado ({numero(f.desconto_percentual, 0)}%)</td>
+                      <td className="hidden sm:table-cell" colSpan={2} />
                       <td className="whitespace-nowrap py-2.5 pl-3 text-right font-medium tabular-nums text-eco-700">- {formatBRL(f.valor_desconto)}</td>
                     </tr>
                   )}
@@ -345,9 +347,12 @@ function LinhaComp({ desc, qtd, preco, valor, destaque }: { desc: string; qtd?: 
   const vazio = <span className="text-slate-300">—</span>;
   return (
     <tr className="border-b border-slate-100">
-      <td className={`py-2.5 pr-3 ${destaque ? "text-red-600" : "text-slate-600"}`}>{desc}</td>
-      <td className="whitespace-nowrap py-2.5 pl-3 text-right tabular-nums text-slate-500">{qtd ?? vazio}</td>
-      <td className="whitespace-nowrap py-2.5 pl-3 text-right tabular-nums text-slate-500">{preco ?? vazio}</td>
+      <td className={`py-2.5 pr-3 ${destaque ? "text-red-600" : "text-slate-600"}`}>
+        {desc}
+        {qtd && preco && <span className="block text-xs text-slate-400 sm:hidden">{qtd} kWh × {preco}</span>}
+      </td>
+      <td className="hidden whitespace-nowrap py-2.5 pl-3 text-right tabular-nums text-slate-500 sm:table-cell">{qtd ?? vazio}</td>
+      <td className="hidden whitespace-nowrap py-2.5 pl-3 text-right tabular-nums text-slate-500 sm:table-cell">{preco ?? vazio}</td>
       <td className={`whitespace-nowrap py-2.5 pl-3 text-right tabular-nums ${destaque ? "text-red-600" : "text-slate-900"}`}>{formatBRL(valor)}</td>
     </tr>
   );
