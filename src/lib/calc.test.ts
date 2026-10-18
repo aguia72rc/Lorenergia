@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { calcularFaturaDetalhada, consumoDeLeituras, valorTusdGd2, ratearProporcional, distribuirTusdGd2, tarifaGd2Valida } from "./calc";
+import { calcularFaturaDetalhada, consumoDeLeituras, valorTusdGd2, ratearProporcional, distribuirTusdGd2, tarifaGd2Valida, aplicarDescontoFioB } from "./calc";
 import { calcularEncargosAtraso } from "./atraso";
 import { vencimentoSugerido } from "./vencimento";
 import { beneficioDaFatura, economiaPorMes, economiaTotal } from "./economia";
@@ -204,4 +204,28 @@ test("trava da TUSD GD II: tarifa por kWh plausível passa; total em R$ ou valor
   assert.equal(tarifaGd2Valida(r.tarifa), true);
   // total digitado errado (ou leituras erradas) estoura a trava no modo "total"
   assert.equal(tarifaGd2Valida(distribuirTusdGd2("total", 20845, [180.7, 136.2]).tarifa), false);
+});
+
+test("desconto no Fio B: aplica o % ao valor repassado e limita a 0–100", () => {
+  assert.equal(aplicarDescontoFioB(100, 30), 70);
+  assert.equal(aplicarDescontoFioB(53.2, 25), 39.9);
+  assert.equal(aplicarDescontoFioB(100, 0), 100);
+  assert.equal(aplicarDescontoFioB(100, 100), 0);
+  assert.equal(aplicarDescontoFioB(100, 150), 0); // acima de 100% vira 100%
+  assert.equal(aplicarDescontoFioB(100, -10), 100); // negativo vira 0%
+  assert.equal(aplicarDescontoFioB(-5, 10), 0);
+});
+
+test("desconto no Fio B no lote: total com desconto rateado fecha ao centavo; sem desconto nada muda", () => {
+  const consumos = [180.7, 136.2, 204.5, 213.1, 85.0, 310.7, 136.2, 68.8, 475.1];
+  const sem = distribuirTusdGd2("total", 208.45, consumos);
+  assert.deepEqual(sem.valores, sem.brutos); // 0% = valor normal
+  const com = distribuirTusdGd2("total", 208.45, consumos, 20);
+  assert.equal(centavos(com.valores), 16676); // 208,45 × 0,80 = 166,76
+  assert.equal(centavos(com.brutos), 20845); // o valor normal continua guardado
+  assert.equal(com.tarifa, 0.11515); // a trava confere o valor normal, não o descontado
+  assert.ok(com.valores.every((v, i) => v <= com.brutos[i]));
+  const porKwh = distribuirTusdGd2("tarifa", 0.1, [100, 200], 10);
+  assert.deepEqual(porKwh.brutos, [10, 20]);
+  assert.deepEqual(porKwh.valores, [9, 18]);
 });

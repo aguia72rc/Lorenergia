@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getSessao } from "@/lib/auth";
-import { calcularFaturaDetalhada, consumoDeLeituras, valorTusdGd2, distribuirTusdGd2, tarifaGd2Valida, MSG_TARIFA_GD2, type ModoGd2 } from "@/lib/calc";
+import { calcularFaturaDetalhada, consumoDeLeituras, valorTusdGd2, distribuirTusdGd2, aplicarDescontoFioB, tarifaGd2Valida, MSG_TARIFA_GD2, type ModoGd2 } from "@/lib/calc";
 import type { ResultadoCalculoDetalhado } from "@/lib/calc";
 import type { StatusFatura, ModalidadeBeneficio } from "@/lib/types";
 
@@ -85,22 +85,45 @@ function semColunas(registro: Record<string, unknown>, colunas: string[]): Recor
 async function gravarFaturas(
   supabase: Awaited<ReturnType<typeof createClient>>,
   registros: Record<string, unknown>[]
-): Promise<{ ids: string[]; error: { message: string } | null }> {
+): Promise<{ ids: string[]; linhas: { id: string; cliente_id: string }[]; error: { message: string } | null }> {
   let atuais = registros;
   for (let tentativa = 0; tentativa <= COLUNAS_OPCIONAIS.length; tentativa++) {
     const { data, error } = await supabase
       .from("faturas")
       .upsert(atuais, { onConflict: "cliente_id,referencia" })
-      .select("id");
-    if (!error) return { ids: ((data ?? []) as { id: string }[]).map((x) => x.id), error: null };
+      .select("id, cliente_id");
+    if (!error) {
+      const linhas = (data ?? []) as { id: string; cliente_id: string }[];
+      return { ids: linhas.map((x) => x.id), linhas, error: null };
+    }
 
     const grupo = COLUNAS_OPCIONAIS.find(
       (g) => g.teste.test(error.message ?? "") && g.colunas.some((c) => c in (atuais[0] ?? {}))
     );
-    if (!grupo) return { ids: [], error };
+    if (!grupo) return { ids: [], linhas: [], error };
     atuais = atuais.map((r) => semColunas(r, grupo.colunas));
   }
-  return { ids: [], error: { message: "Não foi possível gravar a fatura." } };
+  return { ids: [], linhas: [], error: { message: "Não foi possível gravar a fatura." } };
+}
+
+/**
+ * Guarda (ou limpa) o desconto no Fio B de cada fatura. A tabela é só do admin: a fatura
+ * em si guarda apenas o valor final. Se a migração 0029 ainda não foi rodada, ignora —
+ * o valor final já está certo na fatura; só não dá para reabrir o desconto na edição.
+ */
+async function gravarDescontoFioB(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  itens: { fatura_id: string; bruto: number; desconto_percentual: number }[]
+) {
+  const com = itens.filter((i) => i.desconto_percentual > 0);
+  const sem = itens.filter((i) => i.desconto_percentual <= 0).map((i) => i.fatura_id);
+  if (com.length > 0) {
+    await supabase.from("faturas_fiob_desconto").upsert(
+      com.map((i) => ({ ...i, updated_at: new Date().toISOString() })),
+      { onConflict: "fatura_id" }
+    );
+  }
+  if (sem.length > 0) await supabase.from("faturas_fiob_desconto").delete().in("fatura_id", sem);
 }
 
 /**
@@ -180,7 +203,11 @@ export async function gerarFatura(formData: FormData) {
   // de um rateio ao editar); sem ele, calcula tarifa × consumo.
   const gd2Enviado = formData.get("taxa_energia_solar");
   const gd2Num = gd2Enviado === null || String(gd2Enviado).trim() === "" ? NaN : Number(gd2Enviado);
-  const taxa_energia_solar = Number.isFinite(gd2Num) && gd2Num >= 0 ? Math.round(gd2Num * 100) / 100 : valorTusdGd2(consumo_kwh, tarifa_gd2);
+  const gd2Normal = Number.isFinite(gd2Num) && gd2Num >= 0 ? Math.round(gd2Num * 100) / 100 : valorTusdGd2(consumo_kwh, tarifa_gd2);
+  // Desconto no Fio B (%): o formulário envia o valor NORMAL; o que vai para a fatura (e
+  // o cliente vê) é o valor já com o desconto. O percentual não aparece para o cliente.
+  const desconto_fio_b = Math.min(100, Math.max(0, Number(formData.get("desconto_fio_b") ?? 0) || 0));
+  const taxa_energia_solar = aplicarDescontoFioB(gd2Normal, desconto_fio_b);
   const r = calcularFaturaDetalhada({
     consumoKwh: consumo_kwh,
     tarifaTusd: tarifa_tusd,
@@ -226,6 +253,7 @@ export async function gerarFatura(formData: FormData) {
   // Regenerar a mesma referência sobrescreve os valores.
   const { ids, error } = await gravarFaturas(supabase, [registro]);
   if (error || ids.length === 0) throw new Error(error?.message ?? "Não foi possível gravar a fatura.");
+  await gravarDescontoFioB(supabase, [{ fatura_id: ids[0], bruto: gd2Normal, desconto_percentual: desconto_fio_b }]);
 
   revalidatePath("/admin/faturas");
   revalidatePath("/admin");
@@ -284,6 +312,8 @@ export interface ParametrosLote {
   gd2_modo: ModoGd2;
   gd2_total: number;
   tarifa_gd2: number;
+  /** Desconto (%) dado no Fio B; o cliente só vê o valor final. */
+  desconto_fio_b?: number;
   taxa_iluminacao: number;
   /** Multa/juros (R$) e tributos informativos (R$): valem para todos os moradores do lote. */
   multa_juros?: number;
@@ -338,10 +368,12 @@ export async function gerarFaturasLote(
   const consumos = itensValidos.map((it) =>
     consumoDeLeituras(it.leitura_anterior, it.leitura_atual, params.fator_multiplicador)
   );
+  const desconto_fio_b = Math.min(100, Math.max(0, Number(params.desconto_fio_b) || 0));
   const gd2 = distribuirTusdGd2(
     params.gd2_modo === "total" ? "total" : "tarifa",
     params.gd2_modo === "total" ? params.gd2_total : params.tarifa_gd2,
-    consumos
+    consumos,
+    desconto_fio_b
   );
 
   // Trava: tarifa equivalente alta demais = total/valor fixo digitado no campo errado.
@@ -402,9 +434,19 @@ export async function gerarFaturasLote(
     return { ok: false, geradas: 0, mensagem: "Nenhuma leitura atual informada." };
   }
 
-  const { error } = await gravarFaturas(supabase, registros);
+  const { linhas, error } = await gravarFaturas(supabase, registros);
 
   if (error) return { ok: false, geradas: 0, mensagem: error.message };
+
+  const brutoPorCliente = new Map(itensValidos.map((it, idx) => [it.cliente_id, gd2.brutos[idx]]));
+  await gravarDescontoFioB(
+    supabase,
+    linhas.map((l) => ({
+      fatura_id: l.id,
+      bruto: brutoPorCliente.get(l.cliente_id) ?? 0,
+      desconto_percentual: desconto_fio_b,
+    }))
+  );
 
   revalidatePath("/admin/faturas");
   revalidatePath("/admin");

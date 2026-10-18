@@ -34,6 +34,13 @@ export default async function EditarFaturaPage({ params }: { params: Promise<{ i
         ? Math.round((Number(f.taxa_energia_solar) / consumo) * 1e6) / 1e6
         : 0;
 
+  // Desconto no Fio B (tabela só do admin, migração 0029): valor normal e %. Ausente = sem desconto.
+  const { data: fiob } = await supabase
+    .from("faturas_fiob_desconto")
+    .select("bruto, desconto_percentual")
+    .eq("fatura_id", id)
+    .maybeSingle();
+
   const edicao: FaturaEdicao = {
     id: f.id,
     cliente_id: f.cliente_id,
@@ -46,6 +53,8 @@ export default async function EditarFaturaPage({ params }: { params: Promise<{ i
     tarifa_te: Number(f.tarifa_te),
     tarifa_gd2: tarifaGd2,
     taxa_energia_solar: Number(f.taxa_energia_solar),
+    fio_b_normal: fiob ? Number(fiob.bruto) : null,
+    desconto_fio_b: fiob ? Number(fiob.desconto_percentual) : null,
     adicional_bandeira: Number(f.adicional_bandeira),
     taxa_iluminacao: Number(f.taxa_iluminacao),
     multa_juros: Number(f.multa_juros),

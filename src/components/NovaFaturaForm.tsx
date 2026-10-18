@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { calcularFaturaDetalhada, consumoDeLeituras, valorTusdGd2, tarifaGd2Valida, MSG_TARIFA_GD2 } from "@/lib/calc";
+import { calcularFaturaDetalhada, consumoDeLeituras, valorTusdGd2, aplicarDescontoFioB, tarifaGd2Valida, MSG_TARIFA_GD2 } from "@/lib/calc";
 import { formatBRL, formatKwh } from "@/lib/format";
 import { gerarFatura } from "@/app/admin/faturas/actions";
 import { vencimentoSugerido, type UltimoVencimento } from "@/lib/vencimento";
@@ -34,7 +34,10 @@ export interface FaturaEdicao {
   tarifa_tusd: number;
   tarifa_te: number;
   tarifa_gd2: number; // TUSD GD II (R$/kWh)
-  taxa_energia_solar: number; // TUSD GD II em R$ já gravado (preservado se nada mudar)
+  taxa_energia_solar: number; // TUSD GD II em R$ já gravado (valor FINAL, com o desconto do Fio B)
+  /** Fio B normal (antes do desconto) e % de desconto, quando houve desconto (só o admin enxerga). */
+  fio_b_normal?: number | null;
+  desconto_fio_b?: number | null;
   adicional_bandeira: number;
   taxa_iluminacao: number;
   multa_juros: number;
@@ -87,7 +90,9 @@ export default function NovaFaturaForm({
   const [tarifaGd2, setTarifaGd2] = useState(fatura ? num(fatura.tarifa_gd2) : String(tarifas.tarifaGd2));
   // TUSD GD II (Fio B): por padrão informa o VALOR em R$ desta fatura; alternativa: tarifa por kWh.
   const [gd2Modo, setGd2Modo] = useState<"valor" | "tarifa">("valor");
-  const [gd2Valor, setGd2Valor] = useState(fatura ? num(fatura.taxa_energia_solar) : "0");
+  const [gd2Valor, setGd2Valor] = useState(fatura ? num(fatura.fio_b_normal ?? fatura.taxa_energia_solar) : "0");
+  // Desconto (%) no Fio B: o cliente vê só o valor final, nunca o percentual.
+  const [descontoFioB, setDescontoFioB] = useState(fatura?.desconto_fio_b ? String(fatura.desconto_fio_b) : "0");
   const [iluminacao, setIluminacao] = useState(fatura ? num(fatura.taxa_iluminacao) : String(tarifas.iluminacao));
   const [multa, setMulta] = useState(fatura ? num(fatura.multa_juros) : "0");
   const [desconto, setDesconto] = useState(fatura ? num(fatura.desconto_percentual) : String(primeiro?.desconto_percentual ?? 20));
@@ -102,20 +107,22 @@ export default function NovaFaturaForm({
 
   const consumo = consumoDeLeituras(Number(leituraAnterior), Number(leituraAtual), Number(fator));
 
-  // TUSD GD II em R$. Ao editar, se consumo e tarifa não mudaram, mantém o valor gravado
-  // (inclusive o centavo exato de um rateio do lote); senão, tarifa × consumo.
-  const valorGd2 =
+  // Fio B NORMAL em R$ (antes do desconto). Ao editar, se consumo e tarifa não mudaram, mantém
+  // o valor gravado (inclusive o centavo exato de um rateio do lote); senão, tarifa × consumo.
+  const valorGd2Normal =
     gd2Modo === "valor"
       ? Math.round(Math.max(0, Number(gd2Valor) || 0) * 100) / 100
       : fatura &&
           Math.abs(consumo - Number(fatura.consumo_kwh)) < 0.005 &&
           Math.abs(Number(tarifaGd2) - Number(fatura.tarifa_gd2)) < 1e-9
-        ? Number(fatura.taxa_energia_solar)
+        ? Number(fatura.fio_b_normal ?? fatura.taxa_energia_solar)
         : valorTusdGd2(consumo, Number(tarifaGd2));
+  // Fio B repassado ao morador: o valor normal já com o desconto.
+  const valorGd2 = aplicarDescontoFioB(valorGd2Normal, Number(descontoFioB));
 
   // Tarifa equivalente em R$/kWh (é o que se grava e o que a trava confere).
   const tarifaEquivalente =
-    gd2Modo === "tarifa" ? Number(tarifaGd2) || 0 : consumo > 0 ? Math.round((valorGd2 / consumo) * 1e5) / 1e5 : 0;
+    gd2Modo === "tarifa" ? Number(tarifaGd2) || 0 : consumo > 0 ? Math.round((valorGd2Normal / consumo) * 1e5) / 1e5 : 0;
   const gd2Invalida = !tarifaGd2Valida(tarifaEquivalente);
 
   const r = useMemo(
@@ -217,17 +224,22 @@ export default function NovaFaturaForm({
               <Campo label="TUSD GD II (R$/kWh)" name="gd2_tarifa_digitada" value={tarifaGd2} onChange={setTarifaGd2} step={0.00001} max={1} />
             )}
             {/* Valores enviados ao servidor: o valor em R$ e a tarifa equivalente (R$/kWh). */}
-            <input type="hidden" name="taxa_energia_solar" value={valorGd2.toFixed(2)} />
+            <input type="hidden" name="taxa_energia_solar" value={valorGd2Normal.toFixed(2)} />
             <input type="hidden" name="tarifa_gd2" value={String(tarifaEquivalente)} />
           </div>
-          <p className={`text-xs sm:pt-6 ${gd2Invalida ? "font-medium text-red-400" : "text-slate-400"}`}>
+          <div>
+            <label className="label" htmlFor="desconto_fio_b">Desconto no Fio B (%)</label>
+            <input id="desconto_fio_b" name="desconto_fio_b" type="number" min={0} max={100} step={0.5} className="input" value={descontoFioB} onChange={(e) => setDescontoFioB(e.target.value)} />
+          </div>
+          <p className={`text-xs sm:col-span-3 ${gd2Invalida ? "font-medium text-red-400" : "text-slate-400"}`}>
             {gd2Invalida
               ? gd2Modo === "valor"
                 ? `Esse valor equivale a R$ ${tarifaEquivalente.toLocaleString("pt-BR", { maximumFractionDigits: 2 })} por kWh — alto demais para a TUSD GD II. Confira o valor.`
                 : MSG_TARIFA_GD2
               : gd2Modo === "valor"
                 ? `Equivale a R$ ${tarifaEquivalente.toLocaleString("pt-BR", { maximumFractionDigits: 5 })} por kWh neste consumo.`
-                : `= ${formatBRL(r.taxaSolar)} neste consumo.`}
+                : `= ${formatBRL(valorGd2Normal)} neste consumo.`}
+            {Number(descontoFioB) > 0 && ` Com ${Number(descontoFioB).toLocaleString("pt-BR")}% de desconto, o morador paga ${formatBRL(valorGd2)} de Fio B — ele vê só esse valor, sem o percentual.`}
           </p>
         </div>
 

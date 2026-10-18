@@ -54,6 +54,8 @@ export default function FaturasLoteForm({
   const [gd2Modo, setGd2Modo] = useState<ModoGd2>("total");
   const [gd2Total, setGd2Total] = useState("");
   const [tarifaGd2, setTarifaGd2] = useState(String(tarifas.tarifaGd2));
+  // Desconto (%) dado no Fio B: só aparece aqui no admin; o morador vê apenas o valor final.
+  const [descontoFioB, setDescontoFioB] = useState("0");
   const [taxa, setTaxa] = useState(String(tarifas.iluminacao));
   const [multa, setMulta] = useState("0");
   const [icms, setIcms] = useState("0");
@@ -127,7 +129,8 @@ export default function FaturasLoteForm({
     const gd2 = distribuirTusdGd2(
       gd2Modo,
       Number(gd2Modo === "total" ? gd2Total : tarifaGd2),
-      ativos.map((b) => b.consumo)
+      ativos.map((b) => b.consumo),
+      Number(descontoFioB)
     );
     const valorGd2 = new Map(ativos.map((b, i) => [b.c.id, gd2.valores[i]]));
 
@@ -145,7 +148,7 @@ export default function FaturasLoteForm({
       return { cliente: c, consumo, preenchida, ...r };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clientes, linhas, fator, tusd, te, bandeira, gd2Modo, gd2Total, tarifaGd2, taxa, multa]);
+  }, [clientes, linhas, fator, tusd, te, bandeira, gd2Modo, gd2Total, tarifaGd2, descontoFioB, taxa, multa]);
 
   const preenchidas = calculados.filter((x) => x.preenchida);
   const kwhRateio = preenchidas.reduce((sum, x) => sum + x.consumo, 0);
@@ -184,6 +187,7 @@ export default function FaturasLoteForm({
         gd2_modo: gd2Modo,
         gd2_total: Number(gd2Total) || 0,
         tarifa_gd2: Number(tarifaGd2) || 0,
+        desconto_fio_b: Number(descontoFioB) || 0,
         taxa_iluminacao: Number(taxa),
         multa_juros: Number(multa) || 0,
         icms: Number(icms) || 0,
@@ -262,6 +266,10 @@ export default function FaturasLoteForm({
               <input id="tarifaGd2" type="number" min={0} step={0.00001} className="input" value={tarifaGd2} onChange={(e) => setTarifaGd2(e.target.value)} />
             </div>
           )}
+          <div>
+            <label className="label" htmlFor="desconto_fio_b">Desconto no Fio B (%)</label>
+            <input id="desconto_fio_b" type="number" min={0} max={100} step={0.5} className="input" value={descontoFioB} onChange={(e) => setDescontoFioB(e.target.value)} />
+          </div>
           {gd2Invalida && (
             <p className="text-xs font-medium text-red-400 sm:col-span-4">
               {gd2Modo === "total"
@@ -273,6 +281,7 @@ export default function FaturasLoteForm({
             {gd2Modo === "total"
               ? `Informe o Fio B da conta da Neoenergia (já com o percentual do ano). Cada morador paga a parte proporcional ao próprio consumo${gd2Resumo ? ` — equivale a ${gd2Resumo}` : ""}.`
               : "Cada morador paga a tarifa × o próprio consumo."}
+            {Number(descontoFioB) > 0 && " O desconto no Fio B reduz o valor repassado; o morador vê só o valor final, sem o percentual."}
           </p>
         </div>
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Valores fixos (R$)</p>
