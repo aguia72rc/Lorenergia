@@ -147,26 +147,43 @@ export function tarifaGd2Valida(tarifa: number): boolean {
 export type ModoGd2 = "total" | "tarifa";
 
 /**
+ * Aplica o desconto (%) sobre o valor do Fio B repassado ao morador, em centavos.
+ * Percentual fora de 0–100 é limitado a esse intervalo.
+ */
+export function aplicarDescontoFioB(valor: number, descontoPercentual: number): number {
+  const v = Math.max(0, Number(valor) || 0);
+  const d = Math.min(100, Math.max(0, Number(descontoPercentual) || 0));
+  return arredondar(v * (1 - d / 100));
+}
+
+/**
  * TUSD GD II (Fio B) de cada morador do lote.
  *  - "total": `entrada` é o Fio B TOTAL da conta (R$), rateado pelo consumo de cada um.
  *  - "tarifa": `entrada` é a tarifa em R$/kWh; cada um paga tarifa × o próprio consumo.
- * Retorna o valor (R$) por morador e a tarifa equivalente em R$/kWh.
+ * `descontoPercentual` é o desconto dado no Fio B (não aparece para o cliente):
+ *  - `brutos`: o valor normal de cada morador (sem desconto);
+ *  - `valores`: o que de fato é repassado (com o desconto). No modo "total" o desconto
+ *    vale para o total e o rateio é refeito, então a soma fecha ao centavo.
+ * `tarifa` é a tarifa equivalente do valor normal (usada na trava de sanidade).
  */
 export function distribuirTusdGd2(
   modo: ModoGd2,
   entrada: number,
-  consumos: number[]
-): { valores: number[]; tarifa: number } {
+  consumos: number[],
+  descontoPercentual = 0
+): { valores: number[]; brutos: number[]; tarifa: number } {
   if (modo === "total") {
     const total = Math.max(0, Number(entrada) || 0);
     const soma = consumos.reduce((s, c) => s + Math.max(0, Number(c) || 0), 0);
     return {
-      valores: ratearProporcional(total, consumos),
+      valores: ratearProporcional(aplicarDescontoFioB(total, descontoPercentual), consumos),
+      brutos: ratearProporcional(total, consumos),
       tarifa: soma > 0 ? Math.round((total / soma) * 1e5) / 1e5 : 0,
     };
   }
   const tarifa = Math.max(0, Number(entrada) || 0);
-  return { valores: consumos.map((c) => valorTusdGd2(c, tarifa)), tarifa };
+  const brutos = consumos.map((c) => valorTusdGd2(c, tarifa));
+  return { valores: brutos.map((v) => aplicarDescontoFioB(v, descontoPercentual)), brutos, tarifa };
 }
 
 export function calcularFaturaDetalhada(e: EntradaCalculoDetalhada): ResultadoCalculoDetalhado {
