@@ -129,8 +129,8 @@ export default async function FaturaPage({ params }: { params: Promise<{ id: str
               <div className="flex items-center gap-3">
                 <Sun className="h-8 w-8 shrink-0 text-brand-400" />
                 <div>
-                  <p className="text-lg font-bold leading-tight">{cfg?.nome_usina ?? "Lorenergia"}</p>
-                  <p className="text-xs text-slate-400">Rateio de geração compartilhada · Energia que vem de casa</p>
+                  <p className="text-lg font-bold leading-tight">Lorenergia</p>
+                  <p className="text-xs text-slate-400">Energia que vem de casa 🌞🏡</p>
                 </div>
               </div>
               <div className="text-right">
@@ -327,7 +327,7 @@ export default async function FaturaPage({ params }: { params: Promise<{ id: str
         </div>
 
         <p className="mt-4 text-center text-xs text-slate-400">
-          Fatura gerada por {cfg?.nome_usina ?? "Lorenergia"} · Energia limpa e mais barata ☀️
+          Fatura gerada por Lorenergia · Energia que vem de casa 🌞🏡
         </p>
       </div>
     </div>
