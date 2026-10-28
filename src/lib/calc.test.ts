@@ -5,6 +5,7 @@ import { calcularEncargosAtraso } from "./atraso";
 import { vencimentoSugerido } from "./vencimento";
 import { beneficioDaFatura, economiaPorMes, economiaTotal } from "./economia";
 import { interpretarResumo } from "./resumo-publico";
+import { normalizarWhatsapp, normalizarNome, entradaValida, comparativo } from "./simulador-publico";
 
 test("encargos de atraso: 2% de multa + 1% ao mês pro rata die", () => {
   const r = calcularEncargosAtraso(100, "2026-01-01", "2026-01-31", 2, 1);
@@ -228,4 +229,31 @@ test("desconto no Fio B no lote: total com desconto rateado fecha ao centavo; se
   const porKwh = distribuirTusdGd2("tarifa", 0.1, [100, 200], 10);
   assert.deepEqual(porKwh.brutos, [10, 20]);
   assert.deepEqual(porKwh.valores, [9, 18]);
+});
+
+test("simulador público: WhatsApp brasileiro normalizado ou recusado", () => {
+  assert.equal(normalizarWhatsapp("(81) 99559-2624"), "5581995592624");
+  assert.equal(normalizarWhatsapp("+55 81 99559-2624"), "5581995592624");
+  assert.equal(normalizarWhatsapp("81 3333-4444"), "558133334444"); // fixo, 8 dígitos
+  assert.equal(normalizarWhatsapp("99559-2624"), null); // sem DDD
+  assert.equal(normalizarWhatsapp("(81) 89559-2624"), null); // celular de 9 dígitos precisa começar em 9
+  assert.equal(normalizarWhatsapp("0819955926"), null);
+  assert.equal(normalizarWhatsapp(""), null);
+});
+
+test("simulador público: nome e limites de entrada", () => {
+  assert.equal(normalizarNome("  Maria   da  Silva "), "Maria da Silva");
+  assert.equal(normalizarNome("A"), null);
+  assert.equal(normalizarNome("x".repeat(81)), null);
+  assert.equal(entradaValida("kwh", 300), true);
+  assert.equal(entradaValida("kwh", 0), false);
+  assert.equal(entradaValida("kwh", 1e9), false);
+  assert.equal(entradaValida("reais", NaN), false);
+  assert.equal(entradaValida("reais", 350), true);
+});
+
+test("simulador público: comparativo usa a faixa conservadora e não passa de 100%", () => {
+  assert.deepEqual(comparativo(400, 60), { hoje: 400, com: 340, fracao: 0.85 });
+  assert.equal(comparativo(400, 999).com, 0);
+  assert.equal(comparativo(0, 20).fracao, 1);
 });
