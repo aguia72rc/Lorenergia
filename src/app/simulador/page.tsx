@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { ArrowLeft, Sun } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
 import SimuladorPublico from "@/components/SimuladorPublico";
+import { getResumoPublico } from "@/lib/resumo-publico";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,8 @@ export default async function SimuladorPage() {
     .from("planos_cota").select("codigo, nome, desconto_percentual").eq("ativo", true)
     .order("desconto_percentual", { ascending: false });
   const planos = ((data ?? []) as PlanoRow[]).map((p) => ({ codigo: p.codigo, nome: p.nome, desconto: Number(p.desconto_percentual) }));
+
+  const resumo = await getResumoPublico();
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-10">
@@ -40,7 +43,7 @@ export default async function SimuladorPage() {
         </p>
       </div>
 
-      <SimuladorPublico planos={planos} />
+      <SimuladorPublico planos={planos} prova={resumo ? { economiaTotal: resumo.economiaTotal, familias: resumo.familias } : null} />
 
       <p className="mt-8 text-center text-xs text-slate-500">
         Geração compartilhada nos termos da Lei 14.300/2022 · A economia estimada é uma projeção, não uma garantia de desconto.

@@ -5,17 +5,46 @@ import { simularPublico, type ResultadoPublico } from "@/app/simulador/actions";
 
 const brl = (n: number) => "R$ " + Math.round(n).toLocaleString("pt-BR");
 
-export default function SimuladorPublico({ planos }: { planos: { codigo: string; nome: string; desconto: number }[] }) {
+export interface ProvaSocial {
+  economiaTotal: number; // R$ já economizados pelos moradores
+  familias: number | null;
+}
+
+function Barra({ rotulo, valor, fracao, cor }: { rotulo: string; valor: string; fracao: number; cor: string }) {
+  const pct = Math.max(8, Math.min(100, Math.round(fracao * 100)));
+  return (
+    <div>
+      <div className="mb-1 flex justify-between text-xs text-slate-300">
+        <span>{rotulo}</span>
+        <span className="font-semibold text-white">{valor}</span>
+      </div>
+      <div className="h-3 w-full overflow-hidden rounded-full bg-white/10">
+        <div className={`h-full rounded-full ${cor}`} style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+}
+
+export default function SimuladorPublico({
+  planos,
+  prova,
+}: {
+  planos: { codigo: string; nome: string; desconto: number }[];
+  prova?: ProvaSocial | null;
+}) {
   const [pendente, startTransition] = useTransition();
   const [modo, setModo] = useState<"kwh" | "reais">("kwh");
   const [entrada, setEntrada] = useState(300);
   const [planoCodigo, setPlanoCodigo] = useState("auto");
+  const [nome, setNome] = useState("");
+  const [whatsapp, setWhatsapp] = useState("");
+  const [site, setSite] = useState(""); // isca anti-robô (escondida)
   const [res, setRes] = useState<ResultadoPublico | null>(null);
 
   function simular() {
     setRes(null);
     startTransition(async () => {
-      const r = await simularPublico({ modo, entrada, planoCodigo });
+      const r = await simularPublico({ modo, entrada, planoCodigo, nome, whatsapp, site });
       setRes(r);
     });
   }
@@ -62,6 +91,20 @@ export default function SimuladorPublico({ planos }: { planos: { codigo: string;
             </select>
           </div>
 
+          <div>
+            <label className="label" htmlFor="nome">Seu nome</label>
+            <input id="nome" className="input" autoComplete="name" maxLength={80} value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Como podemos te chamar?" />
+          </div>
+          <div>
+            <label className="label" htmlFor="whatsapp">Seu WhatsApp</label>
+            <input id="whatsapp" className="input" type="tel" inputMode="tel" autoComplete="tel" maxLength={20} value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} placeholder="(81) 99999-9999" />
+          </div>
+          {/* Isca para robôs: pessoas não veem nem preenchem. */}
+          <div aria-hidden className="absolute -left-[9999px] h-0 w-0 overflow-hidden">
+            <label htmlFor="site">Site</label>
+            <input id="site" tabIndex={-1} autoComplete="off" value={site} onChange={(e) => setSite(e.target.value)} />
+          </div>
+
           <div className="sm:col-span-2">
             <button onClick={simular} className="btn-primary w-full" disabled={pendente}>
               {pendente ? "Calculando…" : "Ver minha economia"}
@@ -69,6 +112,9 @@ export default function SimuladorPublico({ planos }: { planos: { codigo: string;
           </div>
         </div>
         <p className="mt-3 text-xs text-slate-500">
+          Ao simular, você concorda em receber contato da Lorenergia pelo WhatsApp sobre a sua economia. Não enviamos spam.
+        </p>
+        <p className="mt-2 text-xs text-slate-500">
           Rateio de créditos de energia solar: você ganha desconto sobre a energia que consome, sem obra e sem instalar nada. Estimativa gratuita, com base na tarifa vigente.
         </p>
       </div>
@@ -76,9 +122,10 @@ export default function SimuladorPublico({ planos }: { planos: { codigo: string;
       {res && !res.ok && (
         <div className="card">
           <p className="text-sm text-amber-300">
-            {res.motivo === "consumo_invalido"
-              ? "Informe o consumo para simular."
-              : "Simulador indisponível no momento. Tente novamente em instantes."}
+            {res.mensagem ||
+              (res.motivo === "consumo_invalido"
+                ? "Informe o consumo para simular."
+                : "Simulador indisponível no momento. Tente novamente em instantes.")}
           </p>
         </div>
       )}
@@ -95,8 +142,34 @@ export default function SimuladorPublico({ planos }: { planos: { codigo: string;
           <p className="relative mt-2 text-sm text-eco-200">
             São pelo menos <strong className="text-white">{brl(res.anualMin)} por ano</strong> no seu bolso — sem obra e sem mudar nada na sua instalação.
           </p>
+          {res.contaHoje > 0 && (
+            <div className="relative mt-5 space-y-2 rounded-xl bg-black/20 p-4">
+              <Barra rotulo="Sua conta hoje" valor={`≈ ${brl(res.contaHoje)}`} fracao={1} cor="bg-slate-400" />
+              <Barra
+                rotulo="Com a Lorenergia"
+                valor={`até ${brl(res.contaComLorenergia)}`}
+                fracao={res.contaHoje > 0 ? res.contaComLorenergia / res.contaHoje : 1}
+                cor="bg-eco-400"
+              />
+            </div>
+          )}
+
+          <ul className="relative mt-4 grid gap-2 text-sm text-eco-100 sm:grid-cols-2">
+            <li>✅ Sem obra e sem instalar nada</li>
+            <li>✅ Sem mensalidade</li>
+            <li>✅ Desconto direto na sua conta de energia</li>
+            <li>✅ Energia solar compartilhada (Lei 14.300/2022)</li>
+          </ul>
+          {prova && prova.economiaTotal > 0 && (
+            <p className="relative mt-4 text-sm text-eco-200">
+              Quem já está na Lorenergia economizou{" "}
+              <strong className="text-white">{brl(prova.economiaTotal)}</strong>
+              {prova.familias ? <> em conjunto, em <strong className="text-white">{prova.familias} famílias</strong></> : null}.
+            </p>
+          )}
+
           <div className="relative mt-4 flex flex-wrap gap-3">
-            <a href="https://wa.me/5581995592624?text=Ol%C3%A1!%20Fiz%20a%20simula%C3%A7%C3%A3o%20no%20site%20e%20quero%20saber%20mais." target="_blank" rel="noopener noreferrer" className="btn-eco">
+            <a href={`https://wa.me/5581995592624?text=${encodeURIComponent(`Olá! Sou ${nome.trim()}, fiz a simulação no site e quero saber mais.`)}`} target="_blank" rel="noopener noreferrer" className="btn-eco">
               Quero economizar
             </a>
             <span className="self-center text-xs text-slate-400">Um consultor confirma os números com você.</span>
