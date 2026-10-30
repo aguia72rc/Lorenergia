@@ -107,7 +107,7 @@ export default function SimuladorPublico({
 
           <div className="sm:col-span-2">
             <button onClick={simular} className="btn-primary w-full" disabled={pendente}>
-              {pendente ? "Calculando…" : "Ver minha economia"}
+              {pendente ? "Calculando…" : "Ver quanto vou economizar"}
             </button>
           </div>
         </div>
@@ -115,7 +115,7 @@ export default function SimuladorPublico({
           Ao simular, você concorda em receber contato da Lorenergia pelo WhatsApp sobre a sua economia. Não enviamos spam.
         </p>
         <p className="mt-2 text-xs text-slate-500">
-          Rateio de créditos de energia solar: você ganha desconto sobre a energia que consome, sem obra e sem instalar nada. Estimativa gratuita, com base na tarifa vigente.
+          Você passa a receber créditos de energia solar, com desconto direto na sua conta de luz. Nada para instalar e nada para comprar. Estimativa gratuita, com base na tarifa vigente.
         </p>
       </div>
 
@@ -134,19 +134,19 @@ export default function SimuladorPublico({
         <div className="relative overflow-hidden rounded-2xl border border-eco-500/30 p-6"
           style={{ background: "linear-gradient(120deg, rgba(16,185,129,0.20), rgba(255,176,32,0.10))" }}>
           <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-eco-500/20 blur-3xl" />
-          <p className="relative text-sm text-eco-200">Você pode economizar a partir de</p>
+          <p className="relative text-sm text-eco-200">Todo mês, este dinheiro volta para você:</p>
           <p className="relative mt-1 text-4xl font-extrabold text-white" style={{ fontFamily: "var(--font-display)" }}>
             {brl(res.faixaMin)}
-            <span className="text-lg font-semibold text-eco-200"> a {brl(res.faixaMax)} por mês</span>
+            <span className="text-lg font-semibold text-eco-200"> a {brl(res.faixaMax)}</span>
           </p>
           <p className="relative mt-2 text-sm text-eco-200">
-            São pelo menos <strong className="text-white">{brl(res.anualMin)} por ano</strong> no seu bolso — sem obra e sem mudar nada na sua instalação.
+            Em um ano são pelo menos <strong className="text-white">{brl(res.anualMin)}</strong> que hoje vão embora na conta de luz e passam a ficar com você.
           </p>
           {res.contaHoje > 0 && (
             <div className="relative mt-5 space-y-2 rounded-xl bg-black/20 p-4">
-              <Barra rotulo="Sua conta hoje" valor={`≈ ${brl(res.contaHoje)}`} fracao={1} cor="bg-slate-400" />
+              <Barra rotulo="Hoje você paga" valor={`≈ ${brl(res.contaHoje)}`} fracao={1} cor="bg-slate-400" />
               <Barra
-                rotulo="Com a Lorenergia"
+                rotulo="Com a Lorenergia você pagaria"
                 valor={`até ${brl(res.contaComLorenergia)}`}
                 fracao={res.contaHoje > 0 ? res.contaComLorenergia / res.contaHoje : 1}
                 cor="bg-eco-400"
@@ -155,14 +155,14 @@ export default function SimuladorPublico({
           )}
 
           <ul className="relative mt-4 grid gap-2 text-sm text-eco-100 sm:grid-cols-2">
-            <li>✅ Sem obra e sem instalar nada</li>
-            <li>✅ Sem mensalidade</li>
-            <li>✅ Desconto direto na sua conta de energia</li>
-            <li>✅ Energia solar compartilhada (Lei 14.300/2022)</li>
+            <li>💰 Economia todo mês, sem esforço</li>
+            <li>🏠 Nada de obra ou equipamento: a conta continua no seu nome</li>
+            <li>🚫 Sem mensalidade</li>
+            <li>☀️ Você usa energia solar de verdade, limpa e mais barata</li>
           </ul>
           {prova && prova.economiaTotal > 0 && (
             <p className="relative mt-4 text-sm text-eco-200">
-              Quem já está na Lorenergia economizou{" "}
+              Quem já aderiu economizou{" "}
               <strong className="text-white">{brl(prova.economiaTotal)}</strong>
               {prova.familias ? <> em conjunto, em <strong className="text-white">{prova.familias} famílias</strong></> : null}.
             </p>
@@ -170,18 +170,17 @@ export default function SimuladorPublico({
 
           <div className="relative mt-4 flex flex-wrap gap-3">
             <a href={`https://wa.me/5581995592624?text=${encodeURIComponent(`Olá! Sou ${nome.trim()}, fiz a simulação no site e quero saber mais.`)}`} target="_blank" rel="noopener noreferrer" className="btn-eco">
-              Quero economizar
+              Quero esse desconto na minha conta
             </a>
-            <span className="self-center text-xs text-slate-400">Um consultor confirma os números com você.</span>
+            <span className="self-center text-xs text-slate-400">Um consultor confirma o seu valor e explica o passo a passo, sem compromisso.</span>
           </div>
 
           <div className="relative mt-4 flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3">
             <span aria-hidden className="text-amber-300">⚠️</span>
             <p className="text-xs leading-relaxed text-amber-100">
-              <strong>Importante:</strong> os valores acima são apenas uma <strong>estimativa</strong>. O valor real
-              pode variar conforme a <strong>modalidade de cobrança da Neoenergia</strong> (tarifa vigente, bandeiras
-              tarifárias, tributos e o seu perfil de consumo), que estão sujeitos a alteração. Esta simulação não é
-              uma garantia de desconto.
+              <strong>Importante:</strong> os valores acima são uma <strong>estimativa</strong> com base no consumo
+              que você informou e na tarifa vigente. O valor real depende do seu consumo mensal e pode variar. Esta
+              simulação não é uma garantia de desconto.
             </p>
           </div>
         </div>
