@@ -36,17 +36,17 @@ export default async function SimuladorPage() {
 
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-white" style={{ fontFamily: "var(--font-display)" }}>
-          Quanto você pode economizar?
+          Quanto da sua conta de luz pode voltar para o seu bolso?
         </h1>
         <p className="mt-2 text-sm text-slate-400">
-          Preencha com os dados da sua conta de luz e veja na hora a faixa de economia com a energia solar compartilhada. É grátis e não compromete nada.
+          Em segundos você descobre o valor que deixa de pagar todo mês, sem obra, sem instalar nada e sem mensalidade. Basta informar o seu consumo. É grátis e sem compromisso.
         </p>
       </div>
 
       <SimuladorPublico planos={planos} prova={resumo ? { economiaTotal: resumo.economiaTotal, familias: resumo.familias } : null} />
 
       <p className="mt-8 text-center text-xs text-slate-500">
-        Geração compartilhada nos termos da Lei 14.300/2022 · A economia estimada é uma projeção, não uma garantia de desconto.
+        A economia mostrada é uma estimativa com base no consumo informado e na tarifa vigente, e não uma garantia de desconto.
       </p>
     </main>
   );
