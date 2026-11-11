@@ -2,11 +2,21 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 /**
- * Middleware que:
+ * Proxy (antigo "middleware") que:
  *  1) mantém a sessão do Supabase atualizada (renova cookies);
- *  2) protege as áreas /admin e /portal exigindo usuário autenticado.
+ *  2) protege as áreas /admin e /portal exigindo usuário autenticado;
+ *  3) na página inicial, manda quem já está logado direto para o sistema —
+ *     assim a landing pode ficar em cache para os visitantes.
  */
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
+  const path = request.nextUrl.pathname;
+  const naInicial = path === "/";
+
+  // Visitante sem cookie de sessão na landing: nada a conferir (não consulta o Supabase).
+  if (naInicial && !request.cookies.getAll().some((c) => c.name.startsWith("sb-"))) {
+    return NextResponse.next({ request });
+  }
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -32,7 +42,14 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const path = request.nextUrl.pathname;
+  if (naInicial) {
+    if (!user) return response;
+    // Logado: o portal encaminha o admin para /admin.
+    const url = request.nextUrl.clone();
+    url.pathname = "/portal";
+    return NextResponse.redirect(url);
+  }
+
   const protegida = path.startsWith("/admin") || path.startsWith("/portal");
 
   if (protegida && !user) {
@@ -46,5 +63,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/portal/:path*"],
+  matcher: ["/", "/admin/:path*", "/portal/:path*"],
 };
