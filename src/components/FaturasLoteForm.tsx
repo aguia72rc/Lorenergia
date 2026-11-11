@@ -147,7 +147,6 @@ export default function FaturasLoteForm({
       });
       return { cliente: c, consumo, preenchida, ...r };
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientes, linhas, fator, tusd, te, bandeira, gd2Modo, gd2Total, tarifaGd2, descontoFioB, taxa, multa]);
 
   const preenchidas = calculados.filter((x) => x.preenchida);

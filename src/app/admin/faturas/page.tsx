@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus, FileText, Layers, Send } from "lucide-react";
+import { Plus, FileText, Layers, Send, Download } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { formatBRL, formatReferencia, formatData, faturaVencida, hojeISO } from "@/lib/format";
 import { calcularEncargosAtraso, type EncargosAtraso } from "@/lib/atraso";
@@ -32,7 +32,7 @@ function normalizarMes(mes?: string): string | null {
 export default async function FaturasPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; mes?: string }>;
+  searchParams: Promise<{ status?: string; mes?: string; meses?: string }>;
 }) {
   const supabase = await createClient();
   const sp = await searchParams;
@@ -45,9 +45,36 @@ export default async function FaturasPage({
     const p = new URLSearchParams();
     if (chave !== "todas") p.set("status", chave);
     if (sp.mes) p.set("mes", sp.mes);
+    if (sp.meses) p.set("meses", sp.meses);
     const qs = p.toString();
     return qs ? `/admin/faturas?${qs}` : "/admin/faturas";
   };
+
+  // Para a lista não crescer sem fim, as abas "Todas", "Pagas" e "Canceladas" mostram
+  // só os meses mais recentes (6 por padrão). Pendentes, vencidas e rascunhos aparecem
+  // sempre por inteiro — nenhuma cobrança antiga fica escondida.
+  const comJanela = !mesFiltro && ["todas", "paga", "cancelada"].includes(statusFiltro);
+  const verTudo = sp.meses === "todos";
+  const mesesJanela = Math.min(120, Math.max(6, Number(sp.meses) || 6));
+  const inicioJanela = (() => {
+    const [ano, mes] = hojeISO().split("-").map(Number);
+    const d = new Date(Date.UTC(ano, mes - 1 - (mesesJanela - 1), 1));
+    return d.toISOString().slice(0, 10);
+  })();
+  const hrefMeses = (valor: string) => {
+    const p = new URLSearchParams();
+    if (statusFiltro !== "todas") p.set("status", statusFiltro);
+    p.set("meses", valor);
+    return `/admin/faturas?${p.toString()}`;
+  };
+  // Exportação respeita os filtros de situação e de mês (sem o limite de meses).
+  const hrefExportar = (() => {
+    const p = new URLSearchParams();
+    if (statusFiltro !== "todas") p.set("status", statusFiltro);
+    if (sp.mes) p.set("mes", sp.mes);
+    const qs = p.toString();
+    return qs ? `/admin/faturas/exportar?${qs}` : "/admin/faturas/exportar";
+  })();
 
   let query = supabase
     .from("faturas")
@@ -63,6 +90,7 @@ export default async function FaturasPage({
     query = query.eq("publicada", true).eq("status", statusFiltro as StatusFatura);
   }
   if (mesFiltro) query = query.eq("referencia", mesFiltro);
+  if (comJanela && !verTudo) query = query.gte("referencia", inicioJanela);
 
   const [{ data: faturas }, { data: config }] = await Promise.all([
     query,
@@ -113,6 +141,10 @@ export default async function FaturasPage({
           <p className="text-sm text-slate-400">{lista.length} fatura(s)</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {/* Link comum (não <Link>): é um download, não uma página. */}
+          <a href={hrefExportar} className="btn-outline" title="Baixa as faturas do filtro atual em planilha (CSV)">
+            <Download className="h-4 w-4" /> Exportar planilha
+          </a>
           <Link href="/admin/faturas/enviar" className="btn-eco">
             <Send className="h-4 w-4" /> Enviar WhatsApp
           </Link>
@@ -141,6 +173,22 @@ export default async function FaturasPage({
         </div>
         <MonthFilter basePath="/admin/faturas" />
       </div>
+
+      {comJanela && (
+        <p className="text-sm text-slate-400">
+          {verTudo ? "Mostrando todos os meses." : `Mostrando os últimos ${mesesJanela} meses.`}{" "}
+          {!verTudo && (
+            <>
+              <Link href={hrefMeses(String(mesesJanela + 6))} className="text-brand-300 underline hover:text-brand-200">Ver mais 6 meses</Link>
+              {" · "}
+              <Link href={hrefMeses("todos")} className="text-brand-300 underline hover:text-brand-200">Ver tudo</Link>
+            </>
+          )}
+          {verTudo && (
+            <Link href={statusFiltro !== "todas" ? `/admin/faturas?status=${statusFiltro}` : "/admin/faturas"} className="text-brand-300 underline hover:text-brand-200">Mostrar só os recentes</Link>
+          )}
+        </p>
+      )}
 
       {lista.length === 0 ? (
         <div className="card flex flex-col items-center py-12 text-center">

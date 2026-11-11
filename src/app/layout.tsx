@@ -1,11 +1,10 @@
 import type { Metadata, Viewport } from "next";
+import { Analytics } from "@vercel/analytics/next";
+import { SITE_URL } from "@/lib/site";
 import "./globals.css";
 
-// Endereço público do site (prévias de link, canonical, imagem de compartilhamento).
-// Segue NEXT_PUBLIC_SITE_URL (ex.: https://lorenergia.com.br); sem ela, usa o endereço da Vercel.
-const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://lorenergia.vercel.app").replace(/\/+$/, "");
 const DESCRICAO =
-  "Energia solar compartilhada no seu prédio: até 20% de desconto na conta de luz, faturas transparentes e acompanhamento da sua economia em tempo real.";
+  "Energia solar compartilhada em Recife e Região Metropolitana: até 20% de desconto na conta de luz, sem obra e sem instalar nada. Simule a sua economia em 1 minuto.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -65,6 +64,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <div className="grid-lines" />
         </div>
         {children}
+        {/* Contador de visitas da Vercel: sem cookies e sem dados pessoais. */}
+        <Analytics />
       </body>
     </html>
   );

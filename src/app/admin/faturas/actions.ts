@@ -46,11 +46,63 @@ function aplicarModalidade(r: ResultadoCalculoDetalhado, modalidade: ModalidadeB
   };
 }
 
-async function exigirAdmin() {
+/** Garante que quem chamou é admin e devolve o e-mail dele (autor no histórico). */
+async function exigirAdmin(): Promise<string | null> {
   const sessao = await getSessao();
   if (sessao?.profile?.role !== "admin") {
     throw new Error("Acesso negado.");
   }
+  return sessao.email;
+}
+
+type Cliente = Awaited<ReturnType<typeof createClient>>;
+
+/**
+ * Registra no histórico quem fez o quê. Nunca derruba a ação principal: se a
+ * migração 0030 ainda não foi rodada (tabela ausente), simplesmente não grava.
+ */
+async function registrarHistorico(
+  supabase: Cliente,
+  autor: string | null,
+  entradas: { fatura_id: string; evento: string; detalhes?: Record<string, unknown> }[]
+) {
+  if (entradas.length === 0) return;
+  try {
+    await supabase
+      .from("faturas_historico")
+      .insert(entradas.map((e) => ({ fatura_id: e.fatura_id, evento: e.evento, detalhes: e.detalhes ?? null, autor_email: autor })));
+  } catch {
+    // histórico é acessório
+  }
+}
+
+/**
+ * Situação e data de pagamento das faturas que já existem (cliente_id -> dados).
+ * Serve para não trocar a data de um pagamento já registrado ao editar a fatura.
+ */
+async function pagamentoExistente(
+  supabase: Cliente,
+  referencia: string,
+  clienteIds: string[]
+): Promise<Map<string, { status: string; pago_em: string | null }>> {
+  const mapa = new Map<string, { status: string; pago_em: string | null }>();
+  if (clienteIds.length === 0) return mapa;
+  const { data, error } = await supabase
+    .from("faturas")
+    .select("cliente_id, status, pago_em")
+    .eq("referencia", referencia)
+    .in("cliente_id", clienteIds);
+  if (error) return mapa; // coluna ainda não existe (0030 não aplicada)
+  for (const l of (data ?? []) as { cliente_id: string; status: string; pago_em: string | null }[]) {
+    mapa.set(l.cliente_id, { status: l.status, pago_em: l.pago_em });
+  }
+  return mapa;
+}
+
+/** Data de pagamento a gravar: mantém a que já existe; marca agora se virou "paga". */
+function pagoEm(status: string, existente?: { status: string; pago_em: string | null }): string | null {
+  if (status !== "paga") return null;
+  return existente?.status === "paga" && existente.pago_em ? existente.pago_em : new Date().toISOString();
 }
 
 /** Normaliza a referência recebida ("YYYY-MM" ou "YYYY-MM-DD") para o 1º dia do mês. */
@@ -66,6 +118,7 @@ function normalizarReferencia(valor: string): string {
  * não as tem, gravamos sem elas (em vez de falhar) até a migração ser rodada.
  */
 const COLUNAS_OPCIONAIS: { teste: RegExp; colunas: string[] }[] = [
+  { teste: /pago_em/, colunas: ["pago_em"] }, // migração 0030
   { teste: /tarifa_gd2/, colunas: ["tarifa_gd2"] }, // migração 0026
   { teste: /publicada/, colunas: ["publicada"] }, // migração 0025
   { teste: /modalidade_beneficio|cashback_valor|cashback_pago/, colunas: ["modalidade_beneficio", "cashback_valor", "cashback_pago"] }, // 0018
@@ -160,7 +213,7 @@ async function modalidadeDoCliente(
 }
 
 export async function gerarFatura(formData: FormData) {
-  await exigirAdmin();
+  const autor = await exigirAdmin();
   const supabase = await createClient();
 
   const cliente_id = String(formData.get("cliente_id") ?? "");
@@ -222,6 +275,7 @@ export async function gerarFatura(formData: FormData) {
   const modalidade = await modalidadeDoCliente(supabase, cliente_id);
   const valores = aplicarModalidade(r, modalidade);
   const jaPublicada = (await publicacaoExistente(supabase, referencia, [cliente_id])).get(cliente_id);
+  const pagamento = (await pagamentoExistente(supabase, referencia, [cliente_id])).get(cliente_id);
 
   const registro = {
     cliente_id,
@@ -247,6 +301,7 @@ export async function gerarFatura(formData: FormData) {
     data_emissao,
     vencimento,
     status,
+    pago_em: pagoEm(status, pagamento),
     observacoes,
   };
 
@@ -254,6 +309,9 @@ export async function gerarFatura(formData: FormData) {
   const { ids, error } = await gravarFaturas(supabase, [registro]);
   if (error || ids.length === 0) throw new Error(error?.message ?? "Não foi possível gravar a fatura.");
   await gravarDescontoFioB(supabase, [{ fatura_id: ids[0], bruto: gd2Normal, desconto_percentual: desconto_fio_b }]);
+  await registrarHistorico(supabase, autor, [
+    { fatura_id: ids[0], evento: "CRIADA_OU_EDITADA", detalhes: { valor: valores.valor_liquido, situacao: status, consumo_kwh } },
+  ]);
 
   revalidatePath("/admin/faturas");
   revalidatePath("/admin");
@@ -261,12 +319,25 @@ export async function gerarFatura(formData: FormData) {
 }
 
 export async function atualizarStatusFatura(id: string, status: StatusFatura) {
-  await exigirAdmin();
+  const autor = await exigirAdmin();
   const supabase = await createClient();
-  const { error } = await supabase.from("faturas").update({ status }).eq("id", id);
+  const { data: atual } = await supabase.from("faturas").select("status").eq("id", id).maybeSingle();
+  const anterior = (atual?.status as string | undefined) ?? null;
+
+  // Registra a data do pagamento ao marcar como paga; limpa ao voltar atrás.
+  let { error } = await supabase
+    .from("faturas")
+    .update({ status, pago_em: status === "paga" ? new Date().toISOString() : null })
+    .eq("id", id);
+  // Migração 0030 ainda não aplicada: grava só a situação.
+  if (error && /pago_em/.test(error.message)) {
+    ({ error } = await supabase.from("faturas").update({ status }).eq("id", id));
+  }
   if (error) throw new Error(error.message);
-  revalidatePath("/admin/faturas");
-  revalidatePath("/admin");
+  if (anterior !== status) {
+    await registrarHistorico(supabase, autor, [{ fatura_id: id, evento: "SITUACAO", detalhes: { de: anterior, para: status } }]);
+  }
+  revalidarFaturas(id);
 }
 
 export async function marcarWhatsappEnviado(id: string) {
@@ -282,10 +353,28 @@ export async function marcarWhatsappEnviado(id: string) {
 }
 
 export async function excluirFatura(id: string) {
-  await exigirAdmin();
+  const autor = await exigirAdmin();
   const supabase = await createClient();
+  const { data: f } = await supabase
+    .from("faturas")
+    .select("referencia, valor_liquido, status, clientes(nome)")
+    .eq("id", id)
+    .maybeSingle();
   const { error } = await supabase.from("faturas").delete().eq("id", id);
   if (error) throw new Error(error.message);
+  const morador = (f?.clientes as { nome?: string } | { nome?: string }[] | null | undefined);
+  await registrarHistorico(supabase, autor, [
+    {
+      fatura_id: id,
+      evento: "EXCLUIDA",
+      detalhes: {
+        morador: (Array.isArray(morador) ? morador[0]?.nome : morador?.nome) ?? null,
+        referencia: f?.referencia ?? null,
+        valor: f?.valor_liquido ?? null,
+        situacao: f?.status ?? null,
+      },
+    },
+  ]);
   revalidatePath("/admin/faturas");
   revalidatePath("/admin");
 }
@@ -335,7 +424,7 @@ export interface ParametrosLote {
 export async function gerarFaturasLote(
   params: ParametrosLote
 ): Promise<{ ok: boolean; geradas: number; mensagem: string }> {
-  await exigirAdmin();
+  const autor = await exigirAdmin();
   const supabase = await createClient();
 
   if (!params.referencia) return { ok: false, geradas: 0, mensagem: "Informe o mês de referência." };
@@ -359,6 +448,12 @@ export async function gerarFaturasLote(
 
   // Faturas já existentes mantêm o estado de publicação; as novas seguem o lote.
   const publicacaoPorCliente = await publicacaoExistente(
+    supabase,
+    referencia,
+    itensValidos.map((it) => it.cliente_id)
+  );
+
+  const pagamentoPorCliente = await pagamentoExistente(
     supabase,
     referencia,
     itensValidos.map((it) => it.cliente_id)
@@ -427,6 +522,7 @@ export async function gerarFaturasLote(
       data_emissao,
       vencimento: it.vencimento || params.vencimento,
       status: params.status,
+      pago_em: pagoEm(params.status, pagamentoPorCliente.get(it.cliente_id)),
     };
   });
 
@@ -447,6 +543,11 @@ export async function gerarFaturasLote(
       desconto_percentual: desconto_fio_b,
     }))
   );
+  await registrarHistorico(
+    supabase,
+    autor,
+    linhas.map((l) => ({ fatura_id: l.id, evento: "LOTE", detalhes: { referencia, situacao: params.status } }))
+  );
 
   revalidatePath("/admin/faturas");
   revalidatePath("/admin");
@@ -463,19 +564,21 @@ export async function gerarFaturasLote(
 
 /** Publica um rascunho: a partir daqui o cliente passa a ver a fatura. */
 export async function publicarFatura(id: string) {
-  await exigirAdmin();
+  const autor = await exigirAdmin();
   const supabase = await createClient();
   const { error } = await supabase.from("faturas").update({ publicada: true }).eq("id", id);
   if (error) throw new Error(error.message);
+  await registrarHistorico(supabase, autor, [{ fatura_id: id, evento: "PUBLICADA" }]);
   revalidarFaturas(id);
 }
 
 /** Volta uma fatura publicada para rascunho: o cliente deixa de vê-la. */
 export async function despublicarFatura(id: string) {
-  await exigirAdmin();
+  const autor = await exigirAdmin();
   const supabase = await createClient();
   const { error } = await supabase.from("faturas").update({ publicada: false }).eq("id", id);
   if (error) throw new Error(error.message);
+  await registrarHistorico(supabase, autor, [{ fatura_id: id, evento: "DESPUBLICADA" }]);
   revalidarFaturas(id);
 }
 
@@ -483,7 +586,7 @@ export async function despublicarFatura(id: string) {
 export async function publicarMes(
   referencia: string
 ): Promise<{ ok: boolean; publicadas: number; mensagem: string }> {
-  await exigirAdmin();
+  const autor = await exigirAdmin();
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("faturas")
@@ -493,6 +596,11 @@ export async function publicarMes(
     .neq("status", "cancelada")
     .select("id");
   if (error) return { ok: false, publicadas: 0, mensagem: error.message };
+  await registrarHistorico(
+    supabase,
+    autor,
+    ((data ?? []) as { id: string }[]).map((l) => ({ fatura_id: l.id, evento: "PUBLICADA", detalhes: { em_lote: true } }))
+  );
   revalidarFaturas();
   const n = (data ?? []).length;
   return { ok: true, publicadas: n, mensagem: n === 1 ? "1 fatura publicada." : `${n} faturas publicadas.` };

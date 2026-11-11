@@ -79,6 +79,7 @@ export interface Fatura {
   data_emissao: string | null;
   vencimento: string | null;
   status: StatusFatura;
+  pago_em?: string | null; // quando foi marcada como paga (migração 0030)
   observacoes: string | null;
   whatsapp_enviado_em: string | null;
   created_at: string;
