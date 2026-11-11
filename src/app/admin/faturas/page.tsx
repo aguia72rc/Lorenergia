@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus, FileText, Layers, Send, Download } from "lucide-react";
+import { Plus, FileText, Layers, Send, Download, BellRing } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { formatBRL, formatReferencia, formatData, faturaVencida, hojeISO } from "@/lib/format";
 import { calcularEncargosAtraso, type EncargosAtraso } from "@/lib/atraso";
@@ -145,6 +145,9 @@ export default async function FaturasPage({
           <a href={hrefExportar} className="btn-outline" title="Baixa as faturas do filtro atual em planilha (CSV)">
             <Download className="h-4 w-4" /> Exportar planilha
           </a>
+          <Link href="/admin/faturas/lembretes" className="btn-outline" title="Faturas vencidas ou perto do vencimento, com o WhatsApp pronto">
+            <BellRing className="h-4 w-4" /> Lembretes
+          </Link>
           <Link href="/admin/faturas/enviar" className="btn-eco">
             <Send className="h-4 w-4" /> Enviar WhatsApp
           </Link>

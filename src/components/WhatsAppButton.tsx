@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Check } from "lucide-react";
-import { marcarWhatsappEnviado } from "@/app/admin/faturas/actions";
+import { marcarWhatsappEnviado, marcarLembreteEnviado } from "@/app/admin/faturas/actions";
 
 function IconeWhats({ className }: { className?: string }) {
   return (
@@ -15,17 +15,20 @@ function IconeWhats({ className }: { className?: string }) {
 /**
  * Botão que abre o WhatsApp (link wa.me) e registra o envio da fatura.
  * `variante="grande"` para o envio em massa; padrão compacto p/ tabela.
+ * `tipo="lembrete"` registra um lembrete de vencimento em vez do envio da fatura.
  */
 export default function WhatsAppButton({
   faturaId,
   link,
   enviadoEm,
   variante = "compacto",
+  tipo = "fatura",
 }: {
   faturaId: string;
   link: string;
   enviadoEm: string | null;
   variante?: "compacto" | "grande";
+  tipo?: "fatura" | "lembrete";
 }) {
   const [pending, startTransition] = useTransition();
   const [enviado, setEnviado] = useState<boolean>(!!enviadoEm);
@@ -35,7 +38,7 @@ export default function WhatsAppButton({
     setEnviado(true);
     startTransition(async () => {
       try {
-        await marcarWhatsappEnviado(faturaId);
+        await (tipo === "lembrete" ? marcarLembreteEnviado(faturaId) : marcarWhatsappEnviado(faturaId));
       } catch {
         // silencioso: o link já foi aberto
       }
@@ -50,7 +53,9 @@ export default function WhatsAppButton({
         className={`btn w-full ${enviado ? "bg-eco-100 text-eco-700 hover:bg-eco-200" : "bg-eco-600 text-white hover:bg-eco-700"}`}
       >
         {enviado ? <Check className="h-4 w-4" /> : <IconeWhats className="h-4 w-4" />}
-        {enviado ? "Enviado — reenviar" : "Enviar WhatsApp"}
+        {tipo === "lembrete"
+          ? enviado ? "Lembrado — lembrar de novo" : "Enviar lembrete"
+          : enviado ? "Enviado — reenviar" : "Enviar WhatsApp"}
       </button>
     );
   }

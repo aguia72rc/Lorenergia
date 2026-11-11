@@ -6,6 +6,8 @@ import { calcularFaturaDetalhada, consumoDeLeituras, valorTusdGd2, aplicarDescon
 import { formatBRL, formatKwh } from "@/lib/format";
 import { gerarFatura } from "@/app/admin/faturas/actions";
 import { vencimentoSugerido, type UltimoVencimento } from "@/lib/vencimento";
+import ImportarNeoenergia from "@/components/ImportarNeoenergia";
+import type { FaturaNeoenergia } from "@/lib/neoenergia";
 
 interface ClienteOpcao {
   id: string;
@@ -153,9 +155,23 @@ export default function NovaFaturaForm({
     if (!vencEditado) setVencimento(vencimentoSugerido(ultimoVencimento[clienteId], valor));
   }
 
+  // Preenche os campos com os números lidos da fatura da Neoenergia (PDF).
+  function usarFaturaNeoenergia(f: FaturaNeoenergia, fioB: number | null) {
+    if (f.leituraAnterior != null) setLeituraAnterior(String(f.leituraAnterior));
+    if (f.leituraAtual != null) setLeituraAtual(String(f.leituraAtual));
+    if (f.constanteMedidor != null && f.constanteMedidor > 0) setFator(String(f.constanteMedidor));
+    if (fioB != null) {
+      setGd2Modo("valor");
+      setGd2Valor(String(fioB));
+    }
+    if (!editando && f.referencia) onMudarReferencia(f.referencia);
+  }
+
   return (
     <form action={gerarFatura} className="grid gap-6 lg:grid-cols-3">
       <div className="card space-y-4 lg:col-span-2">
+        <ImportarNeoenergia modo="individual" onUsar={usarFaturaNeoenergia} />
+
         <div>
           <label className="label" htmlFor="cliente_id">Morador *</label>
           <select id="cliente_id" name={editando ? undefined : "cliente_id"} className="input" value={clienteId} onChange={(e) => onSelecionarCliente(e.target.value)} disabled={editando} required>

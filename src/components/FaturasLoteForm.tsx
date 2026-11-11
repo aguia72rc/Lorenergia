@@ -3,6 +3,8 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import ImportarNeoenergia from "@/components/ImportarNeoenergia";
+import type { FaturaNeoenergia } from "@/lib/neoenergia";
 import { calcularFaturaDetalhada, consumoDeLeituras, distribuirTusdGd2, tarifaGd2Valida, MSG_TARIFA_GD2, type ModoGd2 } from "@/lib/calc";
 import { formatBRL, formatKwh } from "@/lib/format";
 import { gerarFaturasLote, type ItemLote } from "@/app/admin/faturas/actions";
@@ -203,10 +205,20 @@ export default function FaturasLoteForm({
     });
   }
 
+  // Preenche o Fio B total e o mês com os números lidos da fatura da Neoenergia (PDF).
+  function usarFaturaNeoenergia(f: FaturaNeoenergia, fioB: number | null) {
+    if (fioB != null) {
+      setGd2Modo("total");
+      setGd2Total(String(fioB));
+    }
+    if (f.referencia) onMudarReferencia(f.referencia);
+  }
+
   return (
     <form onSubmit={onSubmit} className="space-y-6">
       {/* Parâmetros do mês (aplicados a todos os moradores) */}
       <div className="card space-y-4">
+        <ImportarNeoenergia modo="lote" onUsar={usarFaturaNeoenergia} consumoLancadoKwh={kwhRateio} />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <label className="label" htmlFor="referencia">Mês de referência *</label>

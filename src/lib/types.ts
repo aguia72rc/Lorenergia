@@ -82,6 +82,7 @@ export interface Fatura {
   pago_em?: string | null; // quando foi marcada como paga (migração 0030)
   observacoes: string | null;
   whatsapp_enviado_em: string | null;
+  lembrete_enviado_em?: string | null; // último lembrete de vencimento (migração 0031)
   created_at: string;
   updated_at: string;
 }

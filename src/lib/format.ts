@@ -35,16 +35,23 @@ export function formatData(data: string | null | undefined): string {
   return `${dia}/${mes}/${ano}`;
 }
 
-/** Primeiro dia do mês atual no formato YYYY-MM-DD. */
-export function primeiroDiaMesAtual(): string {
-  const hoje = new Date();
-  return `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}-01`;
+/**
+ * Data (YYYY-MM-DD) no fuso do Recife para um instante qualquer. O servidor roda
+ * em UTC: sem isto, a partir das 21h "hoje" já seria amanhã, e uma fatura que
+ * vence hoje apareceria vencida (com multa) três horas antes da hora.
+ */
+export function dataNoRecife(instante: Date): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Recife", year: "numeric", month: "2-digit", day: "2-digit" }).format(instante);
 }
 
-/** Data de hoje no formato YYYY-MM-DD (fuso local). */
+/** Primeiro dia do mês atual no formato YYYY-MM-DD. */
+export function primeiroDiaMesAtual(): string {
+  return `${hojeISO().slice(0, 7)}-01`;
+}
+
+/** Data de hoje no formato YYYY-MM-DD (fuso do Recife). */
 export function hojeISO(): string {
-  const hoje = new Date();
-  return `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}-${String(hoje.getDate()).padStart(2, "0")}`;
+  return dataNoRecife(new Date());
 }
 
 /**
