@@ -18,6 +18,8 @@ const nextConfig = {
   reactStrictMode: true,
   // Não anuncia "X-Powered-By: Next.js".
   poweredByHeader: false,
+  // Importação do PDF da fatura da Neoenergia: aceita arquivos de até 4 MB (o padrão é 1 MB).
+  experimental: { serverActions: { bodySizeLimit: "4mb" } },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
