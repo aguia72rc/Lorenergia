@@ -1,5 +1,6 @@
 "use server";
 
+import { randomInt } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -135,12 +136,35 @@ export async function convidarMorador(clienteId: string): Promise<{ ok: boolean;
   return { ok: true, mensagem: `Convite enviado para ${cliente.email}.` };
 }
 
-/** Gera uma senha temporária legível (sem caracteres ambíguos). */
+/**
+ * Gera uma senha temporária legível (sem caracteres ambíguos), com gerador
+ * criptográfico — não previsível como o Math.random.
+ */
 function gerarSenhaTemporaria(): string {
   const alfabeto = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789abcdefghijkmnpqrstuvwxyz";
   let s = "";
-  for (let i = 0; i < 8; i++) s += alfabeto[Math.floor(Math.random() * alfabeto.length)];
+  for (let i = 0; i < 10; i++) s += alfabeto[randomInt(alfabeto.length)];
   return s;
+}
+
+/**
+ * Procura o usuário de login pelo e-mail percorrendo TODAS as páginas (a
+ * listagem do Supabase vem paginada; olhar só a primeira falha com muitos usuários).
+ */
+async function buscarUsuarioPorEmail(
+  admin: ReturnType<typeof createAdminClient>,
+  email: string
+): Promise<{ id: string } | null> {
+  const porPagina = 200;
+  for (let pagina = 1; pagina <= 50; pagina++) {
+    const { data, error } = await admin.auth.admin.listUsers({ page: pagina, perPage: porPagina });
+    if (error) return null;
+    const usuarios = data?.users ?? [];
+    const achado = usuarios.find((u) => (u.email ?? "").toLowerCase() === email);
+    if (achado) return { id: achado.id };
+    if (usuarios.length < porPagina) return null;
+  }
+  return null;
 }
 
 /**
@@ -172,8 +196,7 @@ export async function gerarAcessoMorador(
   const email = cliente.email.toLowerCase();
 
   // Já existe um usuário com esse e-mail?
-  const { data: lista } = await admin.auth.admin.listUsers();
-  const existente = lista?.users?.find((u) => (u.email ?? "").toLowerCase() === email);
+  const existente = await buscarUsuarioPorEmail(admin, email);
 
   let userId: string;
   if (existente) {

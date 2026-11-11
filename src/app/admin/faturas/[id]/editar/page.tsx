@@ -41,6 +41,15 @@ export default async function EditarFaturaPage({ params }: { params: Promise<{ i
     .eq("fatura_id", id)
     .maybeSingle();
 
+  // Histórico de alterações (tabela só do admin, migração 0030). Ausente = lista vazia.
+  const { data: historico } = await supabase
+    .from("faturas_historico")
+    .select("id, evento, detalhes, autor_email, created_at")
+    .eq("fatura_id", id)
+    .order("created_at", { ascending: false })
+    .limit(30);
+  const eventos = (historico ?? []) as { id: string; evento: string; detalhes: Record<string, unknown> | null; autor_email: string | null; created_at: string }[];
+
   const edicao: FaturaEdicao = {
     id: f.id,
     cliente_id: f.cliente_id,
@@ -88,6 +97,42 @@ export default async function EditarFaturaPage({ params }: { params: Promise<{ i
         referenciaPadrao={f.referencia.slice(0, 7)}
         fatura={edicao}
       />
+
+      {eventos.length > 0 && (
+        <div className="card">
+          <h2 className="mb-3 font-semibold text-white">Histórico desta fatura</h2>
+          <ul className="space-y-2 text-sm">
+            {eventos.map((e) => (
+              <li key={e.id} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 border-b border-white/5 pb-2 last:border-0 last:pb-0">
+                <span className="text-slate-200">{descreverEvento(e.evento, e.detalhes)}</span>
+                <span className="text-xs text-slate-400">
+                  {e.autor_email ?? "—"} · {new Date(e.created_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Recife" })}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
+}
+
+const SITUACAO: Record<string, string> = { pendente: "Pendente", paga: "Paga", cancelada: "Cancelada" };
+
+function descreverEvento(evento: string, d: Record<string, unknown> | null): string {
+  const sit = (v: unknown) => SITUACAO[String(v)] ?? String(v ?? "—");
+  switch (evento) {
+    case "SITUACAO":
+      return `Situação: ${sit(d?.de)} → ${sit(d?.para)}`;
+    case "CRIADA_OU_EDITADA":
+      return "Fatura salva (criada ou editada)";
+    case "LOTE":
+      return "Fatura salva pelo lote do mês";
+    case "PUBLICADA":
+      return d?.em_lote ? "Publicada (mês inteiro)" : "Publicada para o cliente";
+    case "DESPUBLICADA":
+      return "Voltou para rascunho";
+    default:
+      return evento;
+  }
 }

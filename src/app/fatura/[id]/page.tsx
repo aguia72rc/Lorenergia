@@ -9,6 +9,7 @@ import { gerarPixCopiaECola } from "@/lib/pix";
 import { calcularEncargosAtraso } from "@/lib/atraso";
 import StatusBadge from "@/components/StatusBadge";
 import PrintButton from "@/components/PrintButton";
+import CopiarPix from "@/components/CopiarPix";
 import { PublicarFaturaButton } from "@/components/PublicarButtons";
 import EconomiaChart from "@/components/EconomiaChart";
 import type { FaturaComCliente, Configuracoes, Fatura } from "@/lib/types";
@@ -80,7 +81,8 @@ export default async function FaturaPage({ params }: { params: Promise<{ id: str
   // PIX / QR Code
   let qrSvg: string | null = null;
   let pixCopiaECola: string | null = null;
-  if (cfg?.chave_pix) {
+  // Fatura paga ou cancelada não mostra o PIX (evita pagamento em dobro).
+  if (cfg?.chave_pix && f.status === "pendente") {
     pixCopiaECola = gerarPixCopiaECola({
       chave: cfg.chave_pix,
       nome: cfg.pix_nome || cfg.nome_usina || "Recebedor",
@@ -161,6 +163,7 @@ export default async function FaturaPage({ params }: { params: Promise<{ id: str
               <dl className="space-y-1 text-sm">
                 <Info label="Data de emissão" valor={formatData(dataEmissao)} />
                 <Info label="Vencimento" valor={formatData(f.vencimento)} />
+                {f.status === "paga" && f.pago_em && <Info label="Paga em" valor={formatData(f.pago_em.slice(0, 10))} />}
                 <Info label="Nº medidor" valor={c?.numero_medidor || "—"} />
                 <Info label="Consumo" valor={`${numero(f.consumo_kwh, 0)} kWh`} />
               </dl>
@@ -173,8 +176,11 @@ export default async function FaturaPage({ params }: { params: Promise<{ id: str
               <div className="h-[140px] w-[140px] shrink-0 [&>svg]:h-full [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: qrSvg }} />
               <div className="min-w-0 flex-1">
                 <p className="text-xs uppercase tracking-wide text-slate-400">Pagamento via PIX</p>
-                <p className="mt-1 text-sm text-slate-600">Escaneie o QR Code no app do seu banco ou copie a chave abaixo:</p>
-                <p className="mt-2 break-all rounded-lg bg-slate-50 p-2 text-xs text-slate-700">{cfg?.chave_pix}</p>
+                <p className="mt-1 text-sm text-slate-600">
+                  Escaneie o QR Code no app do seu banco ou copie o código abaixo ({formatBRL(valorAPagar)}):
+                </p>
+                {pixCopiaECola && <CopiarPix codigo={pixCopiaECola} />}
+                <p className="mt-2 text-xs text-slate-500">Chave PIX: <span className="break-all">{cfg?.chave_pix}</span></p>
               </div>
             </div>
           )}
