@@ -130,6 +130,10 @@ function descreverEvento(evento: string, d: Record<string, unknown> | null): str
       return "Fatura salva pelo lote do mês";
     case "PUBLICADA":
       return d?.em_lote ? "Publicada (mês inteiro)" : "Publicada para o cliente";
+    case "LEMBRETE":
+      return "Lembrete de vencimento enviado pelo WhatsApp";
+    case "EXCLUIDA":
+      return "Fatura excluída";
     case "DESPUBLICADA":
       return "Voltou para rascunho";
     default:

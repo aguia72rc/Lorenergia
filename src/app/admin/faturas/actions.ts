@@ -352,6 +352,20 @@ export async function marcarWhatsappEnviado(id: string) {
   revalidatePath("/admin/faturas/enviar");
 }
 
+/** Registra que o lembrete de vencimento foi enviado pelo WhatsApp. */
+export async function marcarLembreteEnviado(id: string) {
+  const autor = await exigirAdmin();
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("faturas")
+    .update({ lembrete_enviado_em: new Date().toISOString() })
+    .eq("id", id);
+  // Migração 0031 ainda não aplicada: o lembrete saiu; só não fica marcado.
+  if (error && !/lembrete_enviado_em/.test(error.message)) throw new Error(error.message);
+  await registrarHistorico(supabase, autor, [{ fatura_id: id, evento: "LEMBRETE" }]);
+  revalidatePath("/admin/faturas/lembretes");
+}
+
 export async function excluirFatura(id: string) {
   const autor = await exigirAdmin();
   const supabase = await createClient();

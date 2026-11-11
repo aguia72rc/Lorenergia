@@ -135,7 +135,7 @@ export default async function AdminDashboard() {
             </p>
           </div>
           <div className="flex gap-2">
-            <Link href="/admin/faturas?status=vencidas" className="btn-outline">Ver vencidas</Link>
+            <Link href="/admin/faturas/lembretes" className="btn-outline">Enviar lembretes</Link>
             <Link href="/admin/faturas/enviar" className="btn-eco"><Send className="h-4 w-4" /> Enviar lembrete</Link>
           </div>
         </div>
