@@ -36,7 +36,11 @@ export async function getResumoPublico(): Promise<ResumoPublico | null> {
     const chave = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     if (!url || !chave) return null;
 
-    const supabase = createClient(url, chave, { auth: { persistSession: false, autoRefreshToken: false } });
+    // Limite de 5 s: a landing nunca fica esperando o banco (nem trava o build).
+    const supabase = createClient(url, chave, {
+      auth: { persistSession: false, autoRefreshToken: false },
+      global: { fetch: (input, init) => fetch(input, { ...init, signal: AbortSignal.timeout(5000) }) },
+    });
     const { data, error } = await supabase.rpc("resumo_publico");
     if (error || !data) return null;
     return interpretarResumo(data);

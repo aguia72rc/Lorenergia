@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { simularPublico, type ResultadoPublico } from "@/app/simulador/actions";
+import { AR, WHATSAPP } from "@/content/landing";
 
 const brl = (n: number) => "R$ " + Math.round(n).toLocaleString("pt-BR");
 
@@ -14,23 +15,27 @@ function Barra({ rotulo, valor, fracao, cor }: { rotulo: string; valor: string; 
   const pct = Math.max(8, Math.min(100, Math.round(fracao * 100)));
   return (
     <div>
-      <div className="mb-1 flex justify-between text-xs text-slate-300">
+      <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", fontSize: "14px", color: "rgba(255,246,227,.7)", marginBottom: "6px" }}>
         <span>{rotulo}</span>
-        <span className="font-semibold text-white">{valor}</span>
+        <span style={{ fontFamily: AR, fontWeight: 700, color: "#FFF6E3", whiteSpace: "nowrap" }}>{valor}</span>
       </div>
-      <div className="h-3 w-full overflow-hidden rounded-full bg-white/10">
-        <div className={`h-full rounded-full ${cor}`} style={{ width: `${pct}%` }} />
+      <div style={{ height: "12px", borderRadius: "99px", background: "rgba(255,246,227,.1)", overflow: "hidden" }}>
+        <div style={{ height: "100%", width: `${pct}%`, borderRadius: "99px", background: cor }} />
       </div>
     </div>
   );
 }
 
+/** Simulador público, no visual da landing: formulário claro e resultado em painel escuro. */
 export default function SimuladorPublico({
   planos,
   prova,
+  resultadoInicial = null,
 }: {
   planos: { codigo: string; nome: string; desconto: number }[];
   prova?: ProvaSocial | null;
+  /** Só para testes de tela: abre já mostrando um resultado. */
+  resultadoInicial?: ResultadoPublico | null;
 }) {
   const [pendente, startTransition] = useTransition();
   const [modo, setModo] = useState<"kwh" | "reais">("kwh");
@@ -39,9 +44,10 @@ export default function SimuladorPublico({
   const [nome, setNome] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   const [site, setSite] = useState(""); // isca anti-robô (escondida)
-  const [res, setRes] = useState<ResultadoPublico | null>(null);
+  const [res, setRes] = useState<ResultadoPublico | null>(resultadoInicial);
 
-  function simular() {
+  function simular(e: React.FormEvent) {
+    e.preventDefault();
     setRes(null);
     startTransition(async () => {
       const r = await simularPublico({ modo, entrada, planoCodigo, nome, whatsapp, site });
@@ -49,32 +55,35 @@ export default function SimuladorPublico({
     });
   }
 
+  const linkWhatsapp = `https://wa.me/${WHATSAPP}?text=${encodeURIComponent(`Olá! Sou ${nome.trim()}, fiz a simulação no site e quero saber mais.`)}`;
+
   return (
-    <div className="space-y-5">
-      <div className="card">
-        <div className="grid gap-4 sm:grid-cols-2">
+    <div style={{ display: "grid", gap: "20px" }}>
+      <form onSubmit={simular} className="lp-card" noValidate>
+        <div className="lp-form-grid">
           <div>
-            <label className="label" htmlFor="entrada">
+            <label className="lp-label" htmlFor="entrada">
               {modo === "kwh" ? "Consumo médio (kWh/mês)" : "Valor da conta (R$/mês)"}
             </label>
-            <div className="flex gap-2">
+            <div style={{ display: "flex", gap: "8px" }}>
               <input
                 id="entrada"
                 type="number"
                 min={0}
                 step={modo === "kwh" ? 1 : 10}
                 inputMode="decimal"
-                className="input flex-1"
+                className="lp-input"
+                style={{ flex: 1, minWidth: 0 }}
                 value={entrada}
                 onChange={(e) => setEntrada(Number(e.target.value))}
               />
-              <div className="flex overflow-hidden rounded-xl border border-white/10">
+              <div className="lp-seg" role="group" aria-label="Informar em kWh ou em reais">
                 {(["kwh", "reais"] as const).map((m) => (
                   <button
                     key={m}
                     type="button"
+                    aria-pressed={modo === m}
                     onClick={() => { setModo(m); setEntrada(m === "kwh" ? 300 : 350); }}
-                    className={`px-3 text-sm font-medium ${modo === m ? "bg-brand-500 text-brand-950" : "text-slate-300 hover:bg-white/5"}`}
                   >
                     {m === "kwh" ? "kWh" : "R$"}
                   </button>
@@ -84,107 +93,111 @@ export default function SimuladorPublico({
           </div>
 
           <div>
-            <label className="label" htmlFor="plano">Plano</label>
-            <select id="plano" className="input" value={planoCodigo} onChange={(e) => setPlanoCodigo(e.target.value)}>
+            <label className="lp-label" htmlFor="plano">Plano</label>
+            <select id="plano" className="lp-input" value={planoCodigo} onChange={(e) => setPlanoCodigo(e.target.value)}>
               <option value="auto">Melhor desconto</option>
               {planos.map((p) => <option key={p.codigo} value={p.codigo}>{p.nome} — {p.desconto}%</option>)}
             </select>
           </div>
 
           <div>
-            <label className="label" htmlFor="nome">Seu nome</label>
-            <input id="nome" className="input" autoComplete="name" maxLength={80} value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Como podemos te chamar?" />
+            <label className="lp-label" htmlFor="nome">Seu nome</label>
+            <input id="nome" className="lp-input" autoComplete="name" maxLength={80} value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Como podemos te chamar?" />
           </div>
           <div>
-            <label className="label" htmlFor="whatsapp">Seu WhatsApp</label>
-            <input id="whatsapp" className="input" type="tel" inputMode="tel" autoComplete="tel" maxLength={20} value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} placeholder="(81) 99999-9999" />
+            <label className="lp-label" htmlFor="whatsapp">Seu WhatsApp</label>
+            <input id="whatsapp" className="lp-input" type="tel" inputMode="tel" autoComplete="tel" maxLength={20} value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} placeholder="(81) 99999-9999" />
           </div>
           {/* Isca para robôs: pessoas não veem nem preenchem. */}
-          <div aria-hidden className="absolute -left-[9999px] h-0 w-0 overflow-hidden">
+          <div aria-hidden style={{ position: "absolute", left: "-9999px", width: 0, height: 0, overflow: "hidden" }}>
             <label htmlFor="site">Site</label>
             <input id="site" tabIndex={-1} autoComplete="off" value={site} onChange={(e) => setSite(e.target.value)} />
           </div>
 
-          <div className="sm:col-span-2">
-            <button onClick={simular} className="btn-primary w-full" disabled={pendente}>
+          <div style={{ gridColumn: "1 / -1" }}>
+            <button type="submit" className="lp-btn" disabled={pendente}>
               {pendente ? "Calculando…" : "Ver quanto vou economizar"}
             </button>
           </div>
         </div>
-        <p className="mt-3 text-xs text-slate-500">
-          Ao simular, você concorda em receber contato da Lorenergia pelo WhatsApp sobre a sua economia. Não enviamos spam.
+        <p style={{ margin: "14px 0 0", fontSize: "13px", lineHeight: 1.5, color: "#7A8493" }}>
+          Ao simular, você concorda em receber contato da Lorenergia pelo WhatsApp sobre a sua economia. Não enviamos spam.{" "}
+          <a href="/privacidade" style={{ textDecoration: "underline" }}>Como usamos seus dados</a>.
         </p>
-        <p className="mt-2 text-xs text-slate-500">
+        <p style={{ margin: "8px 0 0", fontSize: "13px", lineHeight: 1.5, color: "#7A8493" }}>
           Você passa a receber créditos de energia solar, com desconto direto na sua conta de luz. Nada para instalar e nada para comprar. Estimativa gratuita, com base na tarifa vigente.
         </p>
-      </div>
+      </form>
 
-      {res && !res.ok && (
-        <div className="card">
-          <p className="text-sm text-amber-300">
-            {res.mensagem ||
-              (res.motivo === "consumo_invalido"
-                ? "Informe o consumo para simular."
-                : "Simulador indisponível no momento. Tente novamente em instantes.")}
-          </p>
-        </div>
-      )}
-
-      {res && res.ok && (
-        <div className="relative overflow-hidden rounded-2xl border border-eco-500/30 p-6"
-          style={{ background: "linear-gradient(120deg, rgba(16,185,129,0.20), rgba(255,176,32,0.10))" }}>
-          <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-eco-500/20 blur-3xl" />
-          <p className="relative text-sm text-eco-200">Todo mês, este dinheiro volta para você:</p>
-          <p className="relative mt-1 text-4xl font-extrabold text-white" style={{ fontFamily: "var(--font-display)" }}>
-            {brl(res.faixaMin)}
-            <span className="text-lg font-semibold text-eco-200"> a {brl(res.faixaMax)}</span>
-          </p>
-          <p className="relative mt-2 text-sm text-eco-200">
-            Em um ano são pelo menos <strong className="text-white">{brl(res.anualMin)}</strong> que hoje vão embora na conta de luz e passam a ficar com você.
-          </p>
-          {res.contaHoje > 0 && (
-            <div className="relative mt-5 space-y-2 rounded-xl bg-black/20 p-4">
-              <Barra rotulo="Hoje você paga" valor={`≈ ${brl(res.contaHoje)}`} fracao={1} cor="bg-slate-400" />
-              <Barra
-                rotulo="Com a Lorenergia você pagaria"
-                valor={`até ${brl(res.contaComLorenergia)}`}
-                fracao={res.contaHoje > 0 ? res.contaComLorenergia / res.contaHoje : 1}
-                cor="bg-eco-400"
-              />
-            </div>
-          )}
-
-          <ul className="relative mt-4 grid gap-2 text-sm text-eco-100 sm:grid-cols-2">
-            <li>💰 Economia todo mês, sem esforço</li>
-            <li>🏠 Nada de obra ou equipamento: a conta continua no seu nome</li>
-            <li>🚫 Sem mensalidade</li>
-            <li>☀️ Você usa energia solar de verdade, limpa e mais barata</li>
-          </ul>
-          {prova && prova.economiaTotal > 0 && (
-            <p className="relative mt-4 text-sm text-eco-200">
-              Quem já aderiu economizou{" "}
-              <strong className="text-white">{brl(prova.economiaTotal)}</strong>
-              {prova.familias ? <> em conjunto, em <strong className="text-white">{prova.familias} famílias</strong></> : null}.
+      <div aria-live="polite">
+        {res && !res.ok && (
+          <div className="lp-card" style={{ borderColor: "#F0C36D", background: "#FFF8E8" }}>
+            <p style={{ margin: 0, fontSize: "15px", color: "#7A4B00" }}>
+              {res.mensagem ||
+                (res.motivo === "consumo_invalido"
+                  ? "Informe o consumo para simular."
+                  : "Simulador indisponível no momento. Tente novamente em instantes.")}
             </p>
-          )}
-
-          <div className="relative mt-4 flex flex-wrap gap-3">
-            <a href={`https://wa.me/5581995592624?text=${encodeURIComponent(`Olá! Sou ${nome.trim()}, fiz a simulação no site e quero saber mais.`)}`} target="_blank" rel="noopener noreferrer" className="btn-eco">
-              Quero esse desconto na minha conta
-            </a>
-            <span className="self-center text-xs text-slate-400">Um consultor confirma o seu valor e explica o passo a passo, sem compromisso.</span>
           </div>
+        )}
 
-          <div className="relative mt-4 flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3">
-            <span aria-hidden className="text-amber-300">⚠️</span>
-            <p className="text-xs leading-relaxed text-amber-100">
-              <strong>Importante:</strong> os valores acima são uma <strong>estimativa</strong> com base no consumo
+        {res && res.ok && (
+          <div className="lp-pad" style={{ background: "#0B1017", color: "#FFF6E3", borderRadius: "22px", padding: "34px" }}>
+            <p style={{ margin: 0, fontSize: "15px", color: "#FFD98A" }}>Todo mês, este dinheiro volta para você:</p>
+            <p style={{ margin: "6px 0 0", fontFamily: AR, fontWeight: 900, fontSize: "46px", lineHeight: 1.05, letterSpacing: "-.03em", color: "#FFB21A" }}>
+              {brl(res.faixaMin)}
+              <span style={{ fontSize: "20px", fontWeight: 600, color: "rgba(255,246,227,.6)" }}> a {brl(res.faixaMax)}</span>
+            </p>
+            <p style={{ margin: "12px 0 0", fontSize: "16px", lineHeight: 1.55, color: "rgba(255,246,227,.78)" }}>
+              Em um ano são pelo menos <strong style={{ color: "#FFF6E3" }}>{brl(res.anualMin)}</strong> que hoje vão embora na conta de luz e passam a ficar com você.
+            </p>
+
+            {res.contaHoje > 0 && (
+              <div style={{ display: "grid", gap: "14px", marginTop: "24px", padding: "20px", borderRadius: "16px", background: "rgba(255,246,227,.05)" }}>
+                <Barra rotulo="Hoje você paga" valor={`≈ ${brl(res.contaHoje)}`} fracao={1} cor="#7A8493" />
+                <Barra
+                  rotulo="Com a Lorenergia você pagaria"
+                  valor={`até ${brl(res.contaComLorenergia)}`}
+                  fracao={res.contaHoje > 0 ? res.contaComLorenergia / res.contaHoje : 1}
+                  cor="linear-gradient(90deg,#FFB21A,#FFD98A)"
+                />
+              </div>
+            )}
+
+            <ul className="lp-ganhos">
+              <li>💰 Economia todo mês, sem esforço</li>
+              <li>🏠 Nada de obra ou equipamento: a conta continua no seu nome</li>
+              <li>🚫 Sem mensalidade</li>
+              <li>☀️ Você usa energia solar de verdade, limpa e mais barata</li>
+            </ul>
+            {prova && prova.economiaTotal > 0 && (
+              <p style={{ margin: "18px 0 0", fontSize: "15px", color: "rgba(255,246,227,.78)" }}>
+                Quem já aderiu economizou <strong style={{ color: "#FFB21A" }}>{brl(prova.economiaTotal)}</strong>
+                {prova.familias ? <> em conjunto, em <strong style={{ color: "#FFF6E3" }}>{prova.familias} famílias</strong></> : null}.
+              </p>
+            )}
+
+            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "12px 16px", marginTop: "24px" }}>
+              <a
+                href={linkWhatsapp}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="lp-cta"
+                style={{ display: "inline-flex", alignItems: "center", gap: "10px", background: "linear-gradient(140deg,#FFC24D,#FF9E0B)", color: "#0B1017", fontFamily: AR, fontWeight: 800, fontSize: "17px", padding: "16px 26px", borderRadius: "14px" }}
+              >
+                Quero esse desconto na minha conta
+              </a>
+              <span style={{ fontSize: "13px", color: "rgba(255,246,227,.55)", maxWidth: "260px" }}>Um consultor confirma o seu valor e explica o passo a passo, sem compromisso.</span>
+            </div>
+
+            <p style={{ margin: "22px 0 0", padding: "14px 16px", borderRadius: "12px", border: "1px dashed rgba(255,178,26,.45)", fontSize: "13px", lineHeight: 1.55, color: "rgba(255,246,227,.72)" }}>
+              <strong style={{ color: "#FFD98A" }}>Importante:</strong> os valores acima são uma <strong>estimativa</strong> com base no consumo
               que você informou e na tarifa vigente. O valor real depende do seu consumo mensal e pode variar. Esta
               simulação não é uma garantia de desconto.
             </p>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

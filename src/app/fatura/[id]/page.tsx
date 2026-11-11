@@ -102,7 +102,7 @@ export default async function FaturaPage({ params }: { params: Promise<{ id: str
   const rascunho = f.publicada === false;
 
   return (
-    <div className="min-h-screen py-8">
+    <div className="sem-aurora min-h-screen py-8">
       <div className="mx-auto max-w-2xl px-4">
         <div className="no-print mb-4 flex items-center justify-between">
           <Link href={voltarHref} className="inline-flex items-center gap-1 text-sm text-slate-400 hover:text-white">

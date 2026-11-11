@@ -1,8 +1,7 @@
-import Link from "next/link";
 import type { Metadata } from "next";
-import { ArrowLeft, Sun } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
 import SimuladorPublico from "@/components/SimuladorPublico";
+import CabecalhoPublico from "@/components/landing/CabecalhoPublico";
 import { getResumoPublico } from "@/lib/resumo-publico";
 
 export const dynamic = "force-dynamic";
@@ -24,30 +23,17 @@ export default async function SimuladorPage() {
   const resumo = await getResumoPublico();
 
   return (
-    <main className="mx-auto max-w-2xl px-4 py-10">
-      <div className="mb-6 flex items-center justify-between">
-        <Link href="/" className="inline-flex items-center gap-1 text-sm text-slate-400 hover:text-white">
-          <ArrowLeft className="h-4 w-4" /> Voltar ao site
-        </Link>
-        <span className="inline-flex items-center gap-2 text-sm font-semibold text-white">
-          <Sun className="h-5 w-5 text-brand-400" /> Lorenergia
-        </span>
-      </div>
-
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-white" style={{ fontFamily: "var(--font-display)" }}>
-          Quanto da sua conta de luz pode voltar para o seu bolso?
-        </h1>
-        <p className="mt-2 text-sm text-slate-400">
-          Em segundos você descobre o valor que deixa de pagar todo mês, sem obra, sem instalar nada e sem mensalidade. Basta informar o seu consumo. É grátis e sem compromisso.
+    <main className="lp" style={{ fontFamily: "'IBM Plex Sans',system-ui,sans-serif", color: "#0B1017", background: "#FBF7F0", minHeight: "100vh" }}>
+      <CabecalhoPublico
+        titulo="Quanto da sua conta de luz pode voltar para o seu bolso?"
+        subtitulo="Em segundos você descobre o valor que deixa de pagar todo mês, sem obra, sem instalar nada e sem mensalidade. Basta informar o seu consumo. É grátis e sem compromisso."
+      />
+      <div className="lp-sec" style={{ maxWidth: "860px", margin: "0 auto", padding: "36px 28px 72px" }}>
+        <SimuladorPublico planos={planos} prova={resumo ? { economiaTotal: resumo.economiaTotal, familias: resumo.familias } : null} />
+        <p style={{ margin: "28px 0 0", textAlign: "center", fontSize: "13px", color: "#7A8493" }}>
+          A economia mostrada é uma estimativa com base no consumo informado e na tarifa vigente, e não uma garantia de desconto.
         </p>
       </div>
-
-      <SimuladorPublico planos={planos} prova={resumo ? { economiaTotal: resumo.economiaTotal, familias: resumo.familias } : null} />
-
-      <p className="mt-8 text-center text-xs text-slate-500">
-        A economia mostrada é uma estimativa com base no consumo informado e na tarifa vigente, e não uma garantia de desconto.
-      </p>
     </main>
   );
 }

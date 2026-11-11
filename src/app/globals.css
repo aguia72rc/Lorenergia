@@ -73,6 +73,13 @@ body {
   mask-image: radial-gradient(ellipse at 50% 0%, black, transparent 78%);
 }
 
+/* Páginas públicas com fundo próprio (landing, simulador, privacidade): o fundo animado
+   ficava escondido atrás do conteúdo, só gastando processamento. Na fatura ele continua
+   como pano de fundo, mas parado. */
+body:has(.lp) .aurora { display: none; }
+body:has(.sem-aurora) .aurora::before,
+body:has(.sem-aurora) .aurora::after { animation: none; }
+
 @layer components {
   .glass {
     background: var(--surface);
@@ -244,6 +251,12 @@ summary:focus-visible {
   50% { box-shadow: 0 0 0 14px rgba(255, 178, 26, 0); }
 }
 .lp-cta:hover { filter: brightness(1.07); color: #0B1017 !important; }
+/* Botão secundário (contorno claro, sobre fundo escuro) e links do rodapé */
+.lp a.lp-cta2 { color: #FFF6E3; background: rgba(255, 246, 227, 0.08); border: 1px solid rgba(255, 246, 227, 0.45); }
+.lp a.lp-cta2:hover { color: #0B1017; background: #FFF6E3; border-color: #FFF6E3; }
+.lp a.lp-rodape { color: rgba(255, 246, 227, 0.78); text-decoration: underline; text-underline-offset: 3px; }
+.lp a.lp-rodape:hover { color: #FFB21A; }
+.lp a:focus-visible, .lp button:focus-visible, .lp input:focus-visible { outline: 2px solid #FFB21A; outline-offset: 3px; }
 .lp a.lp-enter { color: #FFF6E3; background: rgba(255, 246, 227, 0.12); border: 1px solid rgba(255, 246, 227, 0.5); }
 .lp a.lp-enter:hover { color: #0B1017; background: #FFF6E3; border-color: #FFF6E3; }
 .lp input[type="range"] { -webkit-appearance: none; appearance: none; background: transparent; }
@@ -251,6 +264,31 @@ summary:focus-visible {
 .lp input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 30px; height: 30px; margin-top: -10px; border-radius: 99px; background: #0B1017; border: 4px solid #FFB21A; cursor: pointer; }
 .lp input[type="range"]::-moz-range-track { height: 10px; border-radius: 99px; background: linear-gradient(90deg, #FFB21A, #FFD98A); }
 .lp input[type="range"]::-moz-range-thumb { width: 30px; height: 30px; border-radius: 99px; background: #0B1017; border: 4px solid #FFB21A; cursor: pointer; }
+/* Páginas públicas no visual da landing (simulador, privacidade) */
+.lp a.lp-marca, .lp a.lp-marca:hover { color: #FFF6E3; }
+.lp .lp-card { background: #FFFFFF; border: 1px solid #EAE2D4; border-radius: 22px; padding: 30px; }
+.lp .lp-form-grid { position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.lp .lp-label { display: block; font-size: 14px; font-weight: 600; color: #2B323C; margin-bottom: 6px; }
+.lp .lp-input { display: block; width: 100%; font: inherit; font-size: 16px; line-height: 1.3; padding: 12px 14px; border: 1px solid #D9CFBD; border-radius: 12px; background: #FFFDF8; color: #0B1017; }
+.lp .lp-input::placeholder { color: #9AA1AC; }
+.lp .lp-input:focus { outline: 2px solid #FFB21A; outline-offset: 1px; border-color: #FFB21A; }
+.lp .lp-seg { display: flex; flex: none; border: 1px solid #D9CFBD; border-radius: 12px; overflow: hidden; }
+.lp .lp-seg button { font: inherit; font-size: 14px; font-weight: 600; padding: 0 14px; border: 0; background: #FFFDF8; color: #4A5361; cursor: pointer; }
+.lp .lp-seg button[aria-pressed="true"] { background: #0B1017; color: #FFB21A; }
+.lp .lp-btn { width: 100%; font-family: 'Archivo', sans-serif; font-weight: 800; font-size: 18px; letter-spacing: -.01em; padding: 17px 24px; border: 0; border-radius: 14px; cursor: pointer; color: #0B1017; background: linear-gradient(140deg, #FFC24D, #FF9E0B); }
+.lp .lp-btn:hover { filter: brightness(1.07); }
+.lp .lp-btn:disabled { opacity: .65; cursor: progress; }
+.lp .lp-ganhos { list-style: none; margin: 22px 0 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 10px 18px; font-size: 15px; line-height: 1.45; color: rgba(255, 246, 227, .85); }
+.lp .lp-texto { font-size: 17px; line-height: 1.65; color: #2B323C; }
+.lp .lp-texto h2 { font-family: 'Archivo', sans-serif; font-weight: 800; font-size: 24px; letter-spacing: -.02em; color: #0B1017; margin: 36px 0 10px; }
+.lp .lp-texto p, .lp .lp-texto ul { margin: 0 0 14px; max-width: 68ch; }
+.lp .lp-texto ul { padding-left: 22px; list-style: disc; }
+.lp .lp-texto li { margin-bottom: 6px; }
+.lp .lp-texto a { text-decoration: underline; text-underline-offset: 3px; }
+@media (max-width: 640px) {
+  .lp .lp-form-grid, .lp .lp-ganhos { grid-template-columns: 1fr; }
+  .lp .lp-card { padding: 22px; }
+}
 @media (max-width: 900px) {
   .lp .lp-grid { grid-template-columns: 1fr !important; gap: 16px !important; }
   .lp .lp-sec { padding-left: 20px !important; padding-right: 20px !important; }
