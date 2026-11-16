@@ -3,7 +3,9 @@
  * pergunta do site, é aqui — as seções em src/components/landing só montam a tela.
  */
 
-export const WHATSAPP = "5581995592624";
+export const WHATSAPP = "5581920099926";
+/** O mesmo número, como aparece escrito para o visitante. */
+export const WHATSAPP_LEGIVEL = "(81) 92009-9926";
 export const whatsappLink =
   "https://wa.me/" + WHATSAPP + "?text=" + encodeURIComponent("Olá! Quero economizar na minha conta de luz com a Lorenergia.");
 

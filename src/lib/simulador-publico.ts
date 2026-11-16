@@ -12,7 +12,7 @@ export const LIMITE_POR_WHATSAPP_HORA = 5;
 export const LIMITE_GLOBAL_HORA = 300;
 
 /**
- * WhatsApp brasileiro só com dígitos e DDI: "(81) 99559-2624" → "5581995592624".
+ * WhatsApp brasileiro só com dígitos e DDI: "(81) 99999-1234" → "5581999991234".
  * Aceita DDD + 8 ou 9 dígitos, com ou sem o 55 na frente. Devolve null se inválido.
  */
 export function normalizarWhatsapp(valor: string): string | null {

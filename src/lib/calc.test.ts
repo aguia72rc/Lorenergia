@@ -232,12 +232,12 @@ test("desconto no Fio B no lote: total com desconto rateado fecha ao centavo; se
 });
 
 test("simulador público: WhatsApp brasileiro normalizado ou recusado", () => {
-  assert.equal(normalizarWhatsapp("(81) 99559-2624"), "5581995592624");
-  assert.equal(normalizarWhatsapp("+55 81 99559-2624"), "5581995592624");
+  assert.equal(normalizarWhatsapp("(81) 99999-1234"), "5581999991234");
+  assert.equal(normalizarWhatsapp("+55 81 99999-1234"), "5581999991234");
   assert.equal(normalizarWhatsapp("81 3333-4444"), "558133334444"); // fixo, 8 dígitos
-  assert.equal(normalizarWhatsapp("99559-2624"), null); // sem DDD
+  assert.equal(normalizarWhatsapp("99999-1234"), null); // sem DDD
   assert.equal(normalizarWhatsapp("(81) 89559-2624"), null); // celular de 9 dígitos precisa começar em 9
-  assert.equal(normalizarWhatsapp("0819955926"), null);
+  assert.equal(normalizarWhatsapp("0819999912"), null);
   assert.equal(normalizarWhatsapp(""), null);
 });
 

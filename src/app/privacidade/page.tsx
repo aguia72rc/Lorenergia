@@ -1,13 +1,11 @@
 import type { Metadata } from "next";
 import CabecalhoPublico from "@/components/landing/CabecalhoPublico";
-import { WHATSAPP } from "@/content/landing";
+import { WHATSAPP, WHATSAPP_LEGIVEL } from "@/content/landing";
 
 export const metadata: Metadata = {
   title: "Política de privacidade",
   description: "Quais dados a Lorenergia coleta, para que usa e como você pede acesso, correção ou exclusão.",
 };
-
-const WHATSAPP_LEGIVEL = "(81) 99559-2624";
 
 export default function PrivacidadePage() {
   return (
