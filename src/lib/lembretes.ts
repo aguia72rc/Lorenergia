@@ -47,22 +47,39 @@ export interface DadosLembrete {
   temEncargos?: boolean; // vencida com multa/juros somados ao valor
 }
 
-/** Texto do lembrete, no tom de quem avisa um vizinho — sem ameaça. */
+/** "1 dia" / "4 dias". */
+function qtdDias(n: number): string {
+  return n === 1 ? "1 dia" : `${n} dias`;
+}
+
+/** Rodapé comum: avisa que a mensagem é automática e o que fazer se já pagou. */
+const RODAPE =
+  "Esta é uma mensagem automática. Se o pagamento já foi efetuado, envie o comprovante e desconsidere esta mensagem. Obrigado! ☀️";
+
+/**
+ * Texto do lembrete, no tom de quem avisa um vizinho — sem ameaça. Sempre diz
+ * quantos dias faltam para o vencimento (ou quantos dias de atraso).
+ */
 export function montarLembrete(tipo: TipoLembrete, d: DadosLembrete): string {
   const primeiroNome = d.nome.trim().split(/\s+/)[0] || d.nome;
   if (tipo === "vencida") {
+    const atraso = Math.max(1, -d.dias);
     return [
       `Olá, ${primeiroNome}! Tudo bem?`,
-      `Não identificamos o pagamento da sua fatura da Lorenergia de ${d.referencia}, que ${prazoPorExtenso(d.dias)} (${d.vencimento}).`,
+      `Lembrete de atraso: a sua fatura da Lorenergia de ${d.referencia} venceu em ${d.vencimento} e está com ${qtdDias(atraso)} de atraso.`,
       `O valor ${d.temEncargos ? "atualizado, com multa e juros, é" : "é"} ${d.valor}.`,
       `Para pagar por PIX é só abrir: ${d.link}`,
-      "Se já pagou, me envie o comprovante, por favor. Obrigado! ☀️",
+      RODAPE,
     ].join("\n\n");
   }
+  const prazo =
+    d.dias <= 0
+      ? `a sua fatura da Lorenergia de ${d.referencia}, no valor de ${d.valor}, vence hoje (${d.vencimento}).`
+      : `${d.dias === 1 ? "falta 1 dia" : `faltam ${d.dias} dias`} para o vencimento da sua fatura da Lorenergia de ${d.referencia}, no valor de ${d.valor} (vence em ${d.vencimento}).`;
   return [
     `Olá, ${primeiroNome}! Tudo bem?`,
-    `Passando para lembrar que a sua fatura da Lorenergia de ${d.referencia}, no valor de ${d.valor}, ${prazoPorExtenso(d.dias)} (${d.vencimento}).`,
+    `Lembrete de vencimento: ${prazo}`,
     `Para pagar por PIX é só abrir: ${d.link}`,
-    "Se já pagou, pode desconsiderar. Obrigado! ☀️",
+    RODAPE,
   ].join("\n\n");
 }
