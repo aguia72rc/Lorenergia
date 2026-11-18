@@ -30,19 +30,29 @@ test("lembrete: prazo por extenso", () => {
   assert.equal(prazoPorExtenso(-5), "venceu há 5 dias");
 });
 
-test("lembrete: mensagem usa o primeiro nome, o valor e o link; vencida cita multa só se houver", () => {
+test("lembrete de vencimento: diz quantos dias faltam, o valor, o link e que é automática", () => {
   const base = { nome: "Maria da Silva", referencia: "outubro de 2026", vencimento: "10/11/2026", valor: "R$ 476,65", link: "https://lorenergia.com.br/fatura/abc" };
   const antes = montarLembrete("a_vencer", { ...base, dias: 2 });
   assert.match(antes, /^Olá, Maria!/);
-  assert.match(antes, /no valor de R\$ 476,65, vence em 2 dias \(10\/11\/2026\)/);
+  assert.match(antes, /Lembrete de vencimento: faltam 2 dias para o vencimento da sua fatura da Lorenergia de outubro de 2026, no valor de R\$ 476,65 \(vence em 10\/11\/2026\)\./);
   assert.match(antes, /https:\/\/lorenergia\.com\.br\/fatura\/abc/);
-  assert.doesNotMatch(antes, /multa/);
+  assert.match(antes, /Esta é uma mensagem automática\. Se o pagamento já foi efetuado, envie o comprovante e desconsidere esta mensagem\./);
+  assert.doesNotMatch(antes, /multa|atraso/);
+  assert.match(montarLembrete("a_vencer", { ...base, dias: 1 }), /falta 1 dia para o vencimento/);
   const hoje = montarLembrete("vence_hoje", { ...base, dias: 0 });
-  assert.match(hoje, /vence hoje/);
+  assert.match(hoje, /Lembrete de vencimento: a sua fatura .* vence hoje \(10\/11\/2026\)\./);
+  assert.match(hoje, /mensagem automática/);
+});
+
+test("lembrete de atraso: diz quantos dias de atraso, cita multa só se houver e pede o comprovante", () => {
+  const base = { nome: "Maria da Silva", referencia: "outubro de 2026", vencimento: "10/11/2026", valor: "R$ 476,65", link: "https://lorenergia.com.br/fatura/abc" };
   const vencida = montarLembrete("vencida", { ...base, dias: -4, temEncargos: true });
-  assert.match(vencida, /venceu há 4 dias/);
+  assert.match(vencida, /Lembrete de atraso: a sua fatura da Lorenergia de outubro de 2026 venceu em 10\/11\/2026 e está com 4 dias de atraso\./);
   assert.match(vencida, /atualizado, com multa e juros, é R\$ 476,65/);
-  assert.doesNotMatch(montarLembrete("vencida", { ...base, dias: -1 }), /multa/);
+  assert.match(vencida, /Esta é uma mensagem automática\. Se o pagamento já foi efetuado, envie o comprovante e desconsidere esta mensagem\./);
+  const umDia = montarLembrete("vencida", { ...base, dias: -1 });
+  assert.match(umDia, /está com 1 dia de atraso/);
+  assert.doesNotMatch(umDia, /multa/);
 });
 
 test("data no fuso do Recife: 23h do Recife ainda é o mesmo dia (em UTC já seria o seguinte)", () => {
