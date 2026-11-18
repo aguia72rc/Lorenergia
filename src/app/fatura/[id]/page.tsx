@@ -116,7 +116,12 @@ export default async function FaturaPage({ params }: { params: Promise<{ id: str
           <Link href={voltarHref} className="inline-flex items-center gap-1 text-sm text-slate-400 hover:text-white">
             <ArrowLeft className="h-4 w-4" /> Voltar
           </Link>
-          <PrintButton />
+          <div className="flex flex-wrap items-center gap-2">
+            {f.status === "paga" && (
+              <Link href={`/recibo/${f.id}`} className="btn-outline">Ver recibo</Link>
+            )}
+            <PrintButton />
+          </div>
         </div>
 
         {linkAviso && (

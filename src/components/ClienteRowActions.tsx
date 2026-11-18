@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { Pencil, Trash2, Send, KeyRound, Copy, Check } from "lucide-react";
+import { Pencil, Trash2, Send, KeyRound, Copy, Check, ReceiptText } from "lucide-react";
 import { excluirCliente, convidarMorador, gerarAcessoMorador } from "@/app/admin/clientes/actions";
 
 export default function ClienteRowActions({ id, temEmail }: { id: string; temEmail: boolean }) {
@@ -72,6 +72,9 @@ export default function ClienteRowActions({ id, temEmail }: { id: string; temEma
         )}
         <Link href={`/admin/clientes/${id}`} title="Editar" className="rounded-md p-1.5 text-slate-400 hover:bg-white/5 hover:text-brand-300">
           <Pencil className="h-4 w-4" />
+        </Link>
+        <Link href={`/admin/clientes/${id}?aba=recibos`} title="Recibos" className="rounded-md p-1.5 text-slate-400 hover:bg-white/5 hover:text-eco-300">
+          <ReceiptText className="h-4 w-4" />
         </Link>
         <button onClick={onExcluir} disabled={pending} title="Excluir" className="rounded-md p-1.5 text-slate-400 hover:bg-white/5 hover:text-red-400">
           <Trash2 className="h-4 w-4" />
