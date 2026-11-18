@@ -149,7 +149,7 @@ export default async function FaturasPage({
             <BellRing className="h-4 w-4" /> Lembretes
           </Link>
           <Link href="/admin/faturas/enviar" className="btn-eco">
-            <Send className="h-4 w-4" /> Enviar WhatsApp
+            <Send className="h-4 w-4" /> Avisar no WhatsApp
           </Link>
           <Link href="/admin/faturas/lote" className="btn-outline">
             <Layers className="h-4 w-4" /> Gerar em lote

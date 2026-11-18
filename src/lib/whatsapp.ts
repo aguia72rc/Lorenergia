@@ -2,29 +2,64 @@ import { apenasDigitos, formatBRL, formatKwh, formatReferencia, formatData } fro
 import type { FaturaComCliente, Configuracoes } from "./types";
 
 /**
+ * Mensagem padrão do aviso de fatura nova (usada quando o campo "Mensagem do
+ * WhatsApp" das Configurações está vazio; a migração 0032 também a grava lá).
+ */
+export const MENSAGEM_PADRAO = [
+  "Olá, {primeiro_nome}! ☀️",
+  "Sua fatura da Lorenergia de {referencia} já está disponível no aplicativo.",
+  "{beneficio}",
+  "💰 Valor: {valor}\n📅 Vencimento: {vencimento}",
+  "Veja a fatura e pague por PIX: {link}",
+].join("\n\n");
+
+type FaturaMensagem = Pick<
+  FaturaComCliente,
+  "clientes" | "referencia" | "consumo_kwh" | "valor_liquido" | "economia" | "vencimento"
+> & { modalidade_beneficio?: string | null; cashback_valor?: number | null };
+
+/**
+ * A frase do ganho do mês, certa para cada modalidade: desconto (economia na
+ * fatura) ou cashback (valor que volta depois). Vazia se não houve ganho.
+ */
+export function textoBeneficio(f: FaturaMensagem): string {
+  if (f.modalidade_beneficio === "cashback") {
+    const v = Number(f.cashback_valor) || 0;
+    return v > 0 ? `Neste mês você acumulou ${formatBRL(v)} de cashback com a energia solar. 💚` : "";
+  }
+  const v = Number(f.economia) || 0;
+  return v > 0 ? `Com a energia solar, você economizou ${formatBRL(v)} neste mês. 💚` : "";
+}
+
+/**
  * Monta o texto da mensagem de WhatsApp a partir do template configurado,
- * substituindo as variáveis {nome}, {consumo}, {valor}, etc.
+ * substituindo as variáveis {nome}, {primeiro_nome}, {consumo}, {valor}, etc.
  */
 export function montarMensagem(
-  fatura: FaturaComCliente,
-  config: Pick<Configuracoes, "mensagem_whatsapp">,
+  fatura: FaturaMensagem,
+  config: Pick<Configuracoes, "mensagem_whatsapp"> | null | undefined,
   linkFatura: string
 ): string {
-  const template = config.mensagem_whatsapp ?? "";
+  const template = config?.mensagem_whatsapp?.trim() || MENSAGEM_PADRAO;
+  const nome = fatura.clientes?.nome ?? "";
   const substituicoes: Record<string, string> = {
-    "{nome}": fatura.clientes?.nome ?? "",
+    "{nome}": nome,
+    "{primeiro_nome}": nome.trim().split(/\s+/)[0] || nome,
     "{referencia}": formatReferencia(fatura.referencia),
     "{consumo}": formatKwh(fatura.consumo_kwh),
     "{valor}": formatBRL(fatura.valor_liquido),
     "{economia}": formatBRL(fatura.economia),
+    "{beneficio}": textoBeneficio(fatura),
     "{vencimento}": formatData(fatura.vencimento),
     "{link}": linkFatura,
   };
 
-  return Object.entries(substituicoes).reduce(
-    (texto, [chave, valor]) => texto.split(chave).join(valor),
-    template
+  const texto = Object.entries(substituicoes).reduce(
+    (t, [chave, valor]) => t.split(chave).join(valor),
+    template.replace(/\r\n/g, "\n")
   );
+  // Sem ganho no mês, {beneficio} fica vazio: não deixa linhas em branco sobrando.
+  return texto.replace(/\n{3,}/g, "\n\n").trim();
 }
 
 /**

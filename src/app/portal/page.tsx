@@ -64,6 +64,13 @@ export default async function PortalPage() {
     .filter((f) => f.referencia.startsWith(String(anoAtual)))
     .reduce((s, f) => s + Number(f.economia), 0);
   const pendentes = lista.filter((f) => f.status === "pendente");
+  // Fatura nova: a mais recente, pendente e ainda dentro do prazo (a vencida já tem o aviso vermelho).
+  const novaFatura = lista.find((f) => f.status === "pendente" && !encargosDe(f)?.emAtraso) ?? null;
+  const ganhoNova = novaFatura
+    ? novaFatura.modalidade_beneficio === "cashback"
+      ? Number(novaFatura.cashback_valor) || 0
+      : Number(novaFatura.economia) || 0
+    : 0;
   const totalPendente = pendentes.reduce((s, f) => s + Number(f.valor_liquido), 0);
 
   // Projeção anual de economia: média mensal das faturas válidas × 12.
@@ -113,6 +120,39 @@ export default async function PortalPage() {
         <h1 className="text-2xl font-bold text-white" style={{ fontFamily: "var(--font-display)" }}>Olá, {c?.nome?.split(" ")[0]} 👋</h1>
         <p className="text-sm text-slate-400">Acompanhe suas faturas e sua economia com energia solar.</p>
       </div>
+
+      {novaFatura && (
+        <Link
+          href={`/fatura/${novaFatura.id}`}
+          className="group relative flex flex-wrap items-center justify-between gap-4 overflow-hidden rounded-2xl border border-brand-400/40 p-5 transition-colors hover:border-brand-400/70"
+          style={{ background: "linear-gradient(120deg, rgba(255,176,32,0.18), rgba(16,185,129,0.12))" }}
+        >
+          <div className="flex min-w-0 items-center gap-4">
+            <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-500/20 text-brand-300">
+              <FileText className="h-6 w-6" />
+            </span>
+            <div className="min-w-0">
+              <p className="font-semibold text-white">
+                Sua fatura de {formatReferencia(novaFatura.referencia)} já está disponível
+              </p>
+              <p className="text-sm text-slate-300">
+                {ganhoNova > 0 && (
+                  <>
+                    {novaFatura.modalidade_beneficio === "cashback" ? "Você acumulou " : "Você economizou "}
+                    <strong className="text-eco-300">{formatBRL(ganhoNova)}</strong>
+                    {novaFatura.modalidade_beneficio === "cashback" ? " de cashback" : " com a energia solar"} · {" "}
+                  </>
+                )}
+                {formatBRL(Number(novaFatura.valor_liquido))}
+                {novaFatura.vencimento ? `, vence em ${formatData(novaFatura.vencimento)}` : ""}
+              </p>
+            </div>
+          </div>
+          <span className="btn-primary shrink-0">
+            Ver e pagar <ChevronRight className="h-4 w-4" />
+          </span>
+        </Link>
+      )}
 
       {vencidas.length > 0 && (
         <div className="rounded-2xl border border-red-500/40 bg-red-500/10 p-5">
