@@ -225,10 +225,11 @@ export default async function FaturaPage({ params }: { params: Promise<{ id: str
                 <tbody>
                   <LinhaComp desc="Consumo — TUSD" qtd={numero(f.consumo_kwh, 1)} preco={numero(f.tarifa_tusd, 2)} valor={valorTusd} />
                   <LinhaComp desc="Consumo — TE" qtd={numero(f.consumo_kwh, 1)} preco={numero(f.tarifa_te, 2)} valor={valorTe} />
-                  <LinhaComp desc="Contribuição de iluminação pública" valor={f.taxa_iluminacao} />
-                  <LinhaComp desc="TUSD GD II" valor={f.taxa_energia_solar} />
-                  <LinhaComp desc="Adicional bandeira" valor={f.adicional_bandeira} />
-                  <LinhaComp desc="Multa / juros" valor={f.multa_juros} destaque={Number(f.multa_juros) > 0} />
+                  {/* Encargos da distribuidora: sempre em vermelho e negrito, para chamar a atenção. */}
+                  <LinhaComp desc="Contribuição de iluminação pública" valor={f.taxa_iluminacao} destaque />
+                  <LinhaComp desc="TUSD GD II" valor={f.taxa_energia_solar} destaque />
+                  <LinhaComp desc="Adicional bandeira" valor={f.adicional_bandeira} destaque />
+                  <LinhaComp desc="Multa / juros" valor={f.multa_juros} destaque />
                   {isCashback ? (
                     <tr className="border-b border-slate-100">
                       <td className="py-2.5 pr-3 text-brand-700">Cashback a receber ({numero(f.desconto_percentual, 0)}%) — não abatido nesta fatura</td>
@@ -377,13 +378,13 @@ function LinhaComp({ desc, qtd, preco, valor, destaque }: { desc: string; qtd?: 
   const vazio = <span className="text-slate-300">—</span>;
   return (
     <tr className="border-b border-slate-100">
-      <td className={`py-2.5 pr-3 ${destaque ? "text-red-600" : "text-slate-600"}`}>
+      <td className={`py-2.5 pr-3 ${destaque ? "font-bold text-red-600" : "text-slate-600"}`}>
         {desc}
         {qtd && preco && <span className="block text-xs text-slate-400 sm:hidden">{qtd} kWh × {preco}</span>}
       </td>
       <td className="hidden whitespace-nowrap py-2.5 pl-3 text-right tabular-nums text-slate-500 sm:table-cell">{qtd ?? vazio}</td>
       <td className="hidden whitespace-nowrap py-2.5 pl-3 text-right tabular-nums text-slate-500 sm:table-cell">{preco ?? vazio}</td>
-      <td className={`whitespace-nowrap py-2.5 pl-3 text-right tabular-nums ${destaque ? "text-red-600" : "text-slate-900"}`}>{formatBRL(valor)}</td>
+      <td className={`whitespace-nowrap py-2.5 pl-3 text-right tabular-nums ${destaque ? "font-bold text-red-600" : "text-slate-900"}`}>{formatBRL(valor)}</td>
     </tr>
   );
 }
