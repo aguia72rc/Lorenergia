@@ -224,6 +224,10 @@ summary:focus-visible {
     box-shadow: none !important;
     backdrop-filter: none !important;
   }
+  /* Os encargos destacados em vermelho continuam vermelhos no PDF/impressão. */
+  .print-light .text-red-600 {
+    color: #dc2626 !important;
+  }
 }
 
 /* Barra de rolagem discreta */
