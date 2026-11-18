@@ -99,7 +99,9 @@ export default async function ConfiguracoesPage() {
           <textarea id="mensagem_whatsapp" name="mensagem_whatsapp" rows={8} className="input font-mono text-xs" defaultValue={cfg?.mensagem_whatsapp ?? ""} />
           <div className="mt-2 rounded-lg bg-white/5 p-3 text-xs text-slate-400">
             <p className="mb-1 font-medium text-slate-300">Variáveis disponíveis:</p>
-            <p><code>{"{nome}"}</code>, <code>{"{referencia}"}</code>, <code>{"{consumo}"}</code>, <code>{"{valor}"}</code>, <code>{"{economia}"}</code>, <code>{"{vencimento}"}</code>, <code>{"{link}"}</code></p>
+            <p><code>{"{nome}"}</code>, <code>{"{primeiro_nome}"}</code>, <code>{"{referencia}"}</code>, <code>{"{consumo}"}</code>, <code>{"{valor}"}</code>, <code>{"{economia}"}</code>, <code>{"{beneficio}"}</code>, <code>{"{vencimento}"}</code>, <code>{"{link}"}</code></p>
+            <p className="mt-1"><code>{"{beneficio}"}</code> vira a frase do ganho do mês: &quot;você economizou R$ …&quot; (desconto) ou &quot;você acumulou R$ … de cashback&quot;. Some se não houve ganho.</p>
+            <p className="mt-1">Deixe o campo vazio para usar a mensagem padrão (&quot;Sua fatura … já está disponível no aplicativo&quot;).</p>
           </div>
         </div>
 

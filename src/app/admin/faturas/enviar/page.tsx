@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft, Send, AlertTriangle } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { formatBRL, formatReferencia, formatData, primeiroDiaMesAtual } from "@/lib/format";
+import { formatBRL, formatReferencia, formatData, primeiroDiaMesAtual, dataNoRecife } from "@/lib/format";
 import { getBaseUrl } from "@/lib/url";
 import { montarMensagem, gerarLinkWhatsApp } from "@/lib/whatsapp";
 import MonthFilter from "@/components/MonthFilter";
@@ -56,17 +56,17 @@ export default async function EnviarWhatsappPage({
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-white">Enviar faturas pelo WhatsApp</h1>
+          <h1 className="text-2xl font-bold text-white">Avisar: sua fatura já está disponível</h1>
           <p className="text-sm text-slate-400">
-            {formatReferencia(referencia)} · {totalEnviadas} de {lista.length} enviada(s)
+            {formatReferencia(referencia)} · {totalEnviadas} de {lista.length} morador(es) avisado(s)
           </p>
         </div>
         <MonthFilter basePath="/admin/faturas/enviar" />
       </div>
 
       <div className="rounded-lg border border-brand-500/30 bg-brand-500/10 p-3 text-sm text-brand-300">
-        💡 Clique em <strong>Enviar WhatsApp</strong> em cada morador: abre o WhatsApp com a mensagem e o link da
-        fatura prontos — é só apertar enviar. O sistema marca automaticamente quem já foi enviado.
+        💡 Clique em <strong>Avisar no WhatsApp</strong> em cada morador: abre o WhatsApp com o aviso de que a fatura já está
+        disponível no aplicativo, o desconto do mês e o link — é só apertar enviar. O sistema marca quem já foi avisado.
       </div>
 
       {(qtdRascunhos ?? 0) > 0 && (
@@ -112,7 +112,7 @@ export default async function EnviarWhatsappPage({
                   <span className="font-semibold text-white">{formatBRL(f.valor_liquido)}</span>
                 </div>
                 {f.whatsapp_enviado_em && (
-                  <p className="text-xs text-eco-300">✓ Enviado em {formatData(f.whatsapp_enviado_em.slice(0, 10))}</p>
+                  <p className="text-xs text-eco-300">✓ Avisado em {formatData(dataNoRecife(new Date(f.whatsapp_enviado_em)))}</p>
                 )}
                 <WhatsAppButton faturaId={f.id} link={link} enviadoEm={f.whatsapp_enviado_em} variante="grande" />
               </div>

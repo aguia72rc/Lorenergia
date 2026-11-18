@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { Send } from "lucide-react";
 import { publicarFatura, publicarMes } from "@/app/admin/faturas/actions";
 
@@ -35,6 +36,7 @@ export function PublicarFaturaButton({
 export function PublicarMesButton({ referencia, qtd, rotuloMes }: { referencia: string; qtd: number; rotuloMes: string }) {
   const [pending, startTransition] = useTransition();
   const [msg, setMsg] = useState<string | null>(null);
+  const [publicou, setPublicou] = useState(false);
 
   function onPublicar() {
     if (!confirm(`Publicar ${qtd} fatura(s) de ${rotuloMes}? Os clientes passarão a vê-las no portal.`)) return;
@@ -42,7 +44,20 @@ export function PublicarMesButton({ referencia, qtd, rotuloMes }: { referencia: 
     startTransition(async () => {
       const r = await publicarMes(referencia);
       setMsg(r.mensagem);
+      setPublicou(r.ok && r.publicadas > 0);
     });
+  }
+
+  if (publicou) {
+    // Depois de publicar, o próximo passo é avisar os moradores.
+    return (
+      <span className="inline-flex flex-wrap items-center gap-2">
+        {msg && <span className="text-xs text-eco-300">{msg}</span>}
+        <Link href={`/admin/faturas/enviar?mes=${referencia.slice(0, 7)}`} className="btn-eco">
+          <Send className="h-4 w-4" /> Avisar os moradores no WhatsApp
+        </Link>
+      </span>
+    );
   }
 
   return (

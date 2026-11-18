@@ -10,6 +10,9 @@ import { calcularEncargosAtraso } from "@/lib/atraso";
 import StatusBadge from "@/components/StatusBadge";
 import PrintButton from "@/components/PrintButton";
 import CopiarPix from "@/components/CopiarPix";
+import WhatsAppButton from "@/components/WhatsAppButton";
+import { montarMensagem, gerarLinkWhatsApp } from "@/lib/whatsapp";
+import { getBaseUrl } from "@/lib/url";
 import { PublicarFaturaButton } from "@/components/PublicarButtons";
 import EconomiaChart from "@/components/EconomiaChart";
 import type { FaturaComCliente, Configuracoes, Fatura } from "@/lib/types";
@@ -100,6 +103,11 @@ export default async function FaturaPage({ params }: { params: Promise<{ id: str
   const voltarHref = ehAdmin ? "/admin/faturas" : "/portal";
   // Rascunho: o cliente nem chega aqui (o banco bloqueia); só o admin vê.
   const rascunho = f.publicada === false;
+  // Fatura recém-publicada e o morador ainda não foi avisado: o admin vê o botão de aviso.
+  const avisoPendente = ehAdmin && !rascunho && f.status === "pendente" && !f.whatsapp_enviado_em;
+  const linkAviso = avisoPendente
+    ? gerarLinkWhatsApp(c?.telefone, montarMensagem(f, cfg, `${await getBaseUrl()}/fatura/${f.id}`))
+    : null;
 
   return (
     <div className="sem-aurora min-h-screen py-8">
@@ -110,6 +118,22 @@ export default async function FaturaPage({ params }: { params: Promise<{ id: str
           </Link>
           <PrintButton />
         </div>
+
+        {linkAviso && (
+          <div className="no-print mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-eco-500/40 bg-eco-500/10 p-4">
+            <div className="min-w-0">
+              <p className="font-semibold text-eco-200">✅ Fatura publicada — avise {c?.nome?.split(" ")[0] ?? "o morador"}</p>
+              <p className="text-sm text-eco-300/80">
+                {c?.telefone
+                  ? "Abre o WhatsApp com o aviso: a fatura já está disponível no aplicativo, com o desconto do mês e o link."
+                  : "Este morador não tem WhatsApp cadastrado: o WhatsApp abre sem destinatário."}
+              </p>
+            </div>
+            <div className="w-full sm:w-auto">
+              <WhatsAppButton faturaId={f.id} link={linkAviso} enviadoEm={null} variante="grande" />
+            </div>
+          </div>
+        )}
 
         {rascunho && ehAdmin && (
           <div className="no-print mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-sky-500/40 bg-sky-500/10 p-4">

@@ -55,7 +55,7 @@ export default function WhatsAppButton({
         {enviado ? <Check className="h-4 w-4" /> : <IconeWhats className="h-4 w-4" />}
         {tipo === "lembrete"
           ? enviado ? "Lembrado — lembrar de novo" : "Enviar lembrete"
-          : enviado ? "Enviado — reenviar" : "Enviar WhatsApp"}
+          : enviado ? "Avisado — avisar de novo" : "Avisar no WhatsApp"}
       </button>
     );
   }
@@ -64,13 +64,13 @@ export default function WhatsAppButton({
     <button
       onClick={onEnviar}
       disabled={pending}
-      title={enviado ? "Enviado — clique para reenviar" : "Enviar pelo WhatsApp"}
+      title={enviado ? "Morador já avisado — clique para avisar de novo" : "Avisar o morador: sua fatura já está disponível"}
       className={`inline-flex items-center gap-1 rounded-md px-2 py-1.5 text-xs font-semibold ${
         enviado ? "bg-eco-100 text-eco-700 hover:bg-eco-200" : "bg-eco-600 text-white hover:bg-eco-700"
       }`}
     >
       {enviado ? <Check className="h-3.5 w-3.5" /> : <IconeWhats className="h-3.5 w-3.5" />}
-      WhatsApp
+      {enviado ? "Avisado" : "Avisar"}
     </button>
   );
 }
