@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Leaf, Wallet, FileText, TrendingDown, ChevronRight, Home, ExternalLink, AlertTriangle } from "lucide-react";
+import { Leaf, Wallet, FileText, TrendingDown, ChevronRight, Home, ExternalLink, AlertTriangle, ReceiptText } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getSessao } from "@/lib/auth";
 import { formatBRL, formatReferencia, formatData, formatReferenciaCurta, hojeISO, dataNoRecife } from "@/lib/format";
@@ -76,6 +76,9 @@ export default async function PortalPage({ searchParams }: { searchParams: Promi
     });
   // Fatura nova: a mais recente, pendente e ainda dentro do prazo (a vencida já tem o aviso vermelho).
   const novaFatura = lista.find((f) => f.status === "pendente" && !encargosDe(f)?.emAtraso) ?? null;
+  // Recibo recente: fatura paga nos últimos 30 dias (o recibo fica sempre na aba Recibos).
+  const limiteRecibo = Date.parse(`${hoje}T00:00:00-03:00`) - 30 * 86_400_000;
+  const reciboRecente = pagas.find((p) => p.pago_em && Date.parse(p.pago_em) >= limiteRecibo) ?? null;
   const ganhoNova = novaFatura
     ? novaFatura.modalidade_beneficio === "cashback"
       ? Number(novaFatura.cashback_valor) || 0
@@ -130,6 +133,28 @@ export default async function PortalPage({ searchParams }: { searchParams: Promi
         <h1 className="text-2xl font-bold text-white" style={{ fontFamily: "var(--font-display)" }}>Olá, {c?.nome?.split(" ")[0]} 👋</h1>
         <p className="text-sm text-slate-400">Acompanhe suas faturas e sua economia com energia solar.</p>
       </div>
+
+      {reciboRecente && (
+        <Link
+          href={`/recibo/${reciboRecente.id}`}
+          className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-eco-500/40 bg-eco-500/10 p-5 transition-colors hover:border-eco-400/70"
+        >
+          <div className="flex min-w-0 items-center gap-4">
+            <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-eco-500/20 text-eco-300">
+              <ReceiptText className="h-6 w-6" />
+            </span>
+            <div className="min-w-0">
+              <p className="font-semibold text-white">Pagamento confirmado ✓</p>
+              <p className="text-sm text-slate-300">
+                O recibo da sua fatura de {formatReferencia(reciboRecente.referencia)} ({formatBRL(reciboRecente.valor)}) já está disponível.
+              </p>
+            </div>
+          </div>
+          <span className="btn-eco shrink-0">
+            Ver recibo <ChevronRight className="h-4 w-4" />
+          </span>
+        </Link>
+      )}
 
       {novaFatura && (
         <Link

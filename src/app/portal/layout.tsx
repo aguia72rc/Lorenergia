@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Sun, LogOut, KeyRound } from "lucide-react";
+import { Sun, LogOut, KeyRound, ReceiptText } from "lucide-react";
 import { getSessao } from "@/lib/auth";
 import ThemeToggle from "@/components/ThemeToggle";
 
@@ -23,12 +23,15 @@ export default async function PortalLayout({ children }: { children: React.React
           <div className="flex items-center gap-3">
             <span className="hidden text-sm text-slate-500 sm:inline">{sessao.email}</span>
             <ThemeToggle />
-            <Link href="/portal/senha" className="btn-outline">
-              <KeyRound className="h-4 w-4" /> Trocar senha
+            <Link href="/portal?aba=recibos#lista" className="btn-outline" title="Meus recibos" aria-label="Meus recibos">
+              <ReceiptText className="h-4 w-4" /> <span className="hidden sm:inline">Recibos</span>
+            </Link>
+            <Link href="/portal/senha" className="btn-outline" title="Trocar senha" aria-label="Trocar senha">
+              <KeyRound className="h-4 w-4" /> <span className="hidden sm:inline">Trocar senha</span>
             </Link>
             <form action="/auth/signout" method="post">
               <button type="submit" className="btn-outline">
-                <LogOut className="h-4 w-4" /> Sair
+                <LogOut className="h-4 w-4" /> <span className="hidden sm:inline">Sair</span>
               </button>
             </form>
           </div>
