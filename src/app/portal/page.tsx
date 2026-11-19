@@ -3,8 +3,9 @@ import { redirect } from "next/navigation";
 import { Leaf, Wallet, FileText, TrendingDown, ChevronRight, Home, ExternalLink, AlertTriangle } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getSessao } from "@/lib/auth";
-import { formatBRL, formatReferencia, formatData, formatReferenciaCurta, hojeISO } from "@/lib/format";
+import { formatBRL, formatReferencia, formatData, formatReferenciaCurta, hojeISO, dataNoRecife } from "@/lib/format";
 import { calcularEncargosAtraso } from "@/lib/atraso";
+import { resumoPagamento } from "@/lib/pagamento";
 import StatusBadge from "@/components/StatusBadge";
 import ListaRecibos from "@/components/ListaRecibos";
 import EconomiaChart from "@/components/EconomiaChart";
@@ -66,7 +67,13 @@ export default async function PortalPage({ searchParams }: { searchParams: Promi
     .filter((f) => f.referencia.startsWith(String(anoAtual)))
     .reduce((s, f) => s + Number(f.economia), 0);
   const pendentes = lista.filter((f) => f.status === "pendente");
-  const pagas = lista.filter((f) => f.status === "paga");
+  // Recibos: faturas pagas, com o valor efetivamente pago (multa e juros, se em atraso).
+  const pagas = lista
+    .filter((f) => f.status === "paga")
+    .map((f) => {
+      const pg = resumoPagamento(f, f.pago_em ? dataNoRecife(new Date(f.pago_em)) : null, { multa: multaPct, juros: jurosPct });
+      return { id: f.id, referencia: f.referencia, pago_em: f.pago_em, valor: pg.total, comEncargos: pg.encargos > 0 };
+    });
   // Fatura nova: a mais recente, pendente e ainda dentro do prazo (a vencida já tem o aviso vermelho).
   const novaFatura = lista.find((f) => f.status === "pendente" && !encargosDe(f)?.emAtraso) ?? null;
   const ganhoNova = novaFatura

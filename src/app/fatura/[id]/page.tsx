@@ -4,7 +4,7 @@ import { ArrowLeft, Sun } from "lucide-react";
 import QRCode from "qrcode";
 import { createClient } from "@/lib/supabase/server";
 import { getSessao } from "@/lib/auth";
-import { formatBRL, formatReferencia, formatData, formatReferenciaCurta, hojeISO } from "@/lib/format";
+import { formatBRL, formatReferencia, formatData, formatReferenciaCurta, hojeISO, dataNoRecife } from "@/lib/format";
 import { gerarPixCopiaECola } from "@/lib/pix";
 import { calcularEncargosAtraso } from "@/lib/atraso";
 import StatusBadge from "@/components/StatusBadge";
@@ -192,7 +192,10 @@ export default async function FaturaPage({ params }: { params: Promise<{ id: str
               <dl className="space-y-1 text-sm">
                 <Info label="Data de emissão" valor={formatData(dataEmissao)} />
                 <Info label="Vencimento" valor={formatData(f.vencimento)} />
-                {f.status === "paga" && f.pago_em && <Info label="Paga em" valor={formatData(f.pago_em.slice(0, 10))} />}
+                {f.status === "paga" && f.pago_em && <Info label="Paga em" valor={formatData(dataNoRecife(new Date(f.pago_em)))} />}
+                {f.status === "paga" && f.valor_pago != null && Number(f.valor_pago) > Number(f.valor_liquido) + 0.005 && (
+                  <Info label="Valor pago (com multa e juros)" valor={formatBRL(Number(f.valor_pago))} />
+                )}
                 <Info label="Nº medidor" valor={c?.numero_medidor || "—"} />
                 <Info label="Consumo" valor={`${numero(f.consumo_kwh, 0)} kWh`} />
               </dl>
