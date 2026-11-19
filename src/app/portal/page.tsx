@@ -6,6 +6,7 @@ import { getSessao } from "@/lib/auth";
 import { formatBRL, formatReferencia, formatData, formatReferenciaCurta, hojeISO } from "@/lib/format";
 import { calcularEncargosAtraso } from "@/lib/atraso";
 import StatusBadge from "@/components/StatusBadge";
+import ListaRecibos from "@/components/ListaRecibos";
 import EconomiaChart from "@/components/EconomiaChart";
 import EconomiaRing from "@/components/EconomiaRing";
 import BoasVindasModal from "@/components/BoasVindasModal";
@@ -14,7 +15,8 @@ import type { Cliente, Fatura, Configuracoes } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-export default async function PortalPage() {
+export default async function PortalPage({ searchParams }: { searchParams: Promise<{ aba?: string }> }) {
+  const aba = (await searchParams).aba === "recibos" ? "recibos" : "faturas";
   const sessao = await getSessao();
   const supabase = await createClient();
 
@@ -64,6 +66,7 @@ export default async function PortalPage() {
     .filter((f) => f.referencia.startsWith(String(anoAtual)))
     .reduce((s, f) => s + Number(f.economia), 0);
   const pendentes = lista.filter((f) => f.status === "pendente");
+  const pagas = lista.filter((f) => f.status === "paga");
   // Fatura nova: a mais recente, pendente e ainda dentro do prazo (a vencida já tem o aviso vermelho).
   const novaFatura = lista.find((f) => f.status === "pendente" && !encargosDe(f)?.emAtraso) ?? null;
   const ganhoNova = novaFatura
@@ -271,46 +274,67 @@ export default async function PortalPage() {
         </div>
       )}
 
-      <div className="card">
-        <h2 className="mb-4 font-semibold text-white">Minhas faturas</h2>
-        {lista.length === 0 ? (
-          <p className="py-6 text-center text-sm text-slate-400">Você ainda não tem faturas.</p>
-        ) : (
-          <div className="divide-y divide-white/5">
-            {lista.map((f) => {
-              const e = encargosDe(f);
-              const vencida = !!e?.emAtraso;
-              return (
-              <Link
-                key={f.id}
-                href={`/fatura/${f.id}`}
-                className="-mx-2 flex items-center justify-between rounded-xl px-2 py-3 transition-colors hover:bg-white/5"
-              >
-                <div>
-                  <p className="font-medium capitalize text-white">{formatReferencia(f.referencia)}</p>
-                  <p className={`text-xs ${vencida ? "text-red-300" : "text-slate-400"}`}>
-                    {vencida
-                      ? `Vencida há ${e!.diasAtraso} dia(s) · com multa e juros`
-                      : <>{f.consumo_kwh} kWh · economia {formatBRL(f.economia)}{f.vencimento ? ` · vence ${formatData(f.vencimento)}` : ""}</>}
-                  </p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="flex flex-col items-end gap-0.5">
-                    {vencida ? (
-                      <p className="text-xs tabular-nums text-slate-500 line-through">{formatBRL(f.valor_liquido)}</p>
-                    ) : Number(f.valor_desconto) > 0 ? (
-                      <p className="text-xs tabular-nums text-slate-500 line-through">{formatBRL(f.valor_bruto)}</p>
-                    ) : null}
-                    <p className={`font-semibold tabular-nums ${vencida ? "text-red-300" : "text-white"}`}>{formatBRL(vencida ? e!.totalAtualizado : f.valor_liquido)}</p>
-                    {vencida ? <span className="badge bg-red-500/15 text-red-300 ring-1 ring-red-500/25">Vencida</span> : <StatusBadge status={f.status} />}
+      <div className="card" id="lista">
+        <div className="mb-4 flex flex-wrap gap-2" role="tablist" aria-label="Faturas e recibos">
+          <Link
+            href="/portal#lista"
+            scroll={false}
+            role="tab"
+            aria-selected={aba !== "recibos"}
+            className={`rounded-full px-4 py-1.5 text-sm font-semibold ${aba !== "recibos" ? "bg-brand-500 text-brand-950" : "glass text-slate-300 hover:bg-white/5"}`}
+          >
+            Minhas faturas
+          </Link>
+          <Link
+            href="/portal?aba=recibos#lista"
+            scroll={false}
+            role="tab"
+            aria-selected={aba === "recibos"}
+            className={`rounded-full px-4 py-1.5 text-sm font-semibold ${aba === "recibos" ? "bg-brand-500 text-brand-950" : "glass text-slate-300 hover:bg-white/5"}`}
+          >
+            Recibos ({pagas.length})
+          </Link>
+        </div>
+        {aba === "recibos" ? (
+          <ListaRecibos faturas={pagas} />
+        ) : lista.length === 0 ? (
+            <p className="py-6 text-center text-sm text-slate-400">Você ainda não tem faturas.</p>
+          ) : (
+            <div className="divide-y divide-white/5">
+              {lista.map((f) => {
+                const e = encargosDe(f);
+                const vencida = !!e?.emAtraso;
+                return (
+                <Link
+                  key={f.id}
+                  href={`/fatura/${f.id}`}
+                  className="-mx-2 flex items-center justify-between rounded-xl px-2 py-3 transition-colors hover:bg-white/5"
+                >
+                  <div>
+                    <p className="font-medium capitalize text-white">{formatReferencia(f.referencia)}</p>
+                    <p className={`text-xs ${vencida ? "text-red-300" : "text-slate-400"}`}>
+                      {vencida
+                        ? `Vencida há ${e!.diasAtraso} dia(s) · com multa e juros`
+                        : <>{f.consumo_kwh} kWh · economia {formatBRL(f.economia)}{f.vencimento ? ` · vence ${formatData(f.vencimento)}` : ""}</>}
+                    </p>
                   </div>
-                  <ChevronRight className="h-4 w-4 shrink-0 text-slate-500" />
-                </div>
-              </Link>
-              );
-            })}
-          </div>
-        )}
+                  <div className="flex items-center gap-3">
+                    <div className="flex flex-col items-end gap-0.5">
+                      {vencida ? (
+                        <p className="text-xs tabular-nums text-slate-500 line-through">{formatBRL(f.valor_liquido)}</p>
+                      ) : Number(f.valor_desconto) > 0 ? (
+                        <p className="text-xs tabular-nums text-slate-500 line-through">{formatBRL(f.valor_bruto)}</p>
+                      ) : null}
+                      <p className={`font-semibold tabular-nums ${vencida ? "text-red-300" : "text-white"}`}>{formatBRL(vencida ? e!.totalAtualizado : f.valor_liquido)}</p>
+                      {vencida ? <span className="badge bg-red-500/15 text-red-300 ring-1 ring-red-500/25">Vencida</span> : <StatusBadge status={f.status} />}
+                    </div>
+                    <ChevronRight className="h-4 w-4 shrink-0 text-slate-500" />
+                  </div>
+                </Link>
+                );
+              })}
+            </div>
+          )}
       </div>
     </div>
   );
