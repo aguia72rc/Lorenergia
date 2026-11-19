@@ -3,7 +3,8 @@ import { ReceiptText, ChevronRight } from "lucide-react";
 import { formatBRL, formatReferencia, formatData, dataNoRecife } from "@/lib/format";
 import { numeroRecibo } from "@/lib/recibo";
 
-type FaturaPaga = { id: string; referencia: string; valor_liquido: number; pago_em?: string | null };
+/** `valor`: o valor efetivamente pago (com multa e juros, se pago em atraso). */
+type FaturaPaga = { id: string; referencia: string; valor: number; pago_em?: string | null; comEncargos?: boolean };
 
 /** Lista de recibos: um por fatura paga, do mais recente para o mais antigo. */
 export default function ListaRecibos({ faturas, vazio }: { faturas: FaturaPaga[]; vazio?: string }) {
@@ -35,7 +36,10 @@ export default function ListaRecibos({ faturas, vazio }: { faturas: FaturaPaga[]
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <span className="font-semibold tabular-nums text-white">{formatBRL(Number(f.valor_liquido))}</span>
+            <span className="text-right">
+              <span className="block font-semibold tabular-nums text-white">{formatBRL(f.valor)}</span>
+              {f.comEncargos && <span className="block text-[11px] text-red-300">com multa e juros</span>}
+            </span>
             <ChevronRight className="h-4 w-4 shrink-0 text-slate-500" />
           </div>
         </Link>

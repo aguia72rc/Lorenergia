@@ -80,6 +80,7 @@ export interface Fatura {
   vencimento: string | null;
   status: StatusFatura;
   pago_em?: string | null; // quando foi marcada como paga (migração 0030)
+  valor_pago?: number | null; // quanto foi pago, com multa e juros se em atraso (migração 0033)
   observacoes: string | null;
   whatsapp_enviado_em: string | null;
   lembrete_enviado_em?: string | null; // último lembrete de vencimento (migração 0031)

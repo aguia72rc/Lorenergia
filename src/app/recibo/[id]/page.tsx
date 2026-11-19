@@ -6,6 +6,7 @@ import { getSessao } from "@/lib/auth";
 import { formatBRL, formatReferencia, formatData, hojeISO, dataNoRecife } from "@/lib/format";
 import { reaisPorExtenso } from "@/lib/extenso";
 import { numeroRecibo, dataPorExtenso } from "@/lib/recibo";
+import { resumoPagamento } from "@/lib/pagamento";
 import PrintButton from "@/components/PrintButton";
 import type { FaturaComCliente } from "@/lib/types";
 
@@ -18,12 +19,19 @@ export default async function ReciboPage({ params }: { params: Promise<{ id: str
   if (!sessao) redirect(`/login?redirect=/recibo/${id}`);
 
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("faturas")
-    .select("*, clientes(id, nome, unidade, cpf, endereco, cep, cidade_uf, telefone, email, numero_medidor, tipo_ligacao)")
-    .eq("id", id)
-    .single();
+  const [{ data }, { data: cfg }] = await Promise.all([
+    supabase
+      .from("faturas")
+      .select("*, clientes(id, nome, unidade, cpf, endereco, cep, cidade_uf, telefone, email, numero_medidor, tipo_ligacao)")
+      .eq("id", id)
+      .single(),
+    supabase.from("configuracoes").select("multa_percentual, juros_mensal_percentual").eq("id", 1).maybeSingle(),
+  ]);
   if (!data) notFound();
+  const taxas = {
+    multa: Number((cfg as { multa_percentual?: number } | null)?.multa_percentual ?? 2),
+    juros: Number((cfg as { juros_mensal_percentual?: number } | null)?.juros_mensal_percentual ?? 1),
+  };
 
   const f = data as FaturaComCliente;
   const c = f.clientes;
@@ -42,8 +50,10 @@ export default async function ReciboPage({ params }: { params: Promise<{ id: str
     );
   }
 
-  const valor = Number(f.valor_liquido) || 0;
   const pagoEm = f.pago_em ? dataNoRecife(new Date(f.pago_em)) : null;
+  // Valor efetivamente pago: a fatura mais multa e juros, quando paga em atraso.
+  const pg = resumoPagamento(f, pagoEm, taxas);
+  const valor = pg.total;
   const dataRecibo = pagoEm ?? hojeISO();
 
   return (
@@ -82,8 +92,49 @@ export default async function ReciboPage({ params }: { params: Promise<{ id: str
               {c?.cpf ? <>, CPF/CNPJ {c.cpf}</> : null}
               {c?.unidade ? <>, unidade {c.unidade}</> : null}, a importância de{" "}
               <strong className="text-slate-900">{formatBRL(valor)}</strong> ({reaisPorExtenso(valor)}), referente à fatura de energia solar
-              compartilhada de <strong className="text-slate-900">{formatReferencia(f.referencia)}</strong>.
+              compartilhada de <strong className="text-slate-900">{formatReferencia(f.referencia)}</strong>
+              {pg.encargos > 0 ? (
+                <>
+                  , já incluídos <strong className="text-slate-900">{formatBRL(pg.encargos)}</strong> de multa e juros
+                  {pg.diasAtraso > 0 ? <> por {pg.diasAtraso} {pg.diasAtraso === 1 ? "dia" : "dias"} de atraso</> : null}
+                </>
+              ) : null}
+              .
             </p>
+
+            {pg.encargos > 0 && (
+              <table className="w-full text-sm">
+                <tbody>
+                  <tr className="border-b border-slate-100">
+                    <td className="py-2 text-slate-600">Valor da fatura</td>
+                    <td className="py-2 text-right tabular-nums text-slate-900">{formatBRL(pg.valorFatura)}</td>
+                  </tr>
+                  {pg.detalhado ? (
+                    <>
+                      <tr className="border-b border-slate-100">
+                        <td className="py-2 font-bold text-red-600">Multa por atraso ({taxas.multa.toLocaleString("pt-BR")}%)</td>
+                        <td className="py-2 text-right font-bold tabular-nums text-red-600">{formatBRL(pg.multa)}</td>
+                      </tr>
+                      <tr className="border-b border-slate-100">
+                        <td className="py-2 font-bold text-red-600">
+                          Juros de mora ({pg.diasAtraso} {pg.diasAtraso === 1 ? "dia" : "dias"})
+                        </td>
+                        <td className="py-2 text-right font-bold tabular-nums text-red-600">{formatBRL(pg.juros)}</td>
+                      </tr>
+                    </>
+                  ) : (
+                    <tr className="border-b border-slate-100">
+                      <td className="py-2 font-bold text-red-600">Multa e juros por atraso</td>
+                      <td className="py-2 text-right font-bold tabular-nums text-red-600">{formatBRL(pg.encargos)}</td>
+                    </tr>
+                  )}
+                  <tr>
+                    <td className="pt-2 font-semibold text-slate-900">Total pago</td>
+                    <td className="pt-2 text-right font-extrabold tabular-nums text-slate-900">{formatBRL(pg.total)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            )}
 
             <dl className="grid gap-x-6 gap-y-3 rounded-xl bg-slate-50 p-4 text-sm sm:grid-cols-2">
               <Item rotulo="Mês de referência" valor={formatReferencia(f.referencia)} />

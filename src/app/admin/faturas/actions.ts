@@ -6,6 +6,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getSessao } from "@/lib/auth";
 import { calcularFaturaDetalhada, consumoDeLeituras, valorTusdGd2, distribuirTusdGd2, aplicarDescontoFioB, tarifaGd2Valida, MSG_TARIFA_GD2, type ModoGd2 } from "@/lib/calc";
 import type { ResultadoCalculoDetalhado } from "@/lib/calc";
+import { calcularEncargosAtraso } from "@/lib/atraso";
+import { hojeISO } from "@/lib/format";
 import type { StatusFatura, ModalidadeBeneficio } from "@/lib/types";
 
 /**
@@ -84,23 +86,49 @@ async function pagamentoExistente(
   supabase: Cliente,
   referencia: string,
   clienteIds: string[]
-): Promise<Map<string, { status: string; pago_em: string | null }>> {
-  const mapa = new Map<string, { status: string; pago_em: string | null }>();
+): Promise<Map<string, PagamentoExistente>> {
+  const mapa = new Map<string, PagamentoExistente>();
   if (clienteIds.length === 0) return mapa;
-  const { data, error } = await supabase
-    .from("faturas")
-    .select("cliente_id, status, pago_em")
-    .eq("referencia", referencia)
-    .in("cliente_id", clienteIds);
-  if (error) return mapa; // coluna ainda não existe (0030 não aplicada)
-  for (const l of (data ?? []) as { cliente_id: string; status: string; pago_em: string | null }[]) {
-    mapa.set(l.cliente_id, { status: l.status, pago_em: l.pago_em });
+  const consulta = (colunas: string) =>
+    supabase.from("faturas").select(colunas).eq("referencia", referencia).in("cliente_id", clienteIds);
+  let { data, error } = await consulta("cliente_id, status, pago_em, valor_pago");
+  if (error) ({ data, error } = await consulta("cliente_id, status, pago_em")); // 0033 não aplicada
+  if (error) return mapa; // 0030 não aplicada
+  for (const l of (data ?? []) as unknown as (PagamentoExistente & { cliente_id: string })[]) {
+    mapa.set(l.cliente_id, { status: l.status, pago_em: l.pago_em, valor_pago: l.valor_pago ?? null });
   }
   return mapa;
 }
 
+type PagamentoExistente = { status: string; pago_em: string | null; valor_pago?: number | null };
+
+/** Multa (%) e juros ao mês (%) das Configurações (padrão 2% e 1%). */
+async function taxasAtraso(supabase: Cliente): Promise<{ multa: number; juros: number }> {
+  const { data } = await supabase.from("configuracoes").select("multa_percentual, juros_mensal_percentual").eq("id", 1).maybeSingle();
+  return {
+    multa: Number((data as { multa_percentual?: number } | null)?.multa_percentual ?? 2),
+    juros: Number((data as { juros_mensal_percentual?: number } | null)?.juros_mensal_percentual ?? 1),
+  };
+}
+
+/**
+ * Valor pago a gravar: mantém o que já foi registrado; se a fatura acabou de virar
+ * "paga", é o valor da fatura mais multa e juros até hoje (quando paga em atraso).
+ */
+function valorPago(
+  status: string,
+  valorLiquido: number,
+  vencimento: string | null,
+  taxas: { multa: number; juros: number },
+  existente?: PagamentoExistente
+): number | null {
+  if (status !== "paga") return null;
+  if (existente?.status === "paga" && existente.valor_pago != null) return Number(existente.valor_pago);
+  return calcularEncargosAtraso(valorLiquido, vencimento, hojeISO(), taxas.multa, taxas.juros).totalAtualizado;
+}
+
 /** Data de pagamento a gravar: mantém a que já existe; marca agora se virou "paga". */
-function pagoEm(status: string, existente?: { status: string; pago_em: string | null }): string | null {
+function pagoEm(status: string, existente?: PagamentoExistente): string | null {
   if (status !== "paga") return null;
   return existente?.status === "paga" && existente.pago_em ? existente.pago_em : new Date().toISOString();
 }
@@ -118,6 +146,7 @@ function normalizarReferencia(valor: string): string {
  * não as tem, gravamos sem elas (em vez de falhar) até a migração ser rodada.
  */
 const COLUNAS_OPCIONAIS: { teste: RegExp; colunas: string[] }[] = [
+  { teste: /valor_pago/, colunas: ["valor_pago"] }, // migração 0033
   { teste: /pago_em/, colunas: ["pago_em"] }, // migração 0030
   { teste: /tarifa_gd2/, colunas: ["tarifa_gd2"] }, // migração 0026
   { teste: /publicada/, colunas: ["publicada"] }, // migração 0025
@@ -276,6 +305,7 @@ export async function gerarFatura(formData: FormData) {
   const valores = aplicarModalidade(r, modalidade);
   const jaPublicada = (await publicacaoExistente(supabase, referencia, [cliente_id])).get(cliente_id);
   const pagamento = (await pagamentoExistente(supabase, referencia, [cliente_id])).get(cliente_id);
+  const taxas = await taxasAtraso(supabase);
 
   const registro = {
     cliente_id,
@@ -302,6 +332,7 @@ export async function gerarFatura(formData: FormData) {
     vencimento,
     status,
     pago_em: pagoEm(status, pagamento),
+    valor_pago: valorPago(status, valores.valor_liquido, vencimento, taxas, pagamento),
     observacoes,
   };
 
@@ -321,21 +352,30 @@ export async function gerarFatura(formData: FormData) {
 export async function atualizarStatusFatura(id: string, status: StatusFatura) {
   const autor = await exigirAdmin();
   const supabase = await createClient();
-  const { data: atual } = await supabase.from("faturas").select("status").eq("id", id).maybeSingle();
+  const { data: atual } = await supabase.from("faturas").select("status, valor_liquido, vencimento").eq("id", id).maybeSingle();
   const anterior = (atual?.status as string | undefined) ?? null;
 
-  // Registra a data do pagamento ao marcar como paga; limpa ao voltar atrás.
-  let { error } = await supabase
-    .from("faturas")
-    .update({ status, pago_em: status === "paga" ? new Date().toISOString() : null })
-    .eq("id", id);
+  // Ao marcar como paga, registra a data e o valor pago (com multa e juros se em atraso);
+  // ao voltar atrás, limpa os dois.
+  const pago =
+    status === "paga" && atual
+      ? valorPago("paga", Number(atual.valor_liquido), (atual.vencimento as string | null) ?? null, await taxasAtraso(supabase))
+      : null;
+  const atualizar = (campos: Record<string, unknown>) => supabase.from("faturas").update(campos).eq("id", id);
+  let { error } = await atualizar({ status, pago_em: status === "paga" ? new Date().toISOString() : null, valor_pago: pago });
+  // Migração 0033 ainda não aplicada: grava sem o valor pago.
+  if (error && /valor_pago/.test(error.message)) {
+    ({ error } = await atualizar({ status, pago_em: status === "paga" ? new Date().toISOString() : null }));
+  }
   // Migração 0030 ainda não aplicada: grava só a situação.
   if (error && /pago_em/.test(error.message)) {
-    ({ error } = await supabase.from("faturas").update({ status }).eq("id", id));
+    ({ error } = await atualizar({ status }));
   }
   if (error) throw new Error(error.message);
   if (anterior !== status) {
-    await registrarHistorico(supabase, autor, [{ fatura_id: id, evento: "SITUACAO", detalhes: { de: anterior, para: status } }]);
+    await registrarHistorico(supabase, autor, [
+      { fatura_id: id, evento: "SITUACAO", detalhes: { de: anterior, para: status, ...(pago != null ? { valor_pago: pago } : {}) } },
+    ]);
   }
   revalidarFaturas(id);
 }
@@ -467,6 +507,7 @@ export async function gerarFaturasLote(
     itensValidos.map((it) => it.cliente_id)
   );
 
+  const taxas = await taxasAtraso(supabase);
   const pagamentoPorCliente = await pagamentoExistente(
     supabase,
     referencia,
@@ -537,6 +578,13 @@ export async function gerarFaturasLote(
       vencimento: it.vencimento || params.vencimento,
       status: params.status,
       pago_em: pagoEm(params.status, pagamentoPorCliente.get(it.cliente_id)),
+      valor_pago: valorPago(
+        params.status,
+        valores.valor_liquido,
+        it.vencimento || params.vencimento,
+        taxas,
+        pagamentoPorCliente.get(it.cliente_id)
+      ),
     };
   });
 

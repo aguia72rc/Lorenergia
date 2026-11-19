@@ -4,7 +4,8 @@ import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import ClienteFormFields from "@/components/ClienteFormFields";
 import ListaRecibos from "@/components/ListaRecibos";
-import { formatBRL } from "@/lib/format";
+import { formatBRL, dataNoRecife } from "@/lib/format";
+import { resumoPagamento } from "@/lib/pagamento";
 import { atualizarCliente } from "../actions";
 import type { Cliente } from "@/lib/types";
 
@@ -20,21 +21,26 @@ export default async function EditarClientePage({
   const { id } = await params;
   const aba = (await searchParams).aba === "recibos" ? "recibos" : "dados";
   const supabase = await createClient();
-  const [{ data }, { data: pagas }] = await Promise.all([
+  const [{ data }, { data: pagas }, { data: cfg }] = await Promise.all([
     supabase.from("clientes").select("*").eq("id", id).single(),
-    supabase
-      .from("faturas")
-      .select("id, referencia, valor_liquido, pago_em")
-      .eq("cliente_id", id)
-      .eq("status", "paga")
-      .order("referencia", { ascending: false }),
+    // "*" para funcionar com ou sem as colunas pago_em/valor_pago (migrações 0030 e 0033)
+    supabase.from("faturas").select("*").eq("cliente_id", id).eq("status", "paga").order("referencia", { ascending: false }),
+    supabase.from("configuracoes").select("multa_percentual, juros_mensal_percentual").eq("id", 1).maybeSingle(),
   ]);
 
   if (!data) notFound();
   const cliente = data as Cliente;
   const acao = atualizarCliente.bind(null, cliente.id);
-  const recibos = (pagas ?? []) as { id: string; referencia: string; valor_liquido: number; pago_em: string | null }[];
-  const totalPago = recibos.reduce((s, r) => s + (Number(r.valor_liquido) || 0), 0);
+  const taxas = {
+    multa: Number((cfg as { multa_percentual?: number } | null)?.multa_percentual ?? 2),
+    juros: Number((cfg as { juros_mensal_percentual?: number } | null)?.juros_mensal_percentual ?? 1),
+  };
+  type Paga = { id: string; referencia: string; valor_liquido: number; vencimento: string | null; pago_em?: string | null; valor_pago?: number | null };
+  const recibos = ((pagas ?? []) as Paga[]).map((f) => {
+    const pg = resumoPagamento(f, f.pago_em ? dataNoRecife(new Date(f.pago_em)) : null, taxas);
+    return { id: f.id, referencia: f.referencia, pago_em: f.pago_em ?? null, valor: pg.total, comEncargos: pg.encargos > 0 };
+  });
+  const totalPago = recibos.reduce((s, r) => s + r.valor, 0);
 
   const abaClasse = (ativa: boolean) =>
     `rounded-full px-4 py-1.5 text-sm font-semibold ${ativa ? "bg-brand-500 text-brand-950" : "glass text-slate-300 hover:bg-white/5"}`;
