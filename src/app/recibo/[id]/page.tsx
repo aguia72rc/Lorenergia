@@ -150,7 +150,15 @@ export default async function ReciboPage({ params }: { params: Promise<{ id: str
 
             <div className="flex flex-col items-center gap-1 pt-6 text-center">
               <p className="text-sm text-slate-600">Recife, {dataPorExtenso(dataRecibo)}.</p>
-              <div className="mt-8 w-64 border-t border-slate-400 pt-2">
+              {/* Rubrica: assinatura manuscrita sobre a linha (imagem do nome, não é assinatura digital certificada). */}
+              <p
+                aria-hidden
+                className="mt-4 -mb-3 select-none text-[42px] leading-none text-slate-800"
+                style={{ fontFamily: "'Great Vibes', 'Brush Script MT', cursive", transform: "rotate(-4deg)" }}
+              >
+                Lorenergia
+              </p>
+              <div className="w-64 border-t border-slate-400 pt-2">
                 <p className="font-semibold text-slate-900">Lorenergia</p>
                 <p className="text-xs text-slate-500">Energia solar compartilhada</p>
               </div>
