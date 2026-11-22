@@ -50,14 +50,20 @@ export const PONTOS = {
 } as const;
 export const PONTOS_TEMPO_REAL = [...new Set([...PONTOS.potencia, ...PONTOS.hoje, ...PONTOS.total])];
 
+/** Endereço de retorno cadastrado no aplicativo da Sungrow (produção). */
+export const REDIRECT_PADRAO = "https://lorenergia.com.br/api/sungrow/callback";
+
 /**
- * Endereço de autorização. A página é uma SPA: o `state` vai na query ANTES do
- * `#`; app, nuvem e endereço de retorno vão no fragmento.
+ * Endereço de autorização, no mesmo formato do link que o portal da Sungrow
+ * mostra (redirectUrl sem codificação). A página é uma SPA: o `state` vai na
+ * query ANTES do `#`; app, nuvem e endereço de retorno vão no fragmento.
  */
 export function urlAutorizacao(s: ServidorSungrow, appId: string, redirectUri: string, state: string): string {
+  // Só codifica se o endereço tiver caracteres que quebrariam o fragmento.
+  const retorno = /[&#?\s]/.test(redirectUri) ? encodeURIComponent(redirectUri) : redirectUri;
   return (
     `${s.web}/?state=${encodeURIComponent(state)}#/authorized-app?cloudId=${s.cloudId}` +
-    `&applicationId=${encodeURIComponent(appId)}&redirectUrl=${encodeURIComponent(redirectUri)}`
+    `&applicationId=${encodeURIComponent(appId)}&redirectUrl=${retorno}`
   );
 }
 

@@ -90,6 +90,14 @@ export default async function UsinasPage({ searchParams }: { searchParams: Promi
         </div>
       )}
 
+      {configurado && !estado.conectado && (
+        <p className="text-xs text-slate-500">
+          Endereço de retorno enviado à Sungrow:{" "}
+          <code className="rounded bg-white/10 px-1.5 py-0.5">{sungrowRedirectUri()}</code> — tem de ser idêntico ao
+          cadastrado no aplicativo do portal de desenvolvedor.
+        </p>
+      )}
+
       {estado.usinas.length > 0 && (
         <>
           <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">

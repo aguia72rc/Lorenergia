@@ -27,8 +27,11 @@ test("url de autorização: state antes do # e retorno codificado", () => {
   const url = urlAutorizacao(servidorSungrow("international"), "1234", "https://lorenergia.com.br/api/sungrow/callback", "abc");
   assert.equal(
     url,
-    "https://web3.isolarcloud.com.hk/?state=abc#/authorized-app?cloudId=2&applicationId=1234&redirectUrl=https%3A%2F%2Florenergia.com.br%2Fapi%2Fsungrow%2Fcallback"
+    "https://web3.isolarcloud.com.hk/?state=abc#/authorized-app?cloudId=2&applicationId=1234&redirectUrl=https://lorenergia.com.br/api/sungrow/callback"
   );
+  // Igual ao link do portal, exceto pelo state.
+  assert.ok(url.endsWith("#/authorized-app?cloudId=2&applicationId=1234&redirectUrl=https://lorenergia.com.br/api/sungrow/callback"));
+  assert.match(urlAutorizacao(servidorSungrow("international"), "1", "https://x.com/cb?a=1&b=2", "s"), /redirectUrl=https%3A%2F%2Fx\.com%2Fcb%3Fa%3D1%26b%3D2$/);
 });
 
 test("token: no topo ou em result_data, com folga na validade", () => {
