@@ -7,15 +7,16 @@
  *   SUNGROW_SECRET_KEY  Secret Key (vai no cabeçalho x-access-key)
  *   SUNGROW_APP_ID      Application Id (número do applicationId=)
  *   SUNGROW_SERVER      opcional: international (padrão), europe, china, australia, india
- *   SUNGROW_REDIRECT_URI opcional: padrão {SITE_URL}/api/sungrow/callback
+ *   SUNGROW_REDIRECT_URI opcional: padrão https://lorenergia.com.br/api/sungrow/callback
+ *                       (tem de ser IDÊNTICO ao cadastrado no aplicativo da Sungrow)
  */
 import { createAdminClient } from "@/lib/supabase/admin";
-import { SITE_URL } from "@/lib/site";
 import { dataNoRecife, hojeISO } from "@/lib/format";
 import {
   CAMINHOS,
   PONTOS,
   PONTOS_TEMPO_REAL,
+  REDIRECT_PADRAO,
   erroDaResposta,
   erroDeAutorizacao,
   geracaoDoMes,
@@ -54,7 +55,7 @@ export function sungrowConfigurado(): boolean {
 }
 
 export function sungrowRedirectUri(): string {
-  return process.env.SUNGROW_REDIRECT_URI?.trim() || `${SITE_URL}/api/sungrow/callback`;
+  return process.env.SUNGROW_REDIRECT_URI?.trim() || REDIRECT_PADRAO;
 }
 
 export function sungrowServidor() {
