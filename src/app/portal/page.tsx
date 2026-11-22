@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Leaf, Wallet, FileText, TrendingDown, ChevronRight, Home, ExternalLink, AlertTriangle, ReceiptText } from "lucide-react";
+import { Leaf, Wallet, FileText, TrendingDown, ChevronRight, Home, ExternalLink, AlertTriangle, ReceiptText, Sun } from "lucide-react";
+import { lerUsinas } from "@/lib/sungrow-servidor";
 import { createClient } from "@/lib/supabase/server";
 import { getSessao } from "@/lib/auth";
-import { formatBRL, formatReferencia, formatData, formatReferenciaCurta, hojeISO, dataNoRecife } from "@/lib/format";
+import { formatBRL, formatKwh, formatReferencia, formatData, formatReferenciaCurta, hojeISO, dataNoRecife } from "@/lib/format";
 import { calcularEncargosAtraso } from "@/lib/atraso";
 import { resumoPagamento } from "@/lib/pagamento";
 import StatusBadge from "@/components/StatusBadge";
@@ -38,7 +39,7 @@ export default async function PortalPage({ searchParams }: { searchParams: Promi
     );
   }
 
-  const [{ data: cliente }, { data: faturas }, { data: config }] = await Promise.all([
+  const [{ data: cliente }, { data: faturas }, { data: config }, usinas] = await Promise.all([
     supabase.from("clientes").select("*").eq("id", sessao.profile.cliente_id).single(),
     supabase
       .from("faturas")
@@ -46,6 +47,7 @@ export default async function PortalPage({ searchParams }: { searchParams: Promi
       .eq("cliente_id", sessao.profile.cliente_id)
       .order("referencia", { ascending: false }),
     supabase.from("configuracoes").select("*").eq("id", 1).single(),
+    lerUsinas(), // geração da usina (só os totais aparecem para o morador)
   ]);
 
   const c = cliente as Cliente;
@@ -133,6 +135,28 @@ export default async function PortalPage({ searchParams }: { searchParams: Promi
         <h1 className="text-2xl font-bold text-white" style={{ fontFamily: "var(--font-display)" }}>Olá, {c?.nome?.split(" ")[0]} 👋</h1>
         <p className="text-sm text-slate-400">Acompanhe suas faturas e sua economia com energia solar.</p>
       </div>
+
+      {usinas.conectado && usinas.usinas.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-brand-400/30 bg-brand-500/[0.07] p-5">
+          <div className="flex min-w-0 items-center gap-4">
+            <span className="relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-500/20 text-brand-300">
+              {usinas.totais.potenciaW >= 10 && <span className="absolute inset-0 rounded-xl bg-brand-400/20 animate-pulse" />}
+              <Sun className="relative h-6 w-6" />
+            </span>
+            <div className="min-w-0">
+              <p className="font-semibold text-white">
+                A usina gerou <span className="text-brand-300">{formatKwh(usinas.totais.hojeKwh)}</span> hoje ☀️
+              </p>
+              <p className="text-sm text-slate-300">
+                {usinas.totais.potenciaW >= 10
+                  ? `Gerando agora: ${(usinas.totais.potenciaW / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} kW de energia limpa.`
+                  : "Energia limpa gerada pelo sol para você."}
+                {usinas.totais.mesKwh > 0 && ` No mês: ${formatKwh(usinas.totais.mesKwh)}.`}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {reciboRecente && (
         <Link

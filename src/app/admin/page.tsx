@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { Users, FileText, Wallet, Leaf, Plus, AlertTriangle, Send, TrendingUp, CheckCircle2 } from "lucide-react";
+import { Users, FileText, Wallet, Leaf, Plus, AlertTriangle, Send, TrendingUp, CheckCircle2, Sun, ChevronRight } from "lucide-react";
+import { lerUsinas } from "@/lib/sungrow-servidor";
 import { createClient } from "@/lib/supabase/server";
-import { formatBRL, formatReferencia, formatReferenciaCurta, primeiroDiaMesAtual, hojeISO } from "@/lib/format";
+import { formatBRL, formatKwh, formatReferencia, formatReferenciaCurta, primeiroDiaMesAtual, hojeISO } from "@/lib/format";
 import StatusBadge from "@/components/StatusBadge";
 import FaturamentoChart from "@/components/FaturamentoChart";
 import EconomiaChart from "@/components/EconomiaChart";
@@ -15,6 +16,7 @@ export default async function AdminDashboard() {
   const supabase = await createClient();
   const refMes = primeiroDiaMesAtual();
 
+  const usinasPromessa = lerUsinas();
   const [{ count: totalMoradores }, { data: faturasMes }, { data: pendentes }, { data: vencidas }, { data: ultimas }, { data: todasFaturas }] =
     await Promise.all([
       supabase.from("clientes").select("*", { count: "exact", head: true }).eq("ativo", true),
@@ -29,6 +31,7 @@ export default async function AdminDashboard() {
       supabase.from("faturas").select("referencia, valor_liquido, status, economia, cashback_valor, modalidade_beneficio").eq("publicada", true),
     ]);
 
+  const usinas = await usinasPromessa;
   const receitaMes = (faturasMes ?? []).reduce((s, f) => s + Number(f.valor_liquido), 0);
   const economiaMes = (faturasMes ?? [])
     .filter((f) => f.status !== "cancelada")
@@ -90,6 +93,29 @@ export default async function AdminDashboard() {
         <Kpi icon={<FileText />} titulo="Faturado no mês" valor={receitaMes} fmt="brl" cor="bg-brand-500/15 text-brand-300" />
         <Kpi icon={<Leaf />} titulo="Economia gerada no mês" valor={economiaMes} fmt="brl" cor="bg-eco-500/15 text-eco-300" />
       </div>
+
+      {usinas.conectado && usinas.usinas.length > 0 && (
+        <Link href="/admin/usinas" className="card card-hover flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-brand-500/15 text-brand-300">
+              <Sun className="h-5 w-5" />
+            </span>
+            <div>
+              <p className="font-semibold text-white">Usinas agora</p>
+              <p className="text-xs text-slate-400">
+                {usinas.usinas.map((u) => u.status.rotulo).filter((r, i, a) => a.indexOf(r) === i).join(" · ")}
+                {usinas.erro ? " · sem atualização recente" : ""}
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-6 text-sm">
+            <span><span className="text-slate-400">Potência </span><strong className="text-white">{(usinas.totais.potenciaW / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 2 })} kW</strong></span>
+            <span><span className="text-slate-400">Hoje </span><strong className="text-white">{formatKwh(usinas.totais.hojeKwh)}</strong></span>
+            <span><span className="text-slate-400">Mês </span><strong className="text-white">{formatKwh(usinas.totais.mesKwh)}</strong></span>
+            <ChevronRight className="h-4 w-4 text-slate-500" />
+          </div>
+        </Link>
+      )}
 
       <div className="card">
         <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
