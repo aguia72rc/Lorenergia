@@ -17,8 +17,9 @@ import type { Cliente, Fatura, Configuracoes } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-export default async function PortalPage({ searchParams }: { searchParams: Promise<{ aba?: string }> }) {
-  const aba = (await searchParams).aba === "recibos" ? "recibos" : "faturas";
+export default async function PortalPage({ searchParams }: { searchParams: Promise<{ aba?: string; unidade?: string }> }) {
+  const params = await searchParams;
+  const aba = params.aba === "recibos" ? "recibos" : "faturas";
   const sessao = await getSessao();
   const supabase = await createClient();
 
@@ -39,12 +40,23 @@ export default async function PortalPage({ searchParams }: { searchParams: Promi
     );
   }
 
+  // Um mesmo login pode ter mais de um imóvel (cadastros com o mesmo e-mail): o banco devolve todos.
+  const { data: meusCadastros } = await supabase.from("clientes").select("*").order("created_at", { ascending: true });
+  const unidades = ((meusCadastros ?? []) as Cliente[]);
+  const unidadeSel = unidades.find((u) => u.id === params.unidade) ?? null;
+  const idsSel = unidadeSel ? [unidadeSel.id] : unidades.length ? unidades.map((u) => u.id) : [sessao.profile.cliente_id];
+  const nomeUnidade = (id: string) => {
+    const u = unidades.find((x) => x.id === id);
+    return u?.unidade || u?.endereco || "Imóvel";
+  };
+  const qsUnidade = unidadeSel ? `unidade=${unidadeSel.id}` : "";
+
   const [{ data: cliente }, { data: faturas }, { data: config }, usinas] = await Promise.all([
-    supabase.from("clientes").select("*").eq("id", sessao.profile.cliente_id).single(),
+    supabase.from("clientes").select("*").eq("id", unidadeSel?.id ?? sessao.profile.cliente_id).single(),
     supabase
       .from("faturas")
       .select("*")
-      .eq("cliente_id", sessao.profile.cliente_id)
+      .in("cliente_id", idsSel)
       .order("referencia", { ascending: false }),
     supabase.from("configuracoes").select("*").eq("id", 1).single(),
     lerUsinas(), // geração da usina (só os totais aparecem para o morador)
@@ -135,6 +147,31 @@ export default async function PortalPage({ searchParams }: { searchParams: Promi
         <h1 className="text-2xl font-bold text-white" style={{ fontFamily: "var(--font-display)" }}>Olá, {c?.nome?.split(" ")[0]} 👋</h1>
         <p className="text-sm text-slate-400">Acompanhe suas faturas e sua economia com energia solar.</p>
       </div>
+
+      {unidades.length > 1 && (
+        <div className="flex flex-wrap items-center gap-2" role="tablist" aria-label="Seus imóveis">
+          <span className="mr-1 text-sm text-slate-400">Seus imóveis:</span>
+          <Link
+            href="/portal"
+            role="tab"
+            aria-selected={!unidadeSel}
+            className={`rounded-full px-4 py-1.5 text-sm font-semibold ${!unidadeSel ? "bg-brand-500 text-brand-950" : "glass text-slate-300 hover:bg-white/5"}`}
+          >
+            Todos
+          </Link>
+          {unidades.map((u) => (
+            <Link
+              key={u.id}
+              href={`/portal?unidade=${u.id}`}
+              role="tab"
+              aria-selected={unidadeSel?.id === u.id}
+              className={`rounded-full px-4 py-1.5 text-sm font-semibold ${unidadeSel?.id === u.id ? "bg-brand-500 text-brand-950" : "glass text-slate-300 hover:bg-white/5"}`}
+            >
+              {nomeUnidade(u.id)}
+            </Link>
+          ))}
+        </div>
+      )}
 
       {usinas.conectado && usinas.usinas.length > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-brand-400/30 bg-brand-500/[0.07] p-5">
@@ -333,7 +370,7 @@ export default async function PortalPage({ searchParams }: { searchParams: Promi
       <div className="card" id="lista">
         <div className="mb-4 flex flex-wrap gap-2" role="tablist" aria-label="Faturas e recibos">
           <Link
-            href="/portal#lista"
+            href={`/portal${qsUnidade ? `?${qsUnidade}` : ""}#lista`}
             scroll={false}
             role="tab"
             aria-selected={aba !== "recibos"}
@@ -342,7 +379,7 @@ export default async function PortalPage({ searchParams }: { searchParams: Promi
             Minhas faturas
           </Link>
           <Link
-            href="/portal?aba=recibos#lista"
+            href={`/portal?aba=recibos${qsUnidade ? `&${qsUnidade}` : ""}#lista`}
             scroll={false}
             role="tab"
             aria-selected={aba === "recibos"}
@@ -367,7 +404,12 @@ export default async function PortalPage({ searchParams }: { searchParams: Promi
                   className="-mx-2 flex items-center justify-between rounded-xl px-2 py-3 transition-colors hover:bg-white/5"
                 >
                   <div>
-                    <p className="font-medium capitalize text-white">{formatReferencia(f.referencia)}</p>
+                    <p className="font-medium capitalize text-white">
+                      {formatReferencia(f.referencia)}
+                      {unidades.length > 1 && !unidadeSel && (
+                        <span className="ml-2 rounded-full bg-white/10 px-2 py-0.5 text-xs font-normal normal-case text-slate-300">{nomeUnidade(f.cliente_id)}</span>
+                      )}
+                    </p>
                     <p className={`text-xs ${vencida ? "text-red-300" : "text-slate-400"}`}>
                       {vencida
                         ? `Vencida há ${e!.diasAtraso} dia(s) · com multa e juros`
