@@ -81,6 +81,8 @@ export interface Fatura {
   status: StatusFatura;
   pago_em?: string | null; // quando foi marcada como paga (migração 0030)
   valor_pago?: number | null; // quanto foi pago, com multa e juros se em atraso (migração 0033)
+  creditos_saldo_kwh?: number | null; // saldo de créditos acumulados na Neoenergia (kWh)
+  creditos_meses?: number | null; // quantos meses de consumo o saldo cobre
   observacoes: string | null;
   whatsapp_enviado_em: string | null;
   lembrete_enviado_em?: string | null; // último lembrete de vencimento (migração 0031)

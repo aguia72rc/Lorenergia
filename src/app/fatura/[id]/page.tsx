@@ -316,6 +316,26 @@ export default async function FaturaPage({ params }: { params: Promise<{ id: str
               </div>
             </div>
 
+            {/* Créditos acumulados (vindos da conta da Neoenergia) */}
+            {f.creditos_saldo_kwh != null && (
+              <div className="mt-5 rounded-xl border border-eco-400/40 bg-eco-50 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-eco-700">☀️ Créditos acumulados para os próximos ciclos</p>
+                {Number(f.creditos_saldo_kwh) > 0 ? (
+                  <div className="mt-2 flex flex-wrap items-end justify-between gap-2">
+                    <p className="text-2xl font-extrabold text-eco-700 tabular-nums">{numero(f.creditos_saldo_kwh, 0)} kWh</p>
+                    {Number(f.creditos_meses) > 0 && (
+                      <p className="text-sm text-eco-700">
+                        Cobre cerca de <strong>{numero(f.creditos_meses, 1)} {Number(f.creditos_meses) >= 2 ? "meses" : "mês"}</strong> do seu consumo
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="mt-2 text-sm text-eco-700">Neste ciclo todos os créditos foram usados no seu consumo — não ficou saldo acumulado.</p>
+                )}
+                <p className="mt-2 text-xs text-slate-500">Saldo informado na sua conta da Neoenergia. Esses créditos são abatidos automaticamente nas próximas contas.</p>
+              </div>
+            )}
+
             {/* Gráficos */}
             {pontosConsumo.length >= 2 && (
               <div className="mt-5 rounded-xl border border-slate-200 p-4">
