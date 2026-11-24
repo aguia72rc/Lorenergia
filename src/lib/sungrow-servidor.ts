@@ -165,6 +165,8 @@ export interface UsinaPainel {
   curva: PontoCurva[];
   lidoEm: string;
   dados: unknown;
+  /** Aparece no portal dos moradores (escolha do admin; padrão: não). */
+  exibirPortal: boolean;
 }
 
 export interface EstadoSungrow {
@@ -191,6 +193,7 @@ interface LinhaUsina {
   curva_lida_em: string | null;
   dados: unknown;
   lido_em: string;
+  exibir_portal?: boolean | null;
 }
 
 async function buscarCurva(token: string, psId: string): Promise<PontoCurva[]> {
@@ -220,7 +223,11 @@ async function buscarCurva(token: string, psId: string): Promise<PontoCurva[]> {
 
 /** Consulta a Sungrow e grava o resultado (usinas + geração do dia). */
 async function atualizarDaApi(db: Db, token: string, anteriores: LinhaUsina[]) {
-  const usinas = interpretarUsinas(await chamarApi(CAMINHOS.usinas, { page: 1, size: 100 }, token)).slice(0, 20);
+  const listaBruta = await chamarApi(CAMINHOS.usinas, { page: 1, size: 100 }, token);
+  const usinas = interpretarUsinas(listaBruta).slice(0, 20);
+  // Resposta original de cada usina, guardada para conferência (ex.: nome do campo da capacidade).
+  const paginas = (listaBruta as { pageList?: unknown[] } | null)?.pageList ?? [];
+  const bruto = (psId: string) => paginas.find((p) => String((p as { ps_id?: unknown })?.ps_id) === psId) ?? null;
   if (usinas.length === 0) throw new ErroSungrow("Nenhuma usina autorizada na conta. Reconecte e marque a usina na página da iSolarCloud.");
   const tempoReal = interpretarTempoReal(
     await chamarApi(CAMINHOS.tempoReal, { ps_id_list: usinas.map((u) => u.psId), point_id_list: PONTOS_TEMPO_REAL, is_get_point_dict: "1" }, token)
@@ -254,7 +261,7 @@ async function atualizarDaApi(db: Db, token: string, anteriores: LinhaUsina[]) {
       falha: u.falha,
       curva_hoje: curva ?? null,
       curva_lida_em: curvaLida,
-      dados: { usina: u, tempo_real: r },
+      dados: { usina: u, tempo_real: r, sungrow: bruto(u.psId) },
       lido_em: agora,
     });
   }
@@ -283,7 +290,7 @@ const vazio = (parcial: Partial<EstadoSungrow>): EstadoSungrow => ({
  * Estado das usinas para as telas. Usa o que está gravado se tiver menos de
  * 5 minutos; senão consulta a Sungrow. Nunca lança: erros vêm em `erro`.
  */
-export async function lerUsinas(opcoes: { forcar?: boolean } = {}): Promise<EstadoSungrow> {
+export async function lerUsinas(opcoes: { forcar?: boolean; somentePortal?: boolean } = {}): Promise<EstadoSungrow> {
   if (!sungrowConfigurado()) return vazio({});
   let db: Db;
   try {
@@ -318,7 +325,7 @@ export async function lerUsinas(opcoes: { forcar?: boolean } = {}): Promise<Esta
   const hoje = hojeISO();
   const agoraMs = Date.now();
 
-  const usinas: UsinaPainel[] = linhas.map((l) => {
+  let usinas: UsinaPainel[] = linhas.map((l) => {
     const m = geracaoDoMes((diasMes ?? []).filter((d) => d.ps_id === l.ps_id) as { dia: string; geracao_kwh: number }[], hoje);
     const lidaHoje = dataNoRecife(new Date(l.lido_em)) === hoje;
     return {
@@ -334,9 +341,12 @@ export async function lerUsinas(opcoes: { forcar?: boolean } = {}): Promise<Esta
       curva: l.curva_lida_em && dataNoRecife(new Date(l.curva_lida_em)) === hoje ? l.curva_hoje ?? [] : [],
       lidoEm: l.lido_em,
       dados: l.dados,
+      exibirPortal: l.exibir_portal === true,
     };
   });
 
+  // Portal dos moradores: só as usinas que o admin liberou.
+  if (opcoes.somentePortal) usinas = usinas.filter((u) => u.exibirPortal);
   const soma = (f: (u: UsinaPainel) => number | null) => usinas.reduce((s, u) => s + (f(u) ?? 0), 0);
   return vazio({
     conectado: true,
@@ -352,4 +362,11 @@ export async function lerUsinas(opcoes: { forcar?: boolean } = {}): Promise<Esta
       capacidadeKwp: soma((u) => u.capacidadeKwp),
     },
   });
+}
+
+/** Liga/desliga a exibição de uma usina no portal dos moradores. */
+export async function definirExibirPortal(psId: string, exibir: boolean) {
+  const db = createAdminClient();
+  const { error } = await db.from("usinas").update({ exibir_portal: exibir }).eq("ps_id", psId);
+  if (error) throw new ErroSungrow("Não foi possível salvar. A migração 0035 foi rodada?");
 }

@@ -59,7 +59,7 @@ export default async function PortalPage({ searchParams }: { searchParams: Promi
       .in("cliente_id", idsSel)
       .order("referencia", { ascending: false }),
     supabase.from("configuracoes").select("*").eq("id", 1).single(),
-    lerUsinas(), // geração da usina (só os totais aparecem para o morador)
+    lerUsinas({ somentePortal: true }), // só as usinas liberadas pelo admin, e só os totais
   ]);
 
   const c = cliente as Cliente;
