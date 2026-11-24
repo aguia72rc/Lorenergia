@@ -5,7 +5,7 @@ import { Aviso, CartaoUsina, KpiUsina as Kpi, kw } from "@/components/UsinaCarta
 import AtualizarAuto from "@/components/AtualizarAuto";
 import { getSessao } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { atualizarUsinasAgora, desconectarUsinas } from "./actions";
+import { alternarPortalUsina, atualizarUsinasAgora, desconectarUsinas } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -111,7 +111,7 @@ export default async function UsinasPage({ searchParams }: { searchParams: Promi
             <Kpi icon={<Gauge />} titulo="Total gerado" valor={formatKwh(estado.totais.totalKwh)} cor="bg-blue-500/15 text-blue-300" />
           </div>
 
-          {estado.usinas.map((u) => <CartaoUsina key={u.psId} u={u} />)}
+          {estado.usinas.map((u) => <CartaoUsina key={u.psId} u={u} acaoPortal={alternarPortalUsina} />)}
 
           <form action={desconectarUsinas} className="text-right">
             <button type="submit" className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-red-300">

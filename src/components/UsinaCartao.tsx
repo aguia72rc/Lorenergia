@@ -1,4 +1,4 @@
-import { Sun, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Sun, AlertTriangle, CheckCircle2, Eye, EyeOff } from "lucide-react";
 import { formatData, formatKwh } from "@/lib/format";
 import type { UsinaPainel } from "@/lib/sungrow-servidor";
 import type { CodigoStatus } from "@/lib/sungrow";
@@ -21,7 +21,7 @@ const ESTILO_STATUS: Record<CodigoStatus, string> = {
   falha: "bg-red-500/15 text-red-300 border-red-500/30",
 };
 
-export function CartaoUsina({ u }: { u: UsinaPainel }) {
+export function CartaoUsina({ u, acaoPortal }: { u: UsinaPainel; acaoPortal?: (fd: FormData) => Promise<void> }) {
   const fracao = u.capacidadeKwp && u.potenciaW !== null ? Math.min(1, u.potenciaW / 1000 / u.capacidadeKwp) : null;
   return (
     <div className="card space-y-5">
@@ -61,6 +61,20 @@ export function CartaoUsina({ u }: { u: UsinaPainel }) {
         <p className="mb-2 text-sm font-medium text-slate-300">Potência ao longo de hoje <span className="text-xs font-normal text-slate-500">(kW)</span></p>
         <CurvaGeracaoChart pontos={u.curva} />
       </div>
+
+      {acaoPortal && (
+        <form action={acaoPortal} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/5 p-3">
+          <input type="hidden" name="ps_id" value={u.psId} />
+          <input type="hidden" name="exibir" value={u.exibirPortal ? "0" : "1"} />
+          <p className="flex items-center gap-2 text-sm text-slate-300">
+            {u.exibirPortal ? <Eye className="h-4 w-4 text-eco-300" /> : <EyeOff className="h-4 w-4 text-slate-500" />}
+            {u.exibirPortal ? "Aparece no portal dos moradores" : "Não aparece no portal dos moradores"}
+          </p>
+          <button type="submit" className="btn-outline text-xs">
+            {u.exibirPortal ? "Ocultar do portal" : "Exibir no portal"}
+          </button>
+        </form>
+      )}
 
       <details className="text-xs text-slate-500">
         <summary className="cursor-pointer hover:text-slate-300">Dados recebidos da Sungrow</summary>

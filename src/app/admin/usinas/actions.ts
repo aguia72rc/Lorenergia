@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getSessao } from "@/lib/auth";
-import { desconectarSungrow, lerUsinas } from "@/lib/sungrow-servidor";
+import { definirExibirPortal, desconectarSungrow, lerUsinas } from "@/lib/sungrow-servidor";
 
 async function exigirAdmin() {
   const sessao = await getSessao();
@@ -22,4 +22,14 @@ export async function desconectarUsinas() {
   await desconectarSungrow();
   revalidatePath("/admin/usinas");
   revalidatePath("/admin");
+}
+
+/** Chave "Exibir no portal dos moradores" de cada usina. */
+export async function alternarPortalUsina(formData: FormData) {
+  await exigirAdmin();
+  const psId = String(formData.get("ps_id") ?? "");
+  if (!psId) return;
+  await definirExibirPortal(psId, formData.get("exibir") === "1");
+  revalidatePath("/admin/usinas");
+  revalidatePath("/portal");
 }
